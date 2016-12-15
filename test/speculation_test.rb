@@ -56,4 +56,13 @@ class SpeculationTest < Minitest::Test
     assert_equal [:name, "abc"], S.conform(:name_or_id, "abc")
     assert_equal [:id, 100], S.conform(:name_or_id, 100)
   end
+
+  def test_cat_sequence
+    S.def(:number?, -> (x) { x.is_a?(Numeric) })
+    S.def(:symbol?, -> (x) { x.is_a?(Symbol) })
+
+    S.def(:ingredient, S.cat(quantity: :number?, unit: :symbol?))
+
+    assert_equal({ quantity: 2, unit: :teaspoon }, S.conform(:ingredient, [2, :teaspoon]))
+  end
 end
