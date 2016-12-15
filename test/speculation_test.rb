@@ -45,4 +45,15 @@ class SpeculationTest < Minitest::Test
     refute S.valid?(:big_even, 10)
     assert S.valid?(:big_even, 1_000_000)
   end
+
+  def test_or_composition
+    S.def(:int?, -> (x) { x.is_a?(Integer) })
+    S.def(:string?, -> (x) { x.is_a?(String) })
+
+    S.def(:name_or_id, S.or(name: :string?, id: :int?))
+
+    assert_equal :"Speculation::Core/invalid", S.conform(:name_or_id, :foo)
+    assert_equal [:name, "abc"], S.conform(:name_or_id, "abc")
+    assert_equal [:id, 100], S.conform(:name_or_id, 100)
+  end
 end

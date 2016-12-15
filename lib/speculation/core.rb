@@ -29,7 +29,6 @@ module Speculation
       end
 
       def conform(value)
-        # specs were delayed
         @specs.value.each do |spec|
           value = spec.conform(value)
 
@@ -42,19 +41,42 @@ module Speculation
       end
     end
 
+    class OrSpec < Spec
+      def initialize(keys, specs)
+        @keys = keys
+        @specs = specs
+      end
+
+      def conform(value)
+        @specs.value.each_with_index do |spec, index|
+          conformed = spec.conform(value)
+
+          unless Speculation::Core.invalid?(conformed)
+            return [@keys[index], value]
+          end
+        end
+
+        :"Speculation::Core/invalid"
+      end
+    end
+
+    def self.registry
+      REGISTRY
+    end
+
     def self.def(name, spec)
       unless spec.is_a?(Spec)
         # More cases here!
         spec = PredicateSpec.new(spec)
       end
 
-      REGISTRY.swap { |reg| reg.put(name, spec) }
+      registry.swap { |reg| reg.put(name, spec) }
 
       name
     end
 
     def self.reset_registry!
-      REGISTRY.swap { Hamster::Hash[] }
+      registry.swap { Hamster::Hash[] }
     end
 
     def self.conform(spec, value)
@@ -82,12 +104,22 @@ module Speculation
       AndSpec.new(delayed_specs)
     end
 
+    def self.or(named_specs)
+      keys = named_specs.keys
+
+      delayed_specs = Concurrent::Delay.new do
+        named_specs.values.map { |spec| specize(spec) }
+      end
+
+      OrSpec.new(keys, delayed_specs)
+    end
+
     ### private ###
 
     def self.specize(spec)
       case spec
       when Speculation::Core::Spec then spec
-      when Symbol then REGISTRY.value.fetch(spec)
+      when Symbol then registry.value.fetch(spec)
       else
         if spec.respond_to?(:call)
           PredicateSpec.new(spec)
