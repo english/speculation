@@ -25,14 +25,28 @@ module Speculation
       name
     end
 
-    def self.conform(spec_name, value)
-      spec = REGISTRY.value.fetch(spec_name)
+    def self.conform(spec, value)
+      spec = specize(spec)
       spec.conform(value)
     end
 
-    def self.valid?(spec_name, value)
-      spec = REGISTRY.value.fetch(spec_name)
-      spec.conform(value) != :"Speculation::Core/invalid"
+    def self.valid?(spec, value)
+      spec = specize(spec)
+      !spec.conform(value).equal?(:"Speculation::Core/invalid")
+    end
+
+    def self.specize(spec)
+      case spec
+      when Speculation::Core::Spec then spec
+      when Symbol then REGISTRY.value.fetch(spec)
+      else
+        if spec.respond_to?(:call)
+          Spec.new(spec)
+        else
+          raise ArgumentError,
+            "spec: #{spec} must be a Spec, Symbol or callable, given #{spec.class}"
+        end
+      end
     end
   end
 end
