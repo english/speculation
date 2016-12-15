@@ -13,5 +13,8 @@ class SpeculationTest < Minitest::Test
 
     assert_equal 2, S.conform(:integer, 2)
     assert_equal :"Speculation::Core/invalid", S.conform(:integer, "two")
+
+    assert S.valid?(:integer, 2)
+    refute S.valid?(:integer, "two")
   end
 end

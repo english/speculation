@@ -29,5 +29,10 @@ module Speculation
       spec = REGISTRY.value.fetch(spec_name)
       spec.conform(value)
     end
+
+    def self.valid?(spec_name, value)
+      spec = REGISTRY.value.fetch(spec_name)
+      spec.conform(value) != :"Speculation::Core/invalid"
+    end
   end
 end
