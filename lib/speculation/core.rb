@@ -12,6 +12,7 @@ module Speculation
 
     class Spec
       attr_writer :name
+
       def [](k)
         nil
       end
@@ -40,7 +41,7 @@ module Speculation
         @specs.value.each do |spec|
           value = spec.conform(value)
 
-          if Speculation::Core.invalid?(value)
+          if Core.invalid?(value)
             return :"Speculation::Core/invalid"
           end
         end
@@ -59,7 +60,7 @@ module Speculation
         @specs.value.each_with_index do |spec, index|
           conformed = spec.conform(value)
 
-          unless Speculation::Core.invalid?(conformed)
+          unless Core.invalid?(conformed)
             return [@keys[index], value]
           end
         end
@@ -75,164 +76,9 @@ module Speculation
 
       def conform(value)
         if value.nil? or value.respond_to?(:each)
-          re_conform(@regexp, value.each.to_a)
+          Core.re_conform(@regexp, value.each.to_a)
         else
           :"Speculation::Core/invalid"
-        end
-      end
-
-      private
-
-      def re_conform(p, data)
-        x, *xs = data
-
-        if data.empty?
-          if accept_nil?(p)
-            ret = preturn(p)
-
-            if ret == :"Speculation::Core/invalid"
-              nil
-            else
-              ret
-            end
-          else
-            :"Speculation::Core/invalid"
-          end
-        else
-          dp = deriv(p, x)
-
-          if dp
-            re_conform(dp, xs)
-          else
-            :"Speculation::Core/invalid"
-          end
-        end
-      end
-
-      def accept_nil?(p)
-        p = Speculation::Core.reg_resolve!(p)
-
-        case p[:op]
-        when :"Speculation::Core/accept" then true
-        when nil then nil
-        when :"Speculation::Core/pcat" then p[:ps].all? { |p| accept_nil?(p) }
-        when :"Speculation::Core/alt" then p[:ps].find { |p| accept_nil?(p) }
-        else raise "Balls #{p.inspect}"
-        end
-      end
-
-      def preturn(p)
-        p = Speculation::Core.reg_resolve!(p)
-        p0, *pr = p[:ps]
-        k, *ks = [:keys]
-
-        case p[:op]
-        when :"Speculation::Core/accept" then p[:ret]
-        when nil then nil
-        when :"Speculation::Core/pcat" then add_ret(p[:p1], p[:ret], k)
-        when :"Speculation::Core/alt"
-          ps, ks = filter_alt(ps, ks, method(:accept_nil?))
-          r = if ps.first.nil?
-                :"Speculation::Core/nil"
-              else
-                preturn(ps.first)
-              end
-          if ks.first
-            [ks.first, r]
-          else
-            r
-          end
-        else raise "Balls #{p.inspect}"
-        end
-      end
-
-      def filter_alt(ps, ks, f)
-        if ks
-          pks = ps.zip(ks).filter { |xs| f.call(xs.first) }
-          [pks.map(&:first), pks.map(&:second)]
-        else
-          [ps.filter(&f), ks]
-        end
-      end
-
-      def deriv(p, x)
-        p = Speculation::Core.reg_resolve!(p)
-        return unless p
-
-        case p[:op]
-        when :"Speculation::Core/accept" then nil
-        when nil
-          ret = dt(p, x)
-          if !Speculation::Core.invalid?(ret)
-            Speculation::Core.accept(ret)
-          end
-        when :"Speculation::Core/pcat"
-          ret = p[:ret]
-
-          ps = p[:ps]
-          p0, *pr = ps
-
-          ks = p[:ks]
-          k0, *kr = ks
-
-          Speculation::Core.alt2(
-            Speculation::Core.pcat(Hash[ps: Vector[deriv(p0, x), *pr], ks: ks, ret: ret]),
-            (accept_nil?(p0) and deriv(pcat(Hash[ps: pr, ks: kr, ret: add_ret(p0, ret, k0)]), x))
-          )
-        when :"Speculation::Core/alt"
-          Speculation::Core._alt(p[:ps].map { |p| deriv(p, x) }, p[:ks])
-        else
-          raise "Balls #{p.inspect}, #{x}"
-        end
-      end
-
-      def dt(spec, x)
-        return x unless spec
-
-        spec = Speculation::Core.reg_resolve!(spec)
-        spec.conform(x)
-      end
-
-      def add_ret(p, r, k)
-        p = Speculation::Core.reg_resolve!(p)
-        prop = -> do
-          ret = preturn(p)
-          if ret.empty?
-            r
-          else
-            if p[:splice]
-              if k
-                r.add(Hash[k => ret])
-              else
-                r.add(ret)
-              end
-            else
-              if k
-                r.merge(k, ret)
-              else
-                r.add(ret)
-              end
-            end
-          end
-        end
-
-        op = p && p[:op]
-
-        case op
-        when nil then r
-        when :"Speculation::Core/accept"
-          ret = preturn(p)
-          if ret == :nil
-            r
-          else
-            if k
-              r.merge(k, ret)
-            else
-              r.add(ret)
-            end
-          end
-        when :"Speculation::Core/pcat"
-          prop.call
         end
       end
     end
@@ -363,7 +209,7 @@ module Speculation
 
     def self.specize(spec)
       case spec
-      when Speculation::Core::Spec then spec
+      when Core::Spec then spec
       when Symbol then reg_resolve!(spec)
       else
         if spec.respond_to?(:call)
@@ -396,6 +242,159 @@ module Speculation
       return ret unless accept?(p1)
 
       accept([k1, p1[:ret]])
+    end
+
+    def self.re_conform(p, data)
+      x, *xs = data
+
+      if data.empty?
+        if accept_nil?(p)
+          ret = preturn(p)
+
+          if ret == :"Speculation::Core/invalid"
+            nil
+          else
+            ret
+          end
+        else
+          :"Speculation::Core/invalid"
+        end
+      else
+        dp = deriv(p, x)
+
+        if dp
+          re_conform(dp, xs)
+        else
+          :"Speculation::Core/invalid"
+        end
+      end
+    end
+
+    def self.accept_nil?(p)
+      p = reg_resolve!(p)
+
+      case p[:op]
+      when :"Speculation::Core/accept" then true
+      when nil then nil
+      when :"Speculation::Core/pcat" then p[:ps].all? { |p| accept_nil?(p) }
+      when :"Speculation::Core/alt" then p[:ps].find { |p| accept_nil?(p) }
+      else raise "Balls #{p.inspect}"
+      end
+    end
+
+    def self.preturn(p)
+      p = reg_resolve!(p)
+      p0, *pr = p[:ps]
+      k, *ks = [:keys]
+
+      case p[:op]
+      when :"Speculation::Core/accept" then p[:ret]
+      when nil then nil
+      when :"Speculation::Core/pcat" then add_ret(p[:p1], p[:ret], k)
+      when :"Speculation::Core/alt"
+        ps, ks = filter_alt(ps, ks, method(:accept_nil?))
+        r = if ps.first.nil?
+              :"Speculation::Core/nil"
+            else
+              preturn(ps.first)
+            end
+        if ks.first
+          [ks.first, r]
+        else
+          r
+        end
+      else raise "Balls #{p.inspect}"
+      end
+    end
+
+    def self.filter_alt(ps, ks, f)
+      if ks
+        pks = ps.zip(ks).filter { |xs| f.call(xs.first) }
+        [pks.map(&:first), pks.map(&:second)]
+      else
+        [ps.filter(&f), ks]
+      end
+    end
+
+    def self.deriv(p, x)
+      p = reg_resolve!(p)
+      return unless p
+
+      case p[:op]
+      when :"Speculation::Core/accept" then nil
+      when nil
+        ret = dt(p, x)
+        if !invalid?(ret)
+          accept(ret)
+        end
+      when :"Speculation::Core/pcat"
+        ret = p[:ret]
+
+        ps = p[:ps]
+        p0, *pr = ps
+
+        ks = p[:ks]
+        k0, *kr = ks
+
+        alt2(
+          pcat(Hash[ps: Vector[deriv(p0, x), *pr], ks: ks, ret: ret]),
+          (accept_nil?(p0) and deriv(pcat(Hash[ps: pr, ks: kr, ret: add_ret(p0, ret, k0)]), x))
+        )
+      when :"Speculation::Core/alt"
+        _alt(p[:ps].map { |p| deriv(p, x) }, p[:ks])
+      else
+        raise "Balls #{p.inspect}, #{x}"
+      end
+    end
+
+    def self.dt(spec, x)
+      return x unless spec
+
+      spec = reg_resolve!(spec)
+      spec.conform(x)
+    end
+
+    def self.add_ret(p, r, k)
+      p = reg_resolve!(p)
+      prop = -> do
+        ret = preturn(p)
+        if ret.empty?
+          r
+        else
+          if p[:splice]
+            if k
+              r.add(Hash[k => ret])
+            else
+              r.add(ret)
+            end
+          else
+            if k
+              r.merge(k, ret)
+            else
+              r.add(ret)
+            end
+          end
+        end
+      end
+
+      op = p && p[:op]
+
+      case op
+      when nil then r
+      when :"Speculation::Core/accept"
+        ret = preturn(p)
+        if ret == :nil
+          r
+        else
+          if k
+            r.merge(k, ret)
+          else
+            r.add(ret)
+          end
+        end
+      when :"Speculation::Core/pcat"
+        prop.call
+      end
     end
   end
 end
