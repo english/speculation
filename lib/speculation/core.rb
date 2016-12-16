@@ -115,9 +115,9 @@ module Speculation
         case p[:op]
         when :"Speculation::Core/accept" then true
         when nil then nil
-        # when :"Speculation::Core/amp" nooop
         when :"Speculation::Core/pcat" then p[:ps].all? { |p| accept_nil?(p) }
-        else raise "Balls #{}"
+        when :"Speculation::Core/alt" then p[:ps].find { |p| accept_nil?(p) }
+        else raise "Balls #{p.inspect}"
         end
       end
 
@@ -130,6 +130,28 @@ module Speculation
         when :"Speculation::Core/accept" then p[:ret]
         when nil then nil
         when :"Speculation::Core/pcat" then add_ret(p[:p1], p[:ret], k)
+        when :"Speculation::Core/alt"
+          ps, ks = filter_alt(ps, ks, method(:accept_nil?))
+          r = if ps.first.nil?
+                :"Speculation::Core/nil"
+              else
+                preturn(ps.first)
+              end
+          if ks.first
+            [ks.first, r]
+          else
+            r
+          end
+        else raise "Balls #{p.inspect}"
+        end
+      end
+
+      def filter_alt(ps, ks, f)
+        if ks
+          pks = ps.zip(ks).filter { |xs| f.call(xs.first) }
+          [pks.map(&:first), pks.map(&:second)]
+        else
+          [ps.filter(&f), ks]
         end
       end
 
@@ -157,16 +179,18 @@ module Speculation
             Speculation::Core.pcat(Hash[ps: Vector[deriv(p0, x), *pr], ks: ks, ret: ret]),
             (accept_nil?(p0) and deriv(pcat(Hash[ps: pr, ks: kr, ret: add_ret(p0, ret, k0)]), x))
           )
+        when :"Speculation::Core/alt"
+          Speculation::Core._alt(p[:ps].map { |p| deriv(p, x) }, p[:ks])
+        else
+          raise "Balls #{p.inspect}, #{x}"
         end
       end
 
       def dt(spec, x)
-        if spec
-          spec = Speculation::Core.reg_resolve!(spec)
-          spec.conform(x)
-        else
-          x
-        end
+        return x unless spec
+
+        spec = Speculation::Core.reg_resolve!(spec)
+        spec.conform(x)
       end
 
       def add_ret(p, r, k)
@@ -277,6 +301,10 @@ module Speculation
       RegexpSpec.new(regexp)
     end
 
+    def self.alt(kv_specs)
+      _alt(kv_specs.values, kv_specs.keys)
+    end
+
     ######## crazy shit ########
 
     def self.pcat(hash)
@@ -349,17 +377,21 @@ module Speculation
 
     def self.alt2(p1, p2)
       if p1 and p2
-        alt([p1, p2], nil)
+        _alt([p1, p2], nil)
       else
         p1 or p2
       end
     end
 
-    def self.alt(ps, ks)
+    def self._alt(ps, ks)
       return unless ps
+
+      p1, *pr = ps
+      k1, *kr = ks
 
       ret = Hash[op: :"Speculation::Core/alt", ps: ps, ks: ks]
       return ret if pr.nil?
+
       return p1 unless k1
       return ret unless accept?(p1)
 

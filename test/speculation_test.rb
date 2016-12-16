@@ -1,8 +1,10 @@
 require 'test_helper'
 require 'speculation/core'
+require 'hamster/hash'
 
 class SpeculationTest < Minitest::Test
   S = Speculation::Core
+  Hash = Hamster::Hash
 
   def setup
     Speculation::Core.reset_registry!
@@ -60,9 +62,16 @@ class SpeculationTest < Minitest::Test
   def test_cat_sequence
     S.def(:number?, -> (x) { x.is_a?(Numeric) })
     S.def(:symbol?, -> (x) { x.is_a?(Symbol) })
+    S.def(:string?, -> (x) { x.is_a?(String) })
+    S.def(:boolean?, -> (x) { [true, false].include?(x) })
 
     S.def(:ingredient, S.cat(quantity: :number?, unit: :symbol?))
 
     assert_equal({ quantity: 2, unit: :teaspoon }, S.conform(:ingredient, [2, :teaspoon]))
+
+    S.def(:config, S.cat(prop: :string?, val: S.alt(s: :string?, b: :boolean?)))
+
+    assert_equal(Hash[prop: "-server", val: [:s, "foo"]],
+                 S.conform(:config, ["-server", "foo"]))
   end
 end
