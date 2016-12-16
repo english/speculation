@@ -10,6 +10,10 @@ module Speculation
   module Core
     REGISTRY = Concurrent::Atom.new(Hash[])
 
+    def self.ns(sym)
+      :"#{self}/#{sym}"
+    end
+
     class Spec
       attr_writer :name
 
@@ -27,7 +31,7 @@ module Speculation
         if @predicate.call(value)
           value
         else
-          :"Speculation::Core/invalid"
+          Core.ns(:invalid)
         end
       end
     end
@@ -42,7 +46,7 @@ module Speculation
           value = spec.conform(value)
 
           if Core.invalid?(value)
-            return :"Speculation::Core/invalid"
+            return Core.ns(:invalid)
           end
         end
 
@@ -65,7 +69,7 @@ module Speculation
           end
         end
 
-        :"Speculation::Core/invalid"
+        Core.ns(:invalid)
       end
     end
 
@@ -78,7 +82,7 @@ module Speculation
         if value.nil? or value.respond_to?(:each)
           Core.re_conform(@regexp, value.each.to_a)
         else
-          :"Speculation::Core/invalid"
+          :invalid.ns(Core)
         end
       end
     end
@@ -118,7 +122,7 @@ module Speculation
     end
 
     def self.invalid?(value)
-      value.equal?(:"Speculation::Core/invalid")
+      value.equal?(ns(:invalid))
     end
 
     def self.and(*specs)
@@ -251,13 +255,13 @@ module Speculation
         if accept_nil?(p)
           ret = preturn(p)
 
-          if ret == :"Speculation::Core/invalid"
+          if ret == ns(:invalid)
             nil
           else
             ret
           end
         else
-          :"Speculation::Core/invalid"
+          ns(:invalid)
         end
       else
         dp = deriv(p, x)
@@ -265,7 +269,7 @@ module Speculation
         if dp
           re_conform(dp, xs)
         else
-          :"Speculation::Core/invalid"
+          ns(:invalid)
         end
       end
     end
@@ -274,10 +278,10 @@ module Speculation
       p = reg_resolve!(p)
 
       case p[:op]
-      when :"Speculation::Core/accept" then true
+      when ns(:accept) then true
       when nil then nil
-      when :"Speculation::Core/pcat" then p[:ps].all? { |p| accept_nil?(p) }
-      when :"Speculation::Core/alt" then p[:ps].find { |p| accept_nil?(p) }
+      when ns(:pcat) then p[:ps].all? { |p| accept_nil?(p) }
+      when ns(:alt) then p[:ps].find { |p| accept_nil?(p) }
       else raise "Balls #{p.inspect}"
       end
     end
@@ -288,13 +292,13 @@ module Speculation
       k, *ks = [:keys]
 
       case p[:op]
-      when :"Speculation::Core/accept" then p[:ret]
+      when ns(:accept) then p[:ret]
       when nil then nil
-      when :"Speculation::Core/pcat" then add_ret(p[:p1], p[:ret], k)
-      when :"Speculation::Core/alt"
+      when ns(:pcat) then add_ret(p[:p1], p[:ret], k)
+      when ns(:alt)
         ps, ks = filter_alt(ps, ks, method(:accept_nil?))
         r = if ps.first.nil?
-              :"Speculation::Core/nil"
+              ns(:nil)
             else
               preturn(ps.first)
             end
@@ -321,13 +325,13 @@ module Speculation
       return unless p
 
       case p[:op]
-      when :"Speculation::Core/accept" then nil
+      when ns(:accept) then nil
       when nil
         ret = dt(p, x)
         if !invalid?(ret)
           accept(ret)
         end
-      when :"Speculation::Core/pcat"
+      when ns(:pcat)
         ret = p[:ret]
 
         ps = p[:ps]
@@ -340,7 +344,7 @@ module Speculation
           pcat(Hash[ps: Vector[deriv(p0, x), *pr], ks: ks, ret: ret]),
           (accept_nil?(p0) and deriv(pcat(Hash[ps: pr, ks: kr, ret: add_ret(p0, ret, k0)]), x))
         )
-      when :"Speculation::Core/alt"
+      when ns(:alt)
         _alt(p[:ps].map { |p| deriv(p, x) }, p[:ks])
       else
         raise "Balls #{p.inspect}, #{x}"
@@ -381,7 +385,7 @@ module Speculation
 
       case op
       when nil then r
-      when :"Speculation::Core/accept"
+      when ns(:accept)
         ret = preturn(p)
         if ret == :nil
           r
@@ -392,7 +396,7 @@ module Speculation
             r.add(ret)
           end
         end
-      when :"Speculation::Core/pcat"
+      when ns(:pcat)
         prop.call
       end
     end
