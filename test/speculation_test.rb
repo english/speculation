@@ -4,7 +4,7 @@ require 'hamster/hash'
 
 class SpeculationTest < Minitest::Test
   S = Speculation::Core
-  Hash = Hamster::Hash
+  H = Hamster::Hash
 
   def setup
     Speculation::Core.reset_registry!
@@ -71,7 +71,7 @@ class SpeculationTest < Minitest::Test
 
     S.def(:config, S.cat(prop: :string?, val: S.alt(s: :string?, b: :boolean?)))
 
-    assert_equal(Hash[prop: "-server", val: [:s, "foo"]],
+    assert_equal(H[prop: "-server", val: [:s, "foo"]],
                  S.conform(:config, ["-server", "foo"]))
   end
 end

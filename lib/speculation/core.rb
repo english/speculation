@@ -4,22 +4,16 @@ require 'hamster/hash'
 require 'hamster/vector'
 
 module Speculation
-  Hash = Hamster::Hash
-  Vector = Hamster::Vector
+  H = Hamster::Hash
 
   module Core
-    REGISTRY = Concurrent::Atom.new(Hash[])
+    REGISTRY = Concurrent::Atom.new(H[])
 
     def self.ns(sym)
       :"#{self}/#{sym}"
     end
 
     class Spec
-      attr_writer :name
-
-      def [](k)
-        nil
-      end
     end
 
     class PredicateSpec < Spec
@@ -73,14 +67,14 @@ module Speculation
       end
     end
 
-    class RegexpSpec < Spec
-      def initialize(regexp)
-        @regexp = regexp
+    class RegexSpec < Spec
+      def initialize(regex)
+        @regex = regex
       end
 
       def conform(value)
         if value.nil? or value.respond_to?(:each)
-          Core.re_conform(@regexp, value.each.to_a)
+          Core.re_conform(@regex, Array(value))
         else
           :invalid.ns(Core)
         end
@@ -91,21 +85,36 @@ module Speculation
       REGISTRY
     end
 
-    def self.def(name, spec)
-      unless spec.is_a?(Spec)
-        # More cases here!
-        spec = PredicateSpec.new(spec)
+    def self.def(key, spec)
+      spec = if spec?(spec) or regex?(spec) or registry.value[key]
+               spec
+             else
+               self.spec(spec)
+             end
+
+      registry.swap { |reg| reg.put(key, spec) }
+
+      key
+    end
+
+    def self.spec(pred)
+      if spec?(pred)
+        pred
+      elsif regex?(pred)
+        RegexSpec.new(pred)
+      elsif pred.is_a?(Symbol)
+        reg_resolve!(pred) or raise "unable to resolve spec #{pred}"
+      else
+        PredicateSpec.new(pred)
       end
+    end
 
-      spec.name = name
-
-      registry.swap { |reg| reg.put(name, spec) }
-
-      name
+    def self.spec?(spec)
+      spec if spec.is_a?(Spec)
     end
 
     def self.reset_registry!
-      registry.swap { Hash[] }
+      registry.swap { H[] }
     end
 
     def self.conform(spec, value)
@@ -147,8 +156,8 @@ module Speculation
       keys = named_specs.keys
       predicates = named_specs.values
 
-      regexp = pcat(Hash[ks: keys, ps: predicates, ret: Hash[]])
-      RegexpSpec.new(regexp)
+      regex = pcat(H[keys: keys, predicates: predicates, return_value: H[]])
+      RegexSpec.new(regex)
     end
 
     def self.alt(kv_specs)
@@ -157,47 +166,48 @@ module Speculation
 
     ######## crazy shit ########
 
-    def self.pcat(hash)
-      ps = hash[:ps]
-      p1, *pr = ps
+    def self.pcat(regex)
+      predicates = regex[:predicates]
+      predicate, *rest_predicates = predicates
 
-      ks = hash[:ks]
-      k1, *kr = ks
+      keys = regex[:keys]
+      k1, *kr = keys
 
-      ret = hash[:ret]
-      rep_plus = hash[:rep_plus]
+      return_value = regex[:return_value]
 
-      return unless ps.all?
+      return unless predicates.all?
 
-      unless accept?(p1)
-        return Hash[op: :"Speculation::Core/pcat", ps: ps, ret: ret, ks: ks, rep_plus: rep_plus]
+      unless accept?(predicate)
+        return H[ns(:op) => ns(:pcat),
+                 predicates: predicates, keys: keys,
+                 return_value: return_value]
       end
 
-      rp = p1[:ret]
-      ret = if ks # any?
-              ret.put(k1, rp)
-            else
-              ret.merge(rp)
-            end
+      return_value = if keys # any?
+                       return_value.put(k1, predicate[:return_value])
+                     else
+                       return_value.merge(predicate[:return_value])
+                     end
 
-      if pr
-        pcat(Hash[ps: pr, ks: kr, ret: ret])
+      if rest_predicates
+        pcat(H[predicates: rest_predicates, keys: kr,
+               return_value: return_value])
       else
-        accept(ret)
+        accept(return_value)
       end
     end
 
-    def regex?(x)
-      x[:op] and x
+    def self.regex?(x)
+      x.respond_to?(:get) and x.get(ns(:op)) and x
     end
 
     def self.accept(x)
-      Hash[op: :"Speculation::Core.accept", ret: x]
+      H[ns(:op) => ns(:accept), return_value: x]
     end
 
     def self.accept?(hash)
-      if hash.is_a?(Hash)
-        hash[:op] == :"Speculation::Core.accept"
+      if hash.is_a?(H)
+        hash[ns(:op)] == ns(:accept)
       end
     end
 
@@ -214,14 +224,11 @@ module Speculation
     def self.specize(spec)
       case spec
       when Core::Spec then spec
-      when Symbol then reg_resolve!(spec)
+      when Symbol     then reg_resolve!(spec)
+      when Proc       then PredicateSpec.new(spec)
       else
-        if spec.respond_to?(:call)
-          PredicateSpec.new(spec)
-        else
-          raise ArgumentError,
-            "spec: #{spec} must be a Spec, Symbol or callable, given #{spec.class}"
-        end
+        raise ArgumentError,
+          "spec: #{spec} must be a Spec, Symbol or callable, given #{spec.class}"
       end
     end
 
@@ -233,35 +240,33 @@ module Speculation
       end
     end
 
-    def self._alt(ps, ks)
-      return unless ps
+    def self._alt(predicates, keys)
+      return unless predicates
 
-      p1, *pr = ps
-      k1, *kr = ks
+      predicate, *rest_predicates = predicates
+      key, *rest_keys = keys
 
-      ret = Hash[op: :"Speculation::Core/alt", ps: ps, ks: ks]
-      return ret if pr.nil?
+      return_value = H[ns(:op) => ns(:alt), predicates: predicates, keys: keys]
+      return return_value if rest_predicates.empty?
 
-      return p1 unless k1
-      return ret unless accept?(p1)
+      return predicate unless key
+      return return_value unless accept?(predicate)
 
-      accept([k1, p1[:ret]])
+      accept([key, predicate[:return_value]])
     end
 
     def self.re_conform(p, data)
       x, *xs = data
 
       if data.empty?
-        if accept_nil?(p)
-          ret = preturn(p)
+        return ns(:invalid) unless accept_nil?(p)
 
-          if ret == ns(:invalid)
-            nil
-          else
-            ret
-          end
+        return_value = preturn(p)
+
+        if return_value == ns(:invalid)
+          nil
         else
-          ns(:invalid)
+          return_value
         end
       else
         dp = deriv(p, x)
@@ -276,25 +281,27 @@ module Speculation
 
     def self.accept_nil?(p)
       p = reg_resolve!(p)
+      return unless regex?(p)
 
-      case p[:op]
+      case p[ns(:op)]
       when ns(:accept) then true
-      when nil then nil
-      when ns(:pcat) then p[:ps].all? { |p| accept_nil?(p) }
-      when ns(:alt) then p[:ps].find { |p| accept_nil?(p) }
-      else raise "Balls #{p.inspect}"
+      when ns(:pcat) then p[:predicates].all? { |p| accept_nil?(p) }
+      when ns(:alt) then p[:predicates].find { |p| accept_nil?(p) }
+      else
+        raise "Balls #{p.inspect}"
       end
     end
 
     def self.preturn(p)
       p = reg_resolve!(p)
-      p0, *pr = p[:ps]
-      k, *ks = [:keys]
+      return unless regex?(p)
 
-      case p[:op]
-      when ns(:accept) then p[:ret]
-      when nil then nil
-      when ns(:pcat) then add_ret(p[:p1], p[:ret], k)
+      p0, *pr = p[:predicates]
+      k, *ks = p[:keys]
+
+      case p[ns(:op)]
+      when ns(:accept) then p[:return_value]
+      when ns(:pcat) then add_ret(p[:p1], p[:return_value], k)
       when ns(:alt)
         ps, ks = filter_alt(ps, ks, method(:accept_nil?))
         r = if ps.first.nil?
@@ -307,7 +314,8 @@ module Speculation
         else
           r
         end
-      else raise "Balls #{p.inspect}"
+      else
+        raise "Balls #{p.inspect}"
       end
     end
 
@@ -320,34 +328,39 @@ module Speculation
       end
     end
 
-    def self.deriv(p, x)
-      p = reg_resolve!(p)
-      return unless p
+    def self.deriv(predicate, value)
+      predicate = reg_resolve!(predicate)
+      return unless predicate
 
-      case p[:op]
-      when ns(:accept) then nil
-      when nil
-        ret = dt(p, x)
-        if !invalid?(ret)
-          accept(ret)
+      unless regex?(predicate)
+        return_value = dt(predicate, value)
+
+        if invalid?(return_value)
+          return return_value
+        else
+          return accept(return_value)
         end
+      end
+
+      case predicate[ns(:op)]
+      when ns(:accept) then nil
       when ns(:pcat)
-        ret = p[:ret]
+        return_value = predicate[:return_value]
 
-        ps = p[:ps]
-        p0, *pr = ps
+        pred, *rest_preds = predicate[:predicates]
 
-        ks = p[:ks]
-        k0, *kr = ks
+        keys = predicate[:keys]
+        key, *rest_keys = keys
 
         alt2(
-          pcat(Hash[ps: Vector[deriv(p0, x), *pr], ks: ks, ret: ret]),
-          (accept_nil?(p0) and deriv(pcat(Hash[ps: pr, ks: kr, ret: add_ret(p0, ret, k0)]), x))
+          pcat(H[predicates: [deriv(pred, value), *rest_preds],
+                 keys: keys, return_value: return_value]),
+          (deriv(pcat(H[predicates: rest_preds, keys: rest_keys, return_value: add_ret(pred, return_value, key)]), value) if accept_nil?(pred))
         )
       when ns(:alt)
-        _alt(p[:ps].map { |p| deriv(p, x) }, p[:ks])
+        _alt(predicate[:predicates].map { |p| deriv(p, value) }, predicate[:keys])
       else
-        raise "Balls #{p.inspect}, #{x}"
+        raise "Balls #{predicate.inspect}, #{value}"
       end
     end
 
@@ -360,44 +373,46 @@ module Speculation
 
     def self.add_ret(p, r, k)
       p = reg_resolve!(p)
+
       prop = -> do
-        ret = preturn(p)
-        if ret.empty?
+        return_value = preturn(p)
+        if return_value.empty?
           r
         else
           if p[:splice]
             if k
-              r.add(Hash[k => ret])
+              r.add(H[k => return_value])
             else
-              r.add(ret)
+              r.add(return_value)
             end
           else
             if k
-              r.merge(k, ret)
+              r.merge(k, return_value)
             else
-              r.add(ret)
+              r.add(return_value)
             end
           end
         end
       end
 
-      op = p && p[:op]
+      return r unless regex?(p)
 
-      case op
-      when nil then r
+      case p[ns(:op)]
       when ns(:accept)
-        ret = preturn(p)
-        if ret == :nil
+        return_value = preturn(p)
+        if return_value == :nil
           r
         else
           if k
-            r.merge(k, ret)
+            r.merge(k, return_value)
           else
-            r.add(ret)
+            r.add(return_value)
           end
         end
       when ns(:pcat)
         prop.call
+      else
+        raise "Balls #{p.inspect}"
       end
     end
   end
