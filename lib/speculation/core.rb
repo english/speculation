@@ -23,11 +23,8 @@ module Speculation
       end
 
       def conform(value)
-        if @predicate.call(value)
-          value
-        else
-          Core.ns(:invalid)
-        end
+        # calling #=== here so that a either a class or proc can be provided
+        @predicate === value ? value : Core.ns(:invalid)
       end
     end
 
@@ -40,9 +37,7 @@ module Speculation
         @specs.value.each do |spec|
           value = spec.conform(value)
 
-          if Core.invalid?(value)
-            return Core.ns(:invalid)
-          end
+          return Core.ns(:invalid) if Core.invalid?(value)
         end
 
         value
