@@ -392,14 +392,10 @@ module Speculation
     end
 
     def self.dt(spec, x)
-      case spec
-      when Proc
-        if spec.call(x)
-          x
-        else
-          ns(:invalid)
-        end
-      when nil then x
+      return x unless spec
+
+      if spec.respond_to?(:call)
+        spec.call(x) ? x : ns(:invalid)
       else
         spec.conform(x)
       end
