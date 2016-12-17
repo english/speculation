@@ -394,10 +394,10 @@ module Speculation
     def self.dt(spec, x)
       return x unless spec
 
-      if spec.respond_to?(:call)
-        spec.call(x) ? x : ns(:invalid)
-      else
+      if spec.respond_to?(:conform)
         spec.conform(x)
+      else
+        spec === x ? x : ns(:invalid)
       end
     end
 

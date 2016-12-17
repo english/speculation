@@ -119,4 +119,13 @@ class SpeculationTest < Minitest::Test
 
     assert_equal expected, conformed
   end
+
+  def test_class_predicate
+    S.def(:seq_of_symbols, S.zero_or_more(Symbol))
+    assert_equal [:foo, :bar], S.conform(:seq_of_symbols, [:foo, :bar])
+
+    S.def(:symbol?, Symbol)
+    S.def(:seq_of_symbols, S.zero_or_more(:symbol?))
+    assert_equal [:foo, :bar], S.conform(:seq_of_symbols, [:foo, :bar])
+  end
 end
