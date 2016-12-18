@@ -151,4 +151,17 @@ class SpeculationTest < Minitest::Test
     expected = H[odds: V[1, 3, 5], even: 100]
     assert_equal expected, S.conform(:odds_then_maybe_even, [1, 3, 5, 100])
   end
+
+  def test_foo
+    S.def(:config, S.zero_or_more(
+      S.cat(prop: String,
+            val: S.alt(s: String, b: -> (x) { [true, false].include?(x) }))))
+
+    conformed = S.conform(:config, ["-server", "foo", "-verbose", true, "-user", "joe"])
+    expected = V[H[prop: "-server",  val: V[:s, "foo"]],
+                 H[prop: "-verbose", val: V[:b, true]],
+                 H[prop: "-user",    val: V[:s, "joe"]]]
+
+    assert_equal expected, conformed
+  end
 end

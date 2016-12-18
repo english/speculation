@@ -416,28 +416,37 @@ module Speculation
         end
       end
 
+      p1, p2, keys, return_value, splice = predicate.values_at(:p1, :p2, :keys, :return_value, :splice)
+
       case predicate[:op.ns(self)]
       when :accept.ns(self) then nil
       when :pcat.ns(self)
-        return_value = predicate[:return_value]
-
         pred, *rest_preds = predicate[:predicates]
 
-        keys = predicate[:keys]
         key, *rest_keys = keys
 
-        alt2(
-          pcat(H[predicates: [deriv(pred, value), *rest_preds],
-                 keys: keys, return_value: return_value]),
-          (deriv(pcat(H[predicates: rest_preds, keys: rest_keys, return_value: add_ret(pred, return_value, key)]), value) if accept_nil?(pred))
-        )
+        regex1 = pcat(H[predicates: [deriv(pred, value), *rest_preds], keys: keys, return_value: return_value])
+        regex2 = nil
+
+        if accept_nil?(pred)
+          re = pcat(H[predicates: rest_preds, keys: rest_keys,
+                      return_value: add_ret(pred, return_value, key)])
+          regex2 = deriv(re, value) 
+        end
+
+        alt2(regex1, regex2)
       when :alt.ns(self)
-        _alt(predicate[:predicates].map { |p| deriv(p, value) }, predicate[:keys])
+        _alt(predicate[:predicates].map { |p| deriv(p, value) }, keys)
       when :rep.ns(self)
-        alt2(
-          rep(deriv(predicate[:p1], value), predicate[:p2], predicate[:return_value], predicate[:splice]),
-          (deriv(rep(predicate[:p2], predicate[:p2], add_ret(predicate[:p1], predicate[:return_value], nil), value)) if accept_nil?(predicate[:p1]))
-        )
+        regex1 = rep(deriv(p1, value), p2, return_value, splice)
+        regex2 = nil
+
+        if accept_nil?(p1)
+          re = rep(p2, p2, add_ret(p1, return_value, nil), splice)
+          regex2 = deriv(re, value)
+        end
+
+        alt2(regex1, regex2)
       else
         raise "Balls #{predicate.inspect}, #{value}"
       end
@@ -451,10 +460,10 @@ module Speculation
       if spec
         spec.conform(x)
       else
-        if pred.respond_to?(:conform)
-          pred.conform(x)
-        else
+        if pred.is_a?(Class) || pred.is_a?(Proc)
           pred === x ? x : :invalid.ns(self)
+        else
+          raise "#{pred} is not a class or proc, expected a predicate proc or type"
         end
       end
     end
@@ -469,9 +478,9 @@ module Speculation
     end
 
     def self.maybe_spec(spec_or_key)
-      spec = ((Symbol === spec_or_key) and reg_resolve!(spec_or_key)) or
-        spec?(spec_or_key) or
-        regex?(spec_or_key) or
+      spec = ((Symbol === spec_or_key) && reg_resolve!(spec_or_key)) ||
+        spec?(spec_or_key) ||
+        regex?(spec_or_key) ||
         nil
 
       if regex?(spec)
