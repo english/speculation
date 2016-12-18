@@ -143,18 +143,64 @@ module Speculation
       Protocol.Satisfy!(self, :Specize.ns(Core), :Spec.ns(Core))
     end
 
+    class HashSpec
+      def initialize(keys_pred:, req_keys:, req_specs:, opt_keys:, opt_specs:)
+        @keys_pred = keys_pred
+        @req_keys  = req_keys
+        @req_specs = req_specs
+        @opt_keys  = opt_keys
+        @opt_specs = opt_specs
+      end
+
+      def conform(value)
+        # is this needed?
+        key_to_spec_map = H[@req_keys.concat(@opt_keys).zip(@req_specs.concat(@opt_specs))]
+
+        return :invalid.ns(Core) unless @keys_pred.call(value)
+        reg = Core.registry
+
+        ret = value
+        keys = value
+
+        keys.each do |key, value|
+          sname = key_to_spec_map.fetch(key, key)
+          spec = reg[sname]
+
+          next unless spec
+
+          conformed_value = spec.conform(value)
+
+          if Core.invalid?(conformed_value)
+            return :invalid.ns(Core)
+          else
+            unless conformed_value.equal?(value)
+              ret = ret.store(key, conformed_value)
+            end
+          end
+        end
+
+        ret
+      end
+
+      def specize
+        self
+      end
+
+      Protocol.Satisfy!(self, :Specize.ns(Core), :Spec.ns(Core))
+    end
+
     def self.registry
-      REGISTRY
+      REGISTRY.value
     end
 
     def self.def(key, spec)
-      spec = if spec?(spec) || regex?(spec) || registry.value[key]
+      spec = if spec?(spec) || regex?(spec) || registry[key]
                spec
              else
                self.spec(spec)
              end
 
-      registry.swap { |reg| reg.store(key, spec) }
+      REGISTRY.swap { |reg| reg.store(key, spec) }
 
       key
     end
@@ -176,7 +222,7 @@ module Speculation
     end
 
     def self.reset_registry!
-      registry.reset(H[])
+      REGISTRY.reset(H[])
     end
 
     def self.conform(spec, value)
@@ -243,6 +289,21 @@ module Speculation
       H[:op.ns(self) => :amp.ns(self), p1: regex, predicates: preds]
     end
 
+    def self.keys(req: V[], opt: V[])
+      # arbitrary map test
+      is_map = -> (x) { x.respond_to?(:key?) }
+      pred_exprs = V[is_map]
+      pred_exprs += req.map do |key|
+        -> (x) { x.key?(key) }
+      end
+
+      keys_pred = -> (x) { pred_exprs.all? { |f| f.call(x) } }
+
+      HashSpec.new(keys_pred: keys_pred,
+                   req_keys: req, req_specs: req,
+                   opt_keys: opt, opt_specs: opt)
+    end
+
     def self.rep(p1, p2, return_value, splice)
       return unless p1
 
@@ -299,7 +360,7 @@ module Speculation
 
     def self.reg_resolve!(key)
       if key.is_a?(Symbol)
-        registry.value[key]
+        registry[key]
       else
         key
       end
@@ -512,10 +573,10 @@ module Speculation
       if spec
         spec.conform(x)
       else
-        if pred.is_a?(Class) || pred.is_a?(Proc)
+        if pred.is_a?(Class) || pred.is_a?(Proc) || pred.is_a?(::Regexp)
           pred === x ? x : :invalid.ns(self)
         else
-          raise "#{pred} is not a class or proc, expected a predicate proc or type"
+          raise "#{pred} is not a class, proc or regexp, expected a predicate proc or type"
         end
       end
     end

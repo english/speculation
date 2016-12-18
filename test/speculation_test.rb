@@ -7,6 +7,8 @@ class SpeculationTest < Minitest::Test
   H = Hamster::Hash
   V = Hamster::Vector
 
+  using Speculation::Core::NS
+
   def setup
     Speculation::Core.reset_registry!
   end
@@ -183,5 +185,32 @@ class SpeculationTest < Minitest::Test
     assert S.valid?(:even_strings, ["a", "b"])
     refute S.valid?(:even_strings, ["a", "b", "c"])
     assert S.valid?(:even_strings, ["a", "b", "c", "d"])
+  end
+
+  def test_hash_keys
+    email_regex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,63}$/
+    S.def(:email_type, S.and(String, email_regex))
+
+    S.def(:acctid.ns(self), Integer)
+    S.def(:first_name.ns(self), String)
+    S.def(:last_name.ns(self), String)
+    S.def(:email.ns(self), :email_type)
+
+    S.def(:person.ns(self),
+          S.keys(req: [:first_name.ns(self), :last_name.ns(self), :email.ns(self)],
+                 opt: [:phone.ns(self)]))
+
+    assert S.valid?(:person.ns(self), H[:first_name.ns(self) => "Elon",
+                                        :last_name.ns(self)  => "Musk",
+                                        :email.ns(self)      => "elon@example.com"])
+
+    # Fails required key check
+    refute S.valid?(:person.ns(self), H[:first_name.ns(self) => "Elon"])
+
+    # Invalid value for key not specified in `req`
+    refute S.valid?(:person.ns(self), H[:first_name.ns(self) => "Elon",
+                                        :last_name.ns(self)  => "Musk",
+                                        :email.ns(self)      => "elon@example.com",
+                                        :acctid.ns(self)     => "123"])
   end
 end
