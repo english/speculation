@@ -105,11 +105,9 @@ class SpeculationTest < Minitest::Test
   end
 
   def test_nested_seq
-    S.def(:number?, -> (x) { x.is_a?(Numeric) })
-    S.def(:string?, -> (x) { x.is_a?(String) })
     S.def(:nested, S.cat(names_sym: -> (x) { x == :names },
-                         names: S.spec(S.zero_or_more(:string?)),
-                         nums_sym: -> (x) { x == :nums }, nums: S.spec(S.zero_or_more(:number?))))
+                         names: S.spec(S.zero_or_more(String)),
+                         nums_sym: -> (x) { x == :nums }, nums: S.spec(S.zero_or_more(Numeric))))
 
     conformed = S.conform(:nested, [:names, ["a", "b"], :nums, [1, 2]])
 
@@ -117,6 +115,18 @@ class SpeculationTest < Minitest::Test
                  nums_sym: :nums, nums: V[1, 2]]
 
     assert_equal expected, conformed
+  end
+
+  def test_non_nested
+    S.def(:unnested, S.cat(names_sym: -> (x) { x == :names },
+                           names: S.zero_or_more(String),
+                           nums_sym: -> (x) { x == :nums },
+                           nums: S.zero_or_more(Numeric)))
+
+    expected = H[names_sym: :names, names: V["a", "b"],
+                 nums_sym: :nums, nums: V[1, 2, 3]]
+
+    assert_equal expected, S.conform(:unnested, [:names, "a", "b", :nums, 1, 2, 3])
   end
 
   def test_class_predicate
@@ -166,8 +176,8 @@ class SpeculationTest < Minitest::Test
   end
 
   def test_constrained
-    S.def(:even_strings, S.constrained(S.zero_or_more(String),
-                                       -> (x) { x.count.even? }))
+    S.def(:even_strings,
+          S.constrained(S.zero_or_more(String), -> (x) { x.count.even? }))
 
     refute S.valid?(:even_strings, ["a"])
     assert S.valid?(:even_strings, ["a", "b"])
