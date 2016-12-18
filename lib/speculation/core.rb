@@ -139,7 +139,7 @@ module Speculation
                self.spec(spec)
              end
 
-      registry.swap { |reg| reg.put(key, spec) }
+      registry.swap { |reg| reg.store(key, spec) }
 
       key
     end
@@ -311,7 +311,8 @@ module Speculation
     end
 
     def self._alt(predicates, keys)
-      predicates, keys = filter_alt(predicates, keys, -> (x) { x })
+      identity = -> (x) { x }
+      predicates, keys = filter_alt(predicates, keys, &identity)
       return unless predicates
 
       predicate, *rest_predicates = predicates
@@ -326,13 +327,13 @@ module Speculation
       accept([key, predicate[:return_value]])
     end
 
-    def self.re_conform(p, data)
+    def self.re_conform(regex, data)
       x, *xs = data
 
       if data.empty?
-        return :invalid.ns(self) unless accept_nil?(p)
+        return :invalid.ns(self) unless accept_nil?(regex)
 
-        return_value = preturn(p)
+        return_value = preturn(regex)
 
         if return_value == :nil.ns(self)
           nil
@@ -340,7 +341,7 @@ module Speculation
           return_value
         end
       else
-        dp = deriv(p, x)
+        dp = deriv(regex, x)
         if dp
           re_conform(dp, xs)
         else
@@ -349,33 +350,33 @@ module Speculation
       end
     end
 
-    def self.accept_nil?(p)
-      p = reg_resolve!(p)
-      return unless regex?(p)
+    def self.accept_nil?(regex)
+      regex = reg_resolve!(regex)
+      return unless regex?(regex)
 
-      case p[:op.ns(self)]
+      case regex[:op.ns(self)]
       when :accept.ns(self) then true
-      when :pcat.ns(self)   then p[:predicates].all? { |p| accept_nil?(p) }
-      when :alt.ns(self)    then p[:predicates].any? { |p| accept_nil?(p) }
-      when :rep.ns(self)    then (p[:p1] == p[:p2]) or accept_nil?(p[:p1])
+      when :pcat.ns(self)   then regex[:predicates].all? { |p| accept_nil?(p) }
+      when :alt.ns(self)    then regex[:predicates].any? { |p| accept_nil?(p) }
+      when :rep.ns(self)    then (regex[:p1] == regex[:p2]) or accept_nil?(regex[:p1])
       else
-        raise "Balls #{p.inspect}"
+        raise "Balls #{regex.inspect}"
       end
     end
 
-    def self.preturn(p)
-      p = reg_resolve!(p)
-      return unless regex?(p)
+    def self.preturn(regex)
+      regex = reg_resolve!(regex)
+      return unless regex?(regex)
 
-      p0, *pr = p[:predicates]
-      k, *ks = p[:keys]
+      p0, *pr = regex[:predicates]
+      k, *ks = regex[:keys]
 
-      case p[:op.ns(self)]
-      when :accept.ns(self) then p[:return_value]
-      when :pcat.ns(self)   then add_ret(p0, p[:return_value], k)
-      when :rep.ns(self)    then add_ret(p[:p1], p[:return_value], k)
+      case regex[:op.ns(self)]
+      when :accept.ns(self) then regex[:return_value]
+      when :pcat.ns(self)   then add_ret(p0, regex[:return_value], k)
+      when :rep.ns(self)    then add_ret(regex[:p1], regex[:return_value], k)
       when :alt.ns(self)
-        ps, ks = filter_alt(p[:predicates], p[:keys], method(:accept_nil?))
+        ps, ks = filter_alt(regex[:predicates], regex[:keys], &method(:accept_nil?))
 
         r = if ps.first.nil?
               :nil.ns(self)
@@ -389,16 +390,16 @@ module Speculation
           r
         end
       else
-        raise "Balls #{p.inspect}"
+        raise "Balls #{regex.inspect}"
       end
     end
 
-    def self.filter_alt(ps, ks, f)
+    def self.filter_alt(ps, ks, &block)
       if ks
-        pks = Array(ps).zip(ks).select { |xs| f.call(xs.first) }
+        pks = Array(ps).zip(ks).select { |xs| block.call(xs.first) }
         [pks.map(&:first), pks.map(&:last)]
       else
-        [ps.select(&f), ks]
+        [ps.select(&block), ks]
       end
     end
 
@@ -409,46 +410,42 @@ module Speculation
       unless regex?(predicate)
         return_value = dt(predicate, value)
 
-        if invalid?(return_value)
-          return return_value
-        else
-          return accept(return_value)
-        end
+        return invalid?(return_value) ? return_value : accept(return_value)
       end
 
-      p1, p2, keys, return_value, splice = predicate.values_at(:p1, :p2, :keys, :return_value, :splice)
+      predicates, p1, p2, keys, return_value, splice =
+        predicate.values_at(:predicates, :p1, :p2, :keys, :return_value, :splice)
+
+      pred, *rest_preds = predicates
+      key, *rest_keys = keys
 
       case predicate[:op.ns(self)]
       when :accept.ns(self) then nil
       when :pcat.ns(self)
-        pred, *rest_preds = predicate[:predicates]
-
-        key, *rest_keys = keys
-
         regex1 = pcat(H[predicates: [deriv(pred, value), *rest_preds], keys: keys, return_value: return_value])
         regex2 = nil
 
         if accept_nil?(pred)
-          re = pcat(H[predicates: rest_preds, keys: rest_keys,
-                      return_value: add_ret(pred, return_value, key)])
-          regex2 = deriv(re, value) 
+          regex2 = deriv(
+            pcat(H[predicates: rest_preds, keys: rest_keys, return_value: add_ret(pred, return_value, key)]),
+            value
+          ) 
         end
 
         alt2(regex1, regex2)
       when :alt.ns(self)
-        _alt(predicate[:predicates].map { |p| deriv(p, value) }, keys)
+        _alt(predicates.map { |p| deriv(p, value) }, keys)
       when :rep.ns(self)
         regex1 = rep(deriv(p1, value), p2, return_value, splice)
         regex2 = nil
 
         if accept_nil?(p1)
-          re = rep(p2, p2, add_ret(p1, return_value, nil), splice)
-          regex2 = deriv(re, value)
+          regex2 = deriv(rep(p2, p2, add_ret(p1, return_value, nil), splice), value)
         end
 
         alt2(regex1, regex2)
       else
-        raise "Balls #{predicate.inspect}, #{value}"
+        raise "Unexpected #{:op.ns(self)} #{predicate[:op.ns(self)]}"
       end
     end
 
@@ -490,17 +487,17 @@ module Speculation
       end
     end
 
-    def self.add_ret(p, r, k)
-      p = reg_resolve!(p)
-      return r unless regex?(p)
+    def self.add_ret(regex, r, k)
+      regex = reg_resolve!(regex)
+      return r unless regex?(regex)
 
       prop = -> do
-        return_value = preturn(p)
+        return_value = preturn(regex)
 
         if return_value.empty?
           r
         else
-          if p[:splice]
+          if regex[:splice]
             if k
               r + H[k => return_value]
             else
@@ -516,9 +513,9 @@ module Speculation
         end
       end
 
-      case p[:op.ns(self)]
+      case regex[:op.ns(self)]
       when :accept.ns(self), :alt.ns(self)
-        return_value = preturn(p)
+        return_value = preturn(regex)
 
         if return_value == :nil.ns(self)
           r
@@ -531,7 +528,7 @@ module Speculation
         end
       when :pcat.ns(self), :rep.ns(self) then prop.call
       else
-        raise "Balls #{p.inspect}"
+        raise "Balls #{regex.inspect}"
       end
     end
   end
