@@ -5,43 +5,44 @@ require 'hamster/vector'
 require 'functional'
 
 module Speculation
-  module Specize
-    refine Symbol do
-      def specize
-        Core.reg_resolve!(self)
-      end
-    end
-
-    refine Object do
-      def specize
-        Core.spec(self)
-      end
-    end
-  end
-
-  module NS
-    refine Symbol do
-      def ns(mod)
-        :"#{mod}/#{self}"
-      end
-    end
-  end
-end
-
-module Speculation
-  using Speculation::Specize
-  using Speculation::NS
-
-  H = Hamster::Hash
-  V = Hamster::Vector
-  Protocol = Functional::Protocol
-
   module Core
-    REGISTRY = Concurrent::Atom.new(H[])
+    module NS
+      refine Symbol do
+        def ns(mod)
+          :"#{mod}/#{self}"
+        end
+      end
+    end
+    using NS
+
+    module Specize
+      refine Symbol do
+        def specize
+          Core.reg_resolve!(self)
+        end
+      end
+
+      refine Object do
+        def specize
+          Core.spec(self)
+        end
+      end
+    end
+    using Specize
 
     Functional.SpecifyProtocol(:Spec.ns(self)) do
       instance_method :conform, 1
     end
+
+    Functional.SpecifyProtocol(:Specize.ns(self)) do
+      instance_method :specize, 0
+    end
+
+    H = Hamster::Hash
+    V = Hamster::Vector
+    Protocol = Functional::Protocol
+
+    REGISTRY = Concurrent::Atom.new(H[])
 
     class PredicateSpec
       def initialize(predicate)
@@ -52,6 +53,12 @@ module Speculation
         # calling #=== here so that a either a class or proc can be provided
         @predicate === value ? value : :invalid.ns(Core)
       end
+
+      def specize
+        self
+      end
+
+      Protocol.Satisfy!(self, :Specize.ns(Core), :Spec.ns(Core))
     end
 
     class AndSpec
@@ -68,6 +75,12 @@ module Speculation
 
         value
       end
+
+      def specize
+        self
+      end
+
+      Protocol.Satisfy!(self, :Specize.ns(Core), :Spec.ns(Core))
     end
 
     class OrSpec
@@ -87,6 +100,12 @@ module Speculation
 
         :invalid.ns(Core)
       end
+
+      def specize
+        self
+      end
+
+      Protocol.Satisfy!(self, :Specize.ns(Core), :Spec.ns(Core))
     end
 
     class RegexSpec
@@ -101,6 +120,12 @@ module Speculation
           :invalid.ns(Core)
         end
       end
+
+      def specize
+        self
+      end
+
+      Protocol.Satisfy!(self, :Specize.ns(Core), :Spec.ns(Core))
     end
 
     def self.registry
