@@ -364,7 +364,7 @@ module Speculation
       when :alt.ns(self)    then regex[:predicates].any? { |p| accept_nil?(p) }
       when :rep.ns(self)    then (regex[:p1] == regex[:p2]) || accept_nil?(regex[:p1])
       else
-        raise "Balls #{regex.inspect}"
+        raise "Unexpected #{:op.ns(self)} #{regex[:op.ns(self)]}"
       end
     end
 
@@ -417,13 +417,15 @@ module Speculation
         return invalid?(return_value) ? return_value : accept(return_value)
       end
 
+      regex = predicate
+
       predicates, p1, p2, keys, return_value, splice =
-        predicate.values_at(:predicates, :p1, :p2, :keys, :return_value, :splice)
+        regex.values_at(:predicates, :p1, :p2, :keys, :return_value, :splice)
 
       pred, *rest_preds = predicates
       key, *rest_keys = keys
 
-      case predicate[:op.ns(self)]
+      case regex[:op.ns(self)]
       when :accept.ns(self) then nil
       when :pcat.ns(self)
         regex1 = pcat(H[predicates: [deriv(pred, value), *rest_preds], keys: keys, return_value: return_value])
@@ -449,7 +451,7 @@ module Speculation
 
         alt2(regex1, regex2)
       else
-        raise "Unexpected #{:op.ns(self)} #{predicate[:op.ns(self)]}"
+        raise "Unexpected #{:op.ns(self)} #{regex[:op.ns(self)]}"
       end
     end
 
@@ -517,7 +519,7 @@ module Speculation
         end
       when :pcat.ns(self), :rep.ns(self) then prop.call
       else
-        raise "Balls #{regex.inspect}"
+        raise "Unexpected #{:op.ns(self)} #{regex[:op.ns(self)]}"
       end
     end
   end
