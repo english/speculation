@@ -128,4 +128,11 @@ class SpeculationTest < Minitest::Test
     S.def(:seq_of_symbols, S.zero_or_more(:symbol?))
     assert_equal [:foo, :bar], S.conform(:seq_of_symbols, [:foo, :bar])
   end
+
+  def test_one_or_more
+    S.def(:seq_of_symbols, S.one_or_more(Symbol))
+
+    assert_equal [:a, :b, :c], S.conform(:seq_of_symbols, [:a, :b, :c])
+    assert_equal :"Speculation::Core/invalid", S.conform(:seq_of_symbols, [])
+  end
 end

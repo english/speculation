@@ -166,6 +166,11 @@ module Speculation
       RegexSpec.new(rep(predicate, predicate, V[], false))
     end
 
+    def self.one_or_more(predicate)
+      regex = pcat(H[predicates: [predicate, rep(predicate, predicate, V[], true)], return_value: V[]])
+      RegexSpec.new(regex)
+    end
+
     def self.rep(p1, p2, return_value, splice)
       return unless p1
 
@@ -181,30 +186,36 @@ module Speculation
     ######## crazy shit ########
 
     def self.pcat(regex)
-      predicates = regex[:predicates]
-      predicate, *rest_predicates = predicates
+      predicate, *rest_predicates = regex[:predicates]
 
       keys = regex[:keys]
-      k1, *kr = keys
+      key, *rest_keys = keys
 
-      return_value = regex[:return_value]
-
-      return unless predicates.all?
+      return unless regex[:predicates].all?
 
       unless accept?(predicate)
         return H[ns(:op) => ns(:pcat),
-                 predicates: predicates, keys: keys,
-                 return_value: return_value]
+                 predicates: regex[:predicates], keys: keys,
+                 return_value: regex[:return_value]]
       end
 
       return_value = if keys # any?
-                       return_value.put(k1, predicate[:return_value])
+                       if regex[:return_value].respond_to?(:add)
+                         regex[:return_value].add(H[key => predicate[:return_value]])
+                       else
+                         regex[:return_value].store(key, predicate[:return_value])
+                       end
                      else
-                       return_value.merge(predicate[:return_value])
+                       if regex[:return_value].respond_to?(:add)
+                         regex[:return_value].add(predicate[:return_value])
+                       else
+                         regex[:return_value].merge(predicate[:return_value])
+                       end
                      end
 
       if rest_predicates
-        pcat(H[predicates: rest_predicates, keys: kr,
+        pcat(H[predicates: rest_predicates,
+               keys: rest_keys,
                return_value: return_value])
       else
         accept(return_value)
@@ -316,7 +327,7 @@ module Speculation
 
       case p[ns(:op)]
       when ns(:accept) then p[:return_value]
-      when ns(:pcat)   then add_ret(p[:p1], p[:return_value], k)
+      when ns(:pcat)   then add_ret(p0, p[:return_value], k)
       when ns(:rep)    then add_ret(p[:p1], p[:return_value], k)
       when ns(:alt)
         ps, ks = filter_alt(ps, ks, method(:accept_nil?))
@@ -407,9 +418,9 @@ module Speculation
         else
           if p[:splice]
             if k
-              r.add(H[k => return_value])
+              r + H[k => return_value]
             else
-              r.add(return_value)
+              r + return_value
             end
           else
             if k
@@ -436,8 +447,7 @@ module Speculation
             r.add(return_value)
           end
         end
-      when ns(:pcat)
-        prop.call
+      when ns(:pcat), ns(:rep) then prop.call
       else
         raise "Balls #{p.inspect}"
       end
