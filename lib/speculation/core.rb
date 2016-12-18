@@ -188,6 +188,7 @@ module Speculation
 
     def self.valid?(spec, value)
       spec = specize(spec)
+      spec = RegexSpec.new(spec) if regex?(spec)
       value = spec.conform(value)
 
       !invalid?(value)
@@ -236,6 +237,10 @@ module Speculation
 
     def self.zero_or_one(predicate)
       _alt([predicate, accept(:nil.ns(self))], nil)
+    end
+
+    def self.constrained(regex, *preds)
+      H[:op.ns(self) => :amp.ns(self), p1: regex, predicates: preds]
     end
 
     def self.rep(p1, p2, return_value, splice)
@@ -346,6 +351,7 @@ module Speculation
         end
       else
         dp = deriv(regex, x)
+
         if dp
           re_conform(dp, xs)
         else
@@ -363,9 +369,35 @@ module Speculation
       when :pcat.ns(self)   then regex[:predicates].all? { |p| accept_nil?(p) }
       when :alt.ns(self)    then regex[:predicates].any? { |p| accept_nil?(p) }
       when :rep.ns(self)    then (regex[:p1] == regex[:p2]) || accept_nil?(regex[:p1])
+      when :amp.ns(self)
+        p1 = regex[:p1]
+
+        return false unless accept_nil?(p1)
+
+        no_ret?(p1, preturn(p1)) ||
+          !invalid?(and_preds(preturn(p1), regex[:predicates]))
       else
         raise "Unexpected #{:op.ns(self)} #{regex[:op.ns(self)]}"
       end
+    end
+
+    def self.no_ret?(p1, pret)
+      return true if pret == :nil.ns(self)
+
+      regex = reg_resolve!(p1)
+      op = regex[:op.ns(self)]
+
+      [:rep.ns(self), :pcat.ns(self)].include?(op) && pret.empty? || nil
+    end
+
+    def self.and_preds(x, preds)
+      preds.each do |pred|
+        x = dt(pred, x)
+
+        return :invalid.ns(self) if invalid?(x)
+      end
+
+      x
     end
 
     def self.preturn(regex)
@@ -379,6 +411,13 @@ module Speculation
       when :accept.ns(self) then regex[:return_value]
       when :pcat.ns(self)   then add_ret(p0, regex[:return_value], k)
       when :rep.ns(self)    then add_ret(regex[:p1], regex[:return_value], k)
+      when :amp.ns(self)
+        pret = preturn(regex[:p1])
+        if no_ret?(regex[:p1], pret)
+          :nil.ns(self)
+        else
+          and_preds(pret, regex[:predicates])
+        end
       when :alt.ns(self)
         ps, ks = filter_alt(regex[:predicates], regex[:keys], &method(:accept_nil?))
 
@@ -450,6 +489,16 @@ module Speculation
         end
 
         alt2(regex1, regex2)
+      when :amp.ns(self)
+        p1 = deriv(p1, value)
+        return unless p1
+
+        if p1[:op.ns(self)] == :accept.ns(self)
+          ret = and_preds(preturn(p1), predicates)
+          accept(ret) unless invalid?(ret)
+        else
+          constrained(p1, *predicates)
+        end
       else
         raise "Unexpected #{:op.ns(self)} #{regex[:op.ns(self)]}"
       end
@@ -509,7 +558,7 @@ module Speculation
       end
 
       case regex[:op.ns(self)]
-      when :accept.ns(self), :alt.ns(self)
+      when :accept.ns(self), :alt.ns(self), :amp.ns(self)
         return_value = preturn(regex)
 
         if return_value == :nil.ns(self)

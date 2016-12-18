@@ -152,7 +152,7 @@ class SpeculationTest < Minitest::Test
     assert_equal expected, S.conform(:odds_then_maybe_even, [1, 3, 5, 100])
   end
 
-  def test_foo
+  def test_alt_zero_or_more
     S.def(:config, S.zero_or_more(
       S.cat(prop: String,
             val: S.alt(s: String, b: -> (x) { [true, false].include?(x) }))))
@@ -163,5 +163,15 @@ class SpeculationTest < Minitest::Test
                  H[prop: "-user",    val: V[:s, "joe"]]]
 
     assert_equal expected, conformed
+  end
+
+  def test_constrained
+    S.def(:even_strings, S.constrained(S.zero_or_more(String),
+                                       -> (x) { x.count.even? }))
+
+    refute S.valid?(:even_strings, ["a"])
+    assert S.valid?(:even_strings, ["a", "b"])
+    refute S.valid?(:even_strings, ["a", "b", "c"])
+    assert S.valid?(:even_strings, ["a", "b", "c", "d"])
   end
 end
