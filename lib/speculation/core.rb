@@ -30,6 +30,21 @@ module Speculation
     end
     using Specize
 
+    module Conj
+      refine Hamster::Hash do
+        def conj(v)
+          merge(v)
+        end
+      end
+
+      refine Hamster::Vector do
+        def conj(x)
+          add(x)
+        end
+      end
+    end
+    using Conj
+
     Functional.SpecifyProtocol(:Spec.ns(self)) do
       instance_method :conform, 1
     end
@@ -114,7 +129,7 @@ module Speculation
       end
 
       def conform(value)
-        if value.nil? or value.respond_to?(:each)
+        if value.nil? || value.respond_to?(:each)
           Core.re_conform(@regex, Array(value))
         else
           :invalid.ns(Core)
@@ -133,7 +148,7 @@ module Speculation
     end
 
     def self.def(key, spec)
-      spec = if spec?(spec) or regex?(spec) or registry.value[key]
+      spec = if spec?(spec) || regex?(spec) || registry.value[key]
                spec
              else
                self.spec(spec)
@@ -251,19 +266,8 @@ module Speculation
                  return_value: regex[:return_value]]
       end
 
-      return_value = if keys # any?
-                       if regex[:return_value].respond_to?(:add)
-                         regex[:return_value].add(H[key => predicate[:return_value]])
-                       else
-                         regex[:return_value].store(key, predicate[:return_value])
-                       end
-                     else
-                       if regex[:return_value].respond_to?(:add)
-                         regex[:return_value].add(predicate[:return_value])
-                       else
-                         regex[:return_value].merge(predicate[:return_value])
-                       end
-                     end
+      val = keys ? H[key => predicate[:return_value]] : predicate[:return_value]
+      return_value = regex[:return_value].conj(val)
 
       if rest_predicates
         pcat(H[predicates: rest_predicates,
@@ -275,7 +279,7 @@ module Speculation
     end
 
     def self.regex?(x)
-      x.respond_to?(:get) and x.get(:op.ns(self)) and x
+      x.respond_to?(:get) && x.get(:op.ns(self)) && x
     end
 
     def self.accept(x)
@@ -299,14 +303,14 @@ module Speculation
     ### private ###
 
     def self.specize(spec)
-      spec?(spec) or spec.specize
+      spec?(spec) || spec.specize
     end
 
     def self.alt2(p1, p2)
-      if p1 and p2
+      if p1 && p2
         _alt([p1, p2], nil)
       else
-        p1 or p2
+        p1 || p2
       end
     end
 
@@ -358,7 +362,7 @@ module Speculation
       when :accept.ns(self) then true
       when :pcat.ns(self)   then regex[:predicates].all? { |p| accept_nil?(p) }
       when :alt.ns(self)    then regex[:predicates].any? { |p| accept_nil?(p) }
-      when :rep.ns(self)    then (regex[:p1] == regex[:p2]) or accept_nil?(regex[:p1])
+      when :rep.ns(self)    then (regex[:p1] == regex[:p2]) || accept_nil?(regex[:p1])
       else
         raise "Balls #{regex.inspect}"
       end
@@ -487,7 +491,7 @@ module Speculation
       end
     end
 
-    def self.add_ret(regex, r, k)
+    def self.add_ret(regex, r, key)
       regex = reg_resolve!(regex)
       return r unless regex?(regex)
 
@@ -497,19 +501,8 @@ module Speculation
         if return_value.empty?
           r
         else
-          if regex[:splice]
-            if k
-              r + H[k => return_value]
-            else
-              r + return_value
-            end
-          else
-            if k
-              r.merge(k => return_value)
-            else
-              r.add(return_value)
-            end
-          end
+          val = key ? H[key => return_value] : return_value
+          regex[:splice] ? r + val : r.conj(val)
         end
       end
 
@@ -520,11 +513,7 @@ module Speculation
         if return_value == :nil.ns(self)
           r
         else
-          if k
-            r.merge(k => return_value)
-          else
-            r.add(return_value)
-          end
+          r.conj(key ? H[key => return_value] : return_value)
         end
       when :pcat.ns(self), :rep.ns(self) then prop.call
       else
