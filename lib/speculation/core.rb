@@ -5,6 +5,33 @@ require 'hamster/vector'
 require 'functional'
 
 module Speculation
+  module Specize
+    refine Symbol do
+      def specize
+        Core.reg_resolve!(self)
+      end
+    end
+
+    refine Object do
+      def specize
+        Core.spec(self)
+      end
+    end
+  end
+
+  module NS
+    refine Symbol do
+      def ns(mod)
+        :"#{mod}/#{self}"
+      end
+    end
+  end
+end
+
+module Speculation
+  using Speculation::Specize
+  using Speculation::NS
+
   H = Hamster::Hash
   V = Hamster::Vector
   Protocol = Functional::Protocol
@@ -12,11 +39,7 @@ module Speculation
   module Core
     REGISTRY = Concurrent::Atom.new(H[])
 
-    def self.ns(sym)
-      :"#{self}/#{sym}"
-    end
-
-    Functional.SpecifyProtocol(ns(:Spec)) do
+    Functional.SpecifyProtocol(:Spec.ns(self)) do
       instance_method :conform, 1
     end
 
@@ -27,7 +50,7 @@ module Speculation
 
       def conform(value)
         # calling #=== here so that a either a class or proc can be provided
-        @predicate === value ? value : Core.ns(:invalid)
+        @predicate === value ? value : :invalid.ns(Core)
       end
     end
 
@@ -40,7 +63,7 @@ module Speculation
         @specs.value.each do |spec|
           value = spec.conform(value)
 
-          return Core.ns(:invalid) if Core.invalid?(value)
+          return :invalid.ns(Core) if Core.invalid?(value)
         end
 
         value
@@ -62,7 +85,7 @@ module Speculation
           end
         end
 
-        Core.ns(:invalid)
+        :invalid.ns(Core)
       end
     end
 
@@ -75,7 +98,7 @@ module Speculation
         if value.nil? or value.respond_to?(:each)
           Core.re_conform(@regex, Array(value))
         else
-          Core.ns(:invalid)
+          :invalid.ns(Core)
         end
       end
     end
@@ -109,7 +132,7 @@ module Speculation
     end
 
     def self.spec?(spec)
-      spec if Protocol.Satisfy?(spec, ns(:Spec))
+      spec if Protocol.Satisfy?(spec, :Spec.ns(self))
     end
 
     def self.reset_registry!
@@ -125,15 +148,13 @@ module Speculation
 
     def self.valid?(spec, value)
       spec = specize(spec)
-      spec = RegexSpec.new(spec) if regex?(spec)
-
       value = spec.conform(value)
 
       !invalid?(value)
     end
 
     def self.invalid?(value)
-      value.equal?(ns(:invalid))
+      value.equal?(:invalid.ns(self))
     end
 
     def self.and(*specs)
@@ -158,9 +179,7 @@ module Speculation
       keys = named_specs.keys
       predicates = named_specs.values
 
-      regex = pcat(H[keys: keys, predicates: predicates, return_value: H[]])
-      # RegexSpec.new(regex)
-      regex
+      pcat(H[keys: keys, predicates: predicates, return_value: H[]])
     end
 
     def self.alt(kv_specs)
@@ -168,25 +187,21 @@ module Speculation
     end
 
     def self.zero_or_more(predicate)
-      regex = rep(predicate, predicate, V[], false)
-      # RegexSpec.new(regex)
-      regex
+      rep(predicate, predicate, V[], false)
     end
 
     def self.one_or_more(predicate)
-      regex = pcat(H[predicates: [predicate, rep(predicate, predicate, V[], true)], return_value: V[]])
-      # RegexSpec.new(regex)
-      regex
+      pcat(H[predicates: [predicate, rep(predicate, predicate, V[], true)], return_value: V[]])
     end
 
     def self.zero_or_one(predicate)
-      _alt([predicate, accept(ns(:nil))], nil)
+      _alt([predicate, accept(:nil.ns(self))], nil)
     end
 
     def self.rep(p1, p2, return_value, splice)
       return unless p1
 
-      regex = H[ns(:op) => ns(:rep), p2: p2, splice: splice]
+      regex = H[:op.ns(self) => :rep.ns(self), p2: p2, splice: splice]
 
       regex = if accept?(p1)
         regex.merge(p1: p2, return_value: return_value.add(p1[:return_value]))
@@ -206,7 +221,7 @@ module Speculation
       return unless regex[:predicates].all?
 
       unless accept?(predicate)
-        return H[ns(:op) => ns(:pcat),
+        return H[:op.ns(self) => :pcat.ns(self),
                  predicates: regex[:predicates], keys: keys,
                  return_value: regex[:return_value]]
       end
@@ -235,16 +250,16 @@ module Speculation
     end
 
     def self.regex?(x)
-      x.respond_to?(:get) and x.get(ns(:op)) and x
+      x.respond_to?(:get) and x.get(:op.ns(self)) and x
     end
 
     def self.accept(x)
-      H[ns(:op) => ns(:accept), return_value: x]
+      H[:op.ns(self) => :accept.ns(self), return_value: x]
     end
 
     def self.accept?(hash)
       if hash.is_a?(H)
-        hash[ns(:op)] == ns(:accept)
+        hash[:op.ns(self)] == :accept.ns(self)
       end
     end
 
@@ -259,13 +274,7 @@ module Speculation
     ### private ###
 
     def self.specize(spec)
-      if spec?(spec)        then spec
-      elsif Symbol === spec then reg_resolve!(spec)
-      elsif Proc === spec   then PredicateSpec.new(spec)
-      else
-        raise ArgumentError,
-          "spec: #{spec} must be a Spec, Symbol or callable, given #{spec.class}"
-      end
+      spec?(spec) or spec.specize
     end
 
     def self.alt2(p1, p2)
@@ -283,7 +292,7 @@ module Speculation
       predicate, *rest_predicates = predicates
       key, *rest_keys = keys
 
-      return_value = H[ns(:op) => ns(:alt), predicates: predicates, keys: keys]
+      return_value = H[:op.ns(self) => :alt.ns(self), predicates: predicates, keys: keys]
       return return_value unless rest_predicates.empty?
 
       return predicate unless key
@@ -296,11 +305,11 @@ module Speculation
       x, *xs = data
 
       if data.empty?
-        return ns(:invalid) unless accept_nil?(p)
+        return :invalid.ns(self) unless accept_nil?(p)
 
         return_value = preturn(p)
 
-        if return_value == ns(:nil)
+        if return_value == :nil.ns(self)
           nil
         else
           return_value
@@ -310,7 +319,7 @@ module Speculation
         if dp
           re_conform(dp, xs)
         else
-          ns(:invalid)
+          :invalid.ns(self)
         end
       end
     end
@@ -319,11 +328,11 @@ module Speculation
       p = reg_resolve!(p)
       return unless regex?(p)
 
-      case p[ns(:op)]
-      when ns(:accept) then true
-      when ns(:pcat)   then p[:predicates].all? { |p| accept_nil?(p) }
-      when ns(:alt)    then p[:predicates].any? { |p| accept_nil?(p) }
-      when ns(:rep)    then (p[:p1] == p[:p2]) or accept_nil?(p[:p1])
+      case p[:op.ns(self)]
+      when :accept.ns(self) then true
+      when :pcat.ns(self)   then p[:predicates].all? { |p| accept_nil?(p) }
+      when :alt.ns(self)    then p[:predicates].any? { |p| accept_nil?(p) }
+      when :rep.ns(self)    then (p[:p1] == p[:p2]) or accept_nil?(p[:p1])
       else
         raise "Balls #{p.inspect}"
       end
@@ -336,15 +345,15 @@ module Speculation
       p0, *pr = p[:predicates]
       k, *ks = p[:keys]
 
-      case p[ns(:op)]
-      when ns(:accept) then p[:return_value]
-      when ns(:pcat)   then add_ret(p0, p[:return_value], k)
-      when ns(:rep)    then add_ret(p[:p1], p[:return_value], k)
-      when ns(:alt)
+      case p[:op.ns(self)]
+      when :accept.ns(self) then p[:return_value]
+      when :pcat.ns(self)   then add_ret(p0, p[:return_value], k)
+      when :rep.ns(self)    then add_ret(p[:p1], p[:return_value], k)
+      when :alt.ns(self)
         ps, ks = filter_alt(p[:predicates], p[:keys], method(:accept_nil?))
 
         r = if ps.first.nil?
-              ns(:nil)
+              :nil.ns(self)
             else
               preturn(ps.first)
             end
@@ -382,9 +391,9 @@ module Speculation
         end
       end
 
-      case predicate[ns(:op)]
-      when ns(:accept) then nil
-      when ns(:pcat)
+      case predicate[:op.ns(self)]
+      when :accept.ns(self) then nil
+      when :pcat.ns(self)
         return_value = predicate[:return_value]
 
         pred, *rest_preds = predicate[:predicates]
@@ -397,9 +406,9 @@ module Speculation
                  keys: keys, return_value: return_value]),
           (deriv(pcat(H[predicates: rest_preds, keys: rest_keys, return_value: add_ret(pred, return_value, key)]), value) if accept_nil?(pred))
         )
-      when ns(:alt)
+      when :alt.ns(self)
         _alt(predicate[:predicates].map { |p| deriv(p, value) }, predicate[:keys])
-      when ns(:rep)
+      when :rep.ns(self)
         alt2(
           rep(deriv(predicate[:p1], value), predicate[:p2], predicate[:return_value], predicate[:splice]),
           (deriv(rep(predicate[:p2], predicate[:p2], add_ret(predicate[:p1], predicate[:return_value], nil), value)) if accept_nil?(predicate[:p1]))
@@ -420,7 +429,7 @@ module Speculation
         if pred.respond_to?(:conform)
           pred.conform(x)
         else
-          pred === x ? x : ns(:invalid)
+          pred === x ? x : :invalid.ns(self)
         end
       end
     end
@@ -473,11 +482,11 @@ module Speculation
         end
       end
 
-      case p[ns(:op)]
-      when ns(:accept), ns(:alt)
+      case p[:op.ns(self)]
+      when :accept.ns(self), :alt.ns(self)
         return_value = preturn(p)
 
-        if return_value == ns(:nil)
+        if return_value == :nil.ns(self)
           r
         else
           if k
@@ -486,7 +495,7 @@ module Speculation
             r.add(return_value)
           end
         end
-      when ns(:pcat), ns(:rep) then prop.call
+      when :pcat.ns(self), :rep.ns(self) then prop.call
       else
         raise "Balls #{p.inspect}"
       end
