@@ -101,7 +101,7 @@ module Speculation
       elsif regex?(pred)
         RegexSpec.new(pred)
       elsif pred.is_a?(Symbol)
-        reg_resolve!(pred) or raise "unable to resolve spec #{pred}"
+        the_spec(pred)
       else
         PredicateSpec.new(pred)
       end
@@ -117,12 +117,15 @@ module Speculation
 
     def self.conform(spec, value)
       spec = specize(spec)
+      spec = RegexSpec.new(spec) if regex?(spec)
 
       spec.conform(value)
     end
 
     def self.valid?(spec, value)
       spec = specize(spec)
+      spec = RegexSpec.new(spec) if regex?(spec)
+
       value = spec.conform(value)
 
       !invalid?(value)
@@ -155,7 +158,8 @@ module Speculation
       predicates = named_specs.values
 
       regex = pcat(H[keys: keys, predicates: predicates, return_value: H[]])
-      RegexSpec.new(regex)
+      # RegexSpec.new(regex)
+      regex
     end
 
     def self.alt(kv_specs)
@@ -163,12 +167,19 @@ module Speculation
     end
 
     def self.zero_or_more(predicate)
-      RegexSpec.new(rep(predicate, predicate, V[], false))
+      regex = rep(predicate, predicate, V[], false)
+      # RegexSpec.new(regex)
+      regex
     end
 
     def self.one_or_more(predicate)
       regex = pcat(H[predicates: [predicate, rep(predicate, predicate, V[], true)], return_value: V[]])
-      RegexSpec.new(regex)
+      # RegexSpec.new(regex)
+      regex
+    end
+
+    def self.zero_or_one(predicate)
+      _alt([predicate, accept(ns(:nil))], nil)
     end
 
     def self.rep(p1, p2, return_value, splice)
@@ -266,13 +277,14 @@ module Speculation
     end
 
     def self._alt(predicates, keys)
+      predicates, keys = filter_alt(predicates, keys, -> (x) { x })
       return unless predicates
 
       predicate, *rest_predicates = predicates
       key, *rest_keys = keys
 
       return_value = H[ns(:op) => ns(:alt), predicates: predicates, keys: keys]
-      return return_value if rest_predicates.empty?
+      return return_value unless rest_predicates.empty?
 
       return predicate unless key
       return return_value unless accept?(predicate)
@@ -288,14 +300,13 @@ module Speculation
 
         return_value = preturn(p)
 
-        if return_value == ns(:invalid)
+        if return_value == ns(:nil)
           nil
         else
           return_value
         end
       else
         dp = deriv(p, x)
-
         if dp
           re_conform(dp, xs)
         else
@@ -310,9 +321,9 @@ module Speculation
 
       case p[ns(:op)]
       when ns(:accept) then true
-      when ns(:pcat) then p[:predicates].all? { |p| accept_nil?(p) }
-      when ns(:alt) then p[:predicates].find { |p| accept_nil?(p) }
-      when ns(:rep) then (p[:p1] == p[:p2]) or accept_nil?(p[:p1])
+      when ns(:pcat)   then p[:predicates].all? { |p| accept_nil?(p) }
+      when ns(:alt)    then p[:predicates].any? { |p| accept_nil?(p) }
+      when ns(:rep)    then (p[:p1] == p[:p2]) or accept_nil?(p[:p1])
       else
         raise "Balls #{p.inspect}"
       end
@@ -330,14 +341,15 @@ module Speculation
       when ns(:pcat)   then add_ret(p0, p[:return_value], k)
       when ns(:rep)    then add_ret(p[:p1], p[:return_value], k)
       when ns(:alt)
-        ps, ks = filter_alt(ps, ks, method(:accept_nil?))
+        ps, ks = filter_alt(p[:predicates], p[:keys], method(:accept_nil?))
 
         r = if ps.first.nil?
               ns(:nil)
             else
               preturn(ps.first)
             end
-        if ks.first
+
+        if ks && ks.first
           V[ks.first, r]
         else
           r
@@ -349,10 +361,10 @@ module Speculation
 
     def self.filter_alt(ps, ks, f)
       if ks
-        pks = ps.zip(ks).filter { |xs| f.call(xs.first) }
-        [pks.map(&:first), pks.map(&:second)]
+        pks = Array(ps).zip(ks).select { |xs| f.call(xs.first) }
+        [pks.map(&:first), pks.map(&:last)]
       else
-        [ps.filter(&f), ks]
+        [ps.select(&f), ks]
       end
     end
 
@@ -397,18 +409,47 @@ module Speculation
       end
     end
 
-    def self.dt(spec, x)
-      return x unless spec
+    def self.dt(pred, x)
+      return x unless pred
 
-      if spec.respond_to?(:conform)
+      spec = the_spec(pred)
+
+      if spec
         spec.conform(x)
       else
-        spec === x ? x : ns(:invalid)
+        if pred.respond_to?(:conform)
+          pred.conform(x)
+        else
+          pred === x ? x : ns(:invalid)
+        end
+      end
+    end
+
+    def self.the_spec(spec_or_key)
+      spec = maybe_spec(spec_or_key)
+      return spec if spec
+
+      if Symbol === spec_or_key
+        raise "Unable to resolve spec: #{spec_or_key}"
+      end
+    end
+
+    def self.maybe_spec(spec_or_key)
+      spec = ((Symbol === spec_or_key) and reg_resolve!(spec_or_key)) or
+        spec?(spec_or_key) or
+        regex?(spec_or_key) or
+        nil
+
+      if regex?(spec)
+        RegexSpec.new(spec)
+      else
+        spec
       end
     end
 
     def self.add_ret(p, r, k)
       p = reg_resolve!(p)
+      return r unless regex?(p)
 
       prop = -> do
         return_value = preturn(p)
@@ -424,7 +465,7 @@ module Speculation
             end
           else
             if k
-              r.merge(k, return_value)
+              r.merge(k => return_value)
             else
               r.add(return_value)
             end
@@ -432,17 +473,15 @@ module Speculation
         end
       end
 
-      return r unless regex?(p)
-
       case p[ns(:op)]
-      when ns(:accept)
+      when ns(:accept), ns(:alt)
         return_value = preturn(p)
 
         if return_value == ns(:nil)
           r
         else
           if k
-            r.merge(k, return_value)
+            r.merge(k => return_value)
           else
             r.add(return_value)
           end

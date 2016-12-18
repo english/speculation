@@ -73,7 +73,7 @@ class SpeculationTest < Minitest::Test
 
     S.def(:config, S.cat(prop: :string?, val: S.alt(s: :string?, b: :boolean?)))
 
-    assert_equal(H[prop: "-server", val: [:s, "foo"]],
+    assert_equal(H[prop: "-server", val: V[:s, "foo"]],
                  S.conform(:config, ["-server", "foo"]))
   end
 
@@ -109,8 +109,7 @@ class SpeculationTest < Minitest::Test
     S.def(:string?, -> (x) { x.is_a?(String) })
     S.def(:nested, S.cat(names_sym: -> (x) { x == :names },
                          names: S.spec(S.zero_or_more(:string?)),
-                         nums_sym: -> (x) { x == :nums },
-                         nums: S.spec(S.zero_or_more(:number?))))
+                         nums_sym: -> (x) { x == :nums }, nums: S.spec(S.zero_or_more(:number?))))
 
     conformed = S.conform(:nested, [:names, ["a", "b"], :nums, [1, 2]])
 
@@ -134,5 +133,22 @@ class SpeculationTest < Minitest::Test
 
     assert_equal [:a, :b, :c], S.conform(:seq_of_symbols, [:a, :b, :c])
     assert_equal :"Speculation::Core/invalid", S.conform(:seq_of_symbols, [])
+  end
+
+  def test_zero_or_one
+    S.def(:odd?, -> (x) { x.odd? })
+    S.def(:even?, -> (x) { x.even? })
+
+    S.def(:maybe_odd, S.zero_or_one(:odd?))
+
+    assert_equal 1, S.conform(:maybe_odd, [1])
+    assert_nil S.conform(:maybe_odd, [])
+    assert_equal :"Speculation::Core/invalid", S.conform(:maybe_odd, [2])
+
+    S.def(:odds_then_maybe_even, S.cat(odds: S.one_or_more(:odd?),
+                                       even: S.zero_or_one(:even?)))
+
+    expected = H[odds: V[1, 3, 5], even: 100]
+    assert_equal expected, S.conform(:odds_then_maybe_even, [1, 3, 5, 100])
   end
 end
