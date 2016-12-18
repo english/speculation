@@ -2,10 +2,12 @@ require 'concurrent/atom'
 require 'concurrent/delay'
 require 'hamster/hash'
 require 'hamster/vector'
+require 'functional'
 
 module Speculation
   H = Hamster::Hash
   V = Hamster::Vector
+  Protocol = Functional::Protocol
 
   module Core
     REGISTRY = Concurrent::Atom.new(H[])
@@ -14,10 +16,11 @@ module Speculation
       :"#{self}/#{sym}"
     end
 
-    class Spec
+    Functional.SpecifyProtocol(ns(:Spec)) do
+      instance_method :conform, 1
     end
 
-    class PredicateSpec < Spec
+    class PredicateSpec
       def initialize(predicate)
         @predicate = predicate
       end
@@ -28,7 +31,7 @@ module Speculation
       end
     end
 
-    class AndSpec < Spec
+    class AndSpec
       def initialize(specs)
         @specs = specs
       end
@@ -44,7 +47,7 @@ module Speculation
       end
     end
 
-    class OrSpec < Spec
+    class OrSpec
       def initialize(keys, specs)
         @keys = keys
         @specs = specs
@@ -63,9 +66,7 @@ module Speculation
       end
     end
 
-    class RegexSpec < Spec
-      attr_reader :regex
-
+    class RegexSpec
       def initialize(regex)
         @regex = regex
       end
@@ -108,7 +109,7 @@ module Speculation
     end
 
     def self.spec?(spec)
-      spec if spec.is_a?(Spec)
+      spec if Protocol.Satisfy?(spec, ns(:Spec))
     end
 
     def self.reset_registry!
@@ -258,10 +259,9 @@ module Speculation
     ### private ###
 
     def self.specize(spec)
-      case spec
-      when Spec       then spec
-      when Symbol     then reg_resolve!(spec)
-      when Proc       then PredicateSpec.new(spec)
+      if spec?(spec)        then spec
+      elsif Symbol === spec then reg_resolve!(spec)
+      elsif Proc === spec   then PredicateSpec.new(spec)
       else
         raise ArgumentError,
           "spec: #{spec} must be a Spec, Symbol or callable, given #{spec.class}"
