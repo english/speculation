@@ -392,8 +392,8 @@ module Speculation
                    opt_keys: opt, opt_specs: opt)
     end
 
-    def self.coll_of(spec)
-      every(spec, conform_all: true)
+    def self.coll_of(spec, opts = {})
+      every(spec, conform_all: true, **opts)
     end
 
     def self.tuple(*specs)
@@ -413,7 +413,14 @@ module Speculation
     end
 
     def self.every(predicate, options)
-      collection_predicate = options[:kind] || -> (x) { x.respond_to?(:each) }
+      collection_predicates = [options.fetch(:kind, -> (coll) { coll.respond_to?(:each) })]
+
+      if options[:count]
+        collection_predicates.push(-> (coll) { coll.count == options[:count] })
+      end
+
+      collection_predicate = -> (coll) { collection_predicates.all? { |f| f.call(coll) } }
+
       delayed_spec = Concurrent::Delay.new { specize(predicate) }
 
       EverySpec.new(delayed_spec, collection_predicate, options[:conform_all])

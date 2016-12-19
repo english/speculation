@@ -226,6 +226,12 @@ class SpeculationTest < Minitest::Test
 
     expected = { a: :x, b: :y, c: :z }
     assert_equal expected, S.conform(S.coll_of(:symbol_collection), { a: :x, b: :y, c: :z })
+
+    assert S.valid?(S.coll_of(Integer), [1, 2, 3])
+    refute S.valid?(S.coll_of(Integer), ['a', 'b', 'c'])
+
+    assert S.valid?(S.coll_of(Integer, count: 3), [1, 2, 3])
+    refute S.valid?(S.coll_of(Integer, count: 2), [1, 2, 3])
   end
 
   def test_tuple
