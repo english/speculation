@@ -243,6 +243,40 @@ module Speculation
       Protocol.Satisfy!(self, :Specize.ns(Core), :Spec.ns(Core))
     end
 
+    class TupleSpec
+      def initialize(delayed_specs)
+        @delayed_specs = delayed_specs
+      end
+
+      def conform(collection)
+        specs = @delayed_specs.value
+
+        unless collection.respond_to?(:count) && collection.count == specs.count
+          return :invalid.ns(Core)
+        end
+
+        return_value = collection.class.new
+
+        collection.zip(specs).each do |(value, spec)|
+          conformed_value = spec.conform(value)
+
+          if Core.invalid?(conformed_value)
+            return :invalid.ns(Core)
+          else
+            return_value += [conformed_value]
+          end
+        end
+
+        return_value
+      end
+
+      def specize
+        self
+      end
+
+      Protocol.Satisfy!(self, :Specize.ns(Core), :Spec.ns(Core))
+    end
+
     def self.registry
       REGISTRY.value
     end
@@ -363,6 +397,14 @@ module Speculation
       delayed_spec = Concurrent::Delay.new { specize(spec) }
 
       EverySpec.new(delayed_spec, collection_predicate, conform_all = true)
+    end
+
+    def self.tuple(*specs)
+      delayed_specs = Concurrent::Delay.new do
+        specs.map { |spec| specize(spec) }
+      end
+
+      TupleSpec.new(delayed_specs)
     end
 
     def self.rep(p1, p2, return_value, splice)
