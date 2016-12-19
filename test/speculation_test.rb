@@ -228,7 +228,9 @@ class SpeculationTest < Minitest::Test
     assert_equal expected, S.conform(S.coll_of(:symbol_collection), { a: :x, b: :y, c: :z })
 
     assert S.valid?(S.coll_of(Integer), [1, 2, 3])
+    assert S.valid?(S.coll_of(Integer, kind: -> (coll) { coll.is_a?(Array) }), [1, 2, 3])
     refute S.valid?(S.coll_of(Integer), ['a', 'b', 'c'])
+    refute S.valid?(S.coll_of(Integer, kind: -> (coll) { coll.is_a?(V) }), [1, 2, 3])
 
     assert S.valid?(S.coll_of(Integer, count: 3), [1, 2, 3])
     refute S.valid?(S.coll_of(Integer, count: 2), [1, 2, 3])
