@@ -1,11 +1,12 @@
 require 'test_helper'
 require 'speculation/core'
-require 'hamster/hash'
+require 'hamster'
 
 class SpeculationTest < Minitest::Test
   S = Speculation::Core
   H = Hamster::Hash
   V = Hamster::Vector
+  HSet = Hamster::Set
 
   using Speculation::Core::NS
 
@@ -212,5 +213,18 @@ class SpeculationTest < Minitest::Test
                                         :last_name.ns(self)  => "Musk",
                                         :email.ns(self)      => "elon@example.com",
                                         :acctid.ns(self)     => "123"])
+  end
+
+  def test_coll_of
+    S.def(:symbol_collection, S.coll_of(Symbol))
+
+    assert_equal V[:a, :b, :c], S.conform(:symbol_collection, V[:a, :b, :c])
+    assert_equal HSet[5, 10, 2], S.conform(S.coll_of(Numeric), HSet[5, 10, 2])
+
+    assert_equal [:a, :b, :c], S.conform(:symbol_collection, [:a, :b, :c])
+    assert_equal Set[5, 10, 2], S.conform(S.coll_of(Numeric), Set[5, 10, 2])
+
+    expected = { a: :x, b: :y, c: :z }
+    assert_equal expected, S.conform(S.coll_of(:symbol_collection), { a: :x, b: :y, c: :z })
   end
 end

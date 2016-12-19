@@ -2,6 +2,7 @@ require 'concurrent/atom'
 require 'concurrent/delay'
 require 'hamster/hash'
 require 'hamster/vector'
+require 'hamster/set'
 require 'functional'
 
 module Speculation
@@ -174,7 +175,7 @@ module Speculation
             return :invalid.ns(Core)
           else
             unless conformed_value.equal?(value)
-              ret = ret.store(key, conformed_value)
+              ret = ret.merge(key => conformed_value)
             end
           end
         end
@@ -184,6 +185,59 @@ module Speculation
 
       def specize
         self
+      end
+
+      Protocol.Satisfy!(self, :Specize.ns(Core), :Spec.ns(Core))
+    end
+
+    class EverySpec
+      def initialize(delayed_spec, collection_predicate, conform_all)
+        @delayed_spec = delayed_spec
+        @collection_predicate = collection_predicate
+        @conform_all = conform_all
+      end
+
+      def conform(value)
+        return :invalid.ns(Core) unless @collection_predicate.call(value)
+
+        spec = @delayed_spec.value
+
+        if @conform_all
+          return_value = init(value)
+
+          value.each_with_index do |value, index|
+            conformed_value = spec.conform(value)
+
+            if Core.invalid?(conformed_value)
+              return :invalid.ns(Core)
+            else
+              return_value = add(return_value, index, conformed_value)
+            end
+          end
+
+          return_value
+        else
+          raise "Can't handle not conforming all"
+        end
+      end
+
+      def specize
+        self
+      end
+
+      private
+
+      def add(coll, index, value)
+        if coll.respond_to?(:key?)
+          coll.merge(value.first => value.last)
+        else
+          coll + [value]
+        end
+      end
+
+      def init(coll)
+        # OPTIMIZE if we're not conforming we can return `coll`
+        coll.class.new
       end
 
       Protocol.Satisfy!(self, :Specize.ns(Core), :Spec.ns(Core))
@@ -302,6 +356,13 @@ module Speculation
       HashSpec.new(keys_pred: keys_pred,
                    req_keys: req, req_specs: req,
                    opt_keys: opt, opt_specs: opt)
+    end
+
+    def self.coll_of(spec)
+      collection_predicate = -> (x) { x.respond_to?(:each) } # coll?
+      delayed_spec = Concurrent::Delay.new { specize(spec) }
+
+      EverySpec.new(delayed_spec, collection_predicate, conform_all = true)
     end
 
     def self.rep(p1, p2, return_value, splice)
