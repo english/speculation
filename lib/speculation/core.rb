@@ -393,10 +393,7 @@ module Speculation
     end
 
     def self.coll_of(spec)
-      collection_predicate = -> (x) { x.respond_to?(:each) } # coll?
-      delayed_spec = Concurrent::Delay.new { specize(spec) }
-
-      EverySpec.new(delayed_spec, collection_predicate, conform_all = true)
+      every(spec, conform_all: true)
     end
 
     def self.tuple(*specs)
@@ -405,6 +402,21 @@ module Speculation
       end
 
       TupleSpec.new(delayed_specs)
+    end
+
+    def self.map_of(key_predicate, value_predicate)
+      every_kv(key_predicate, value_predicate, kind: -> (x) { x.respond_to?(:key?) }, conform_all: true)
+    end
+
+    def self.every_kv(key_predicate, value_predicate, options)
+      every(tuple(key_predicate, value_predicate), **options)
+    end
+
+    def self.every(predicate, options)
+      collection_predicate = options[:kind] || -> (x) { x.respond_to?(:each) }
+      delayed_spec = Concurrent::Delay.new { specize(predicate) }
+
+      EverySpec.new(delayed_spec, collection_predicate, options[:conform_all])
     end
 
     def self.rep(p1, p2, return_value, splice)

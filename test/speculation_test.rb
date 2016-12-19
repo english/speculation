@@ -234,4 +234,17 @@ class SpeculationTest < Minitest::Test
     assert S.valid?(:point, [1, 2, 3])
     refute S.valid?(:point, [1, 2, "3"])
   end
+
+  def test_map_of
+    S.def(:scores, S.map_of(String, Integer))
+
+    expected = { "Sally" => 1000, "Joe" => 500 }
+    assert_equal expected, S.conform(:scores, { "Sally" => 1000, "Joe" => 500 })
+
+    expected = H["Sally" => 1000, "Joe" => 500]
+    assert_equal expected, S.conform(:scores, H["Sally" => 1000, "Joe" => 500])
+
+    refute S.valid?(:scores, H["Sally" => 1000, :Joe => 500])
+    refute S.valid?(:scores, { "Sally" => true, "Joe" => 500 })
+  end
 end
