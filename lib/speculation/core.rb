@@ -415,8 +415,15 @@ module Speculation
     def self.every(predicate, options)
       collection_predicates = [options.fetch(:kind, -> (coll) { coll.respond_to?(:each) })]
 
-      if options[:count]
+      if options.key?(:count)
         collection_predicates.push(-> (coll) { coll.count == options[:count] })
+      elsif options.key?(:min_count) || options.key?(:max_count)
+        collection_predicates.push(-> (coll) do
+          min = options.fetch(:min_count, 0)
+          max = options.fetch(:max_count, Float::INFINITY)
+
+          coll.count.between?(min, max)
+        end)
       end
 
       collection_predicate = -> (coll) { collection_predicates.all? { |f| f.call(coll) } }

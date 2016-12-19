@@ -232,6 +232,11 @@ class SpeculationTest < Minitest::Test
 
     assert S.valid?(S.coll_of(Integer, count: 3), [1, 2, 3])
     refute S.valid?(S.coll_of(Integer, count: 2), [1, 2, 3])
+
+    refute S.valid?(S.coll_of(Integer, min_count: 3, max_count: 4), [1, 2])
+    assert S.valid?(S.coll_of(Integer, min_count: 3, max_count: 4), [1, 2, 3])
+    assert S.valid?(S.coll_of(Integer, min_count: 3, max_count: 4), [1, 2, 3, 4])
+    refute S.valid?(S.coll_of(Integer, min_count: 3, max_count: 4), [1, 2, 3, 4, 5])
   end
 
   def test_tuple
