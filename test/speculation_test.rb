@@ -260,4 +260,27 @@ class SpeculationTest < Minitest::Test
     refute S.valid?(:scores, H["Sally" => 1000, :Joe => 500])
     refute S.valid?(:scores, { "Sally" => true, "Joe" => 500 })
   end
+
+  def test_explain_data
+    S.def(:even, -> (x) { x.even? })
+
+    expected = H[
+      :"Speculation::Core/problems" => V[
+        # TODO: will require magic to add: `pred: x.even?,`
+        H[path: V[], val: 1, via: V[:even], in: V[]]
+      ]
+    ]
+    assert_equal expected, S.explain_data(:even, 1)
+
+    S.def(:integer, Integer)
+    S.def(:even, -> (x) { x.even? })
+    S.def(:even_integer, S.and(:integer, :even))
+
+    expected = H[
+      :"Speculation::Core/problems" => V[
+        H[path: V[], val: "s", in: V[], via: V[:even_integer, :integer]]
+      ]
+    ]
+    assert_equal expected, S.explain_data(:even_integer, "s")
+  end
 end

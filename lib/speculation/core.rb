@@ -70,6 +70,14 @@ module Speculation
         @predicate === value ? value : :invalid.ns(Core)
       end
 
+      def explain(path, via, _in, value)
+        if Core.invalid?(Core.dt(@predicate, value))
+          V[
+            H[path: path, val: value, via: via, in: _in]
+          ]
+        end
+      end
+
       def specize
         self
       end
@@ -78,8 +86,11 @@ module Speculation
     end
 
     class AndSpec
-      def initialize(specs)
-        @specs = specs
+      def initialize(preds)
+        @preds = preds
+        @specs = Concurrent::Delay.new do
+          preds.map { |pred| Core.specize(pred) }
+        end
       end
 
       def conform(value)
@@ -94,6 +105,10 @@ module Speculation
 
       def specize
         self
+      end
+
+      def explain(path, via, _in, value)
+        Core.explain_pred_list(@preds, path, via, _in, value)
       end
 
       Protocol.Satisfy!(self, :Specize.ns(Core), :Spec.ns(Core))
@@ -332,12 +347,8 @@ module Speculation
       value.equal?(:invalid.ns(self))
     end
 
-    def self.and(*specs)
-      delayed_specs = Concurrent::Delay.new do
-        specs.map { |spec| specize(spec) }
-      end
-
-      AndSpec.new(delayed_specs)
+    def self.and(*preds)
+      AndSpec.new(preds)
     end
 
     def self.or(named_specs)
@@ -433,6 +444,47 @@ module Speculation
       EverySpec.new(delayed_spec, collection_predicate, options[:conform_all])
     end
 
+    def self.explain_data(spec, value)
+      # TODO: manage spec names
+      _explain_data(spec, V[], name=V[spec], V[], value)
+    end
+
+    def self._explain_data(spec, path, via, _in, value)
+      probs = specize(spec).explain(path, via, _in, value)
+
+      unless probs.empty?
+        H[:problems.ns(self) => probs]
+      end
+    end
+
+    def self.explain_pred_list(preds, path, via, _in, value)
+      return_value = value
+
+      preds.each do |pred|
+        nret = dt(pred, return_value)
+
+        if invalid?(nret)
+          return explain1(pred, path, via, _in, return_value)
+        else
+          return_value = nret
+        end
+      end
+
+      nil
+    end
+
+    def self.explain1(pred, path, via, _in, value)
+      spec = maybe_spec(pred)
+
+      if spec?(spec)
+        spec.explain(path, via.conj(pred), _in, value)
+      else
+        V[H[path: path, val: value, via: via, in: _in]]
+      end
+    end
+
+    ######## crazy shit ########
+
     def self.rep(p1, p2, return_value, splice)
       return unless p1
 
@@ -444,8 +496,6 @@ module Speculation
         regex.merge(p1: p1, return_value: return_value)
       end
     end
-
-    ######## crazy shit ########
 
     def self.pcat(regex)
       predicate, *rest_predicates = regex[:predicates]
