@@ -267,7 +267,7 @@ class SpeculationTest < Minitest::Test
     expected = H[
       :"Speculation::Core/problems" => V[
         # TODO: will require magic to add: `pred: x.even?,`
-        H[path: V[], val: 1, via: V[:even], in: V[]]
+        H[path: V[], val: 1, via: V[:even], in: V[], pred: "<proc>"]
       ]
     ]
     assert_equal expected, S.explain_data(:even, 1)
@@ -278,7 +278,7 @@ class SpeculationTest < Minitest::Test
 
     expected = H[
       :"Speculation::Core/problems" => V[
-        H[path: V[], val: "s", in: V[], via: V[:even_integer, :integer]]
+        H[path: V[], val: "s", in: V[], via: V[:even_integer, :integer], pred: "Integer"]
       ]
     ]
     assert_equal expected, S.explain_data(:even_integer, "s")
@@ -311,7 +311,8 @@ class SpeculationTest < Minitest::Test
           via: V[
             :"SpeculationTest#test_explain_data_map/person",
             :"SpeculationTest#test_explain_data_map/email" # clojure returns email-type for this...
-          ]
+          ],
+          pred: "/^[a-zA-Z1-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,63}$/"
         ]
       ]
     ]
@@ -323,8 +324,8 @@ class SpeculationTest < Minitest::Test
 
     expected = H[
       :"Speculation::Core/problems" => V[
-        H[path: V[:name], val: :foo, in: V[], via: V[:name_or_id]],
-        H[path: V[:id], val: :foo, in: V[], via: V[:name_or_id]],
+        H[path: V[:name], val: :foo, in: V[], via: V[:name_or_id], pred: "String"],
+        H[path: V[:id], val: :foo, in: V[], via: V[:name_or_id], pred: "Integer"],
       ]
     ]
 
@@ -337,12 +338,12 @@ class SpeculationTest < Minitest::Test
     expected = H[:"Speculation::Core/problems" => V[H[path: V[:unit],
                                                       val: "peaches",
                                                       via: V[:ingredient],
-                                                      in: V[1]]]]
+                                                      in: V[1],
+                                                      pred: "Symbol"]]]
 
 
     assert_equal expected, S.explain_data(:ingredient, V[11, "peaches"])
 
-    S.def(:even, -> (x) { x.count.even? })
     S.def(:nested, S.cat(names_sym: -> (x) { x == :names },
                          names: S.spec(S.zero_or_more(String)),
                          nums_sym: -> (x) { x == :nums },
@@ -353,8 +354,8 @@ class SpeculationTest < Minitest::Test
       H[:path => V[:nums],
         :val => V[1, 2, 3, 4, 5],
         :in => V[3],
-        # TODO: `:pred` should have `nums.count.even?` for this to be useful
-        :via => V[:nested]]]]
+        :via => V[:nested],
+        pred: "<proc>"]]]
 
     assert_equal expected, S.explain_data(:nested, [:names, ["a", "b"], :nums, [1, 2, 3, 4, 5]])
   end
@@ -365,7 +366,8 @@ class SpeculationTest < Minitest::Test
     expected = H[:"Speculation::Core/problems" => V[H[path: V[2],
                                                       val: 3,
                                                       via: V[:point],
-                                                      in: V[2]]]]
+                                                      in: V[2],
+                                                      pred: "Float"]]]
 
 
     assert_equal expected, S.explain_data(:point, V[1.1, 2.2, 3])
@@ -377,8 +379,32 @@ class SpeculationTest < Minitest::Test
     expected = H[:"Speculation::Core/problems" => V[H[path: V[1],
                                                       val: "300",
                                                       via: V[:scores],
-                                                      in: V["Joe", 1]]]]
+                                                      in: V["Joe", 1],
+                                                      pred: "Integer"]]]
     
     assert_equal expected, S.explain_data(:scores, H["Sally" => 1000, "Joe" => "300"])
+  end
+
+  def test_explain_alt
+    S.def(:nested, S.cat(names_sym: -> (x) { x == :names },
+                         names: S.spec(S.zero_or_more(String)),
+                         nums_sym: -> (x) { x == :nums },
+                         nums: S.spec(S.alt(
+                           ints: S.one_or_more(Integer),
+                           floats: S.one_or_more(Float)))))
+
+    expected = H[:"Speculation::Core/problems" => V[
+       H[:path => V[:nums, :ints],
+        :val => "1",
+        :in => V[3, 0],
+        :via => V[:nested],
+        :pred => "Integer"],
+       H[:path => V[:nums, :floats],
+        :val => "1",
+        :in => V[3, 0],
+        :via => V[:nested],
+        :pred => "Float"]]]
+
+    assert_equal expected, S.explain_data(:nested, [:names, ["a", "b"], :nums, ["1"]])
   end
 end
