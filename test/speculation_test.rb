@@ -8,7 +8,7 @@ class SpeculationTest < Minitest::Test
   V = Hamster::Vector
   HSet = Hamster::Set
 
-  using Speculation::Core::NS
+  using Speculation::Core.namespaced_symbols(Speculation::Core)
 
   def setup
     Speculation::Core.reset_registry!
@@ -77,7 +77,7 @@ class SpeculationTest < Minitest::Test
     S.def(:config, S.cat(prop: :string?, val: S.alt(s: :string?, b: :boolean?)))
 
     assert_equal(H[prop: "-server", val: V[:s, "foo"]],
-                 S.conform(:config, ["-server", "foo"]))
+                 S.conform(:config, V["-server", "foo"]))
   end
 
   def test_nested_cat_sequence
@@ -170,7 +170,7 @@ class SpeculationTest < Minitest::Test
       S.cat(prop: String,
             val: S.alt(s: String, b: -> (x) { [true, false].include?(x) }))))
 
-    conformed = S.conform(:config, ["-server", "foo", "-verbose", true, "-user", "joe"])
+    conformed = S.conform(:config, V["-server", "foo", "-verbose", true, "-user", "joe"])
     expected = V[H[prop: "-server",  val: V[:s, "foo"]],
                  H[prop: "-verbose", val: V[:b, true]],
                  H[prop: "-user",    val: V[:s, "joe"]]]
@@ -282,5 +282,87 @@ class SpeculationTest < Minitest::Test
       ]
     ]
     assert_equal expected, S.explain_data(:even_integer, "s")
+  end
+
+  def test_explain_data_map
+    email_regex = /^[a-zA-Z1-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,63}$/
+    S.def(:email_type, S.and(String, email_regex))
+
+    S.def(:acctid.ns(self), Integer)
+    S.def(:first_name.ns(self), String)
+    S.def(:last_name.ns(self), String)
+    S.def(:email.ns(self), :email_type)
+    S.def(:person.ns(self),
+          S.keys(req: [:first_name.ns(self), :last_name.ns(self), :email.ns(self)],
+                 opt: [:phone.ns(self)]))
+
+    input = {
+      :first_name.ns(self) => "Elon",
+      :last_name.ns(self)  => "Musk",
+      :email.ns(self)      => "n/a"
+    }
+
+    expected = H[
+      :"Speculation::Core/problems" => V[
+        H[
+          path: V[:"SpeculationTest#test_explain_data_map/email"],
+          val: "n/a",
+          in: V[:"SpeculationTest#test_explain_data_map/email"],
+          via: V[
+            :"SpeculationTest#test_explain_data_map/person",
+            :"SpeculationTest#test_explain_data_map/email" # clojure returns email-type for this...
+          ]
+        ]
+      ]
+    ]
+    assert_equal expected, S.explain_data(:person.ns(self), input)
+  end
+
+  def test_explain_or
+    S.def(:name_or_id, S.or(name: String, id: Integer))
+
+    expected = H[
+      :"Speculation::Core/problems" => V[
+        H[path: V[:name], val: :foo, in: V[], via: V[:name_or_id]],
+        H[path: V[:id], val: :foo, in: V[], via: V[:name_or_id]],
+      ]
+    ]
+
+    assert_equal expected, S.explain_data(:name_or_id, :foo)
+    assert_nil S.explain_data(:name_or_id, 1)
+  end
+
+  def test_explain_regex
+    S.def(:ingredient, S.cat(quantity: Numeric, unit: Symbol))
+    expected = H[:"Speculation::Core/problems" => V[H[path: V[:unit],
+                                                      val: "peaches",
+                                                      via: V[:ingredient],
+                                                      in: V[1]]]]
+
+
+    assert_equal expected, S.explain_data(:ingredient, V[11, "peaches"])
+  end
+
+  def test_explain_tuple
+    S.def(:point, S.tuple(Float, Float, Float))
+
+    expected = H[:"Speculation::Core/problems" => V[H[path: V[2],
+                                                      val: 3,
+                                                      via: V[:point],
+                                                      in: V[2]]]]
+
+
+    assert_equal expected, S.explain_data(:point, V[1.1, 2.2, 3])
+  end
+
+  def test_explain_map_of
+    S.def(:scores, S.map_of(String, Integer))
+
+    expected = H[:"Speculation::Core/problems" => V[H[path: V[1],
+                                                      val: "300",
+                                                      via: V[:scores],
+                                                      in: V["Joe", 1]]]]
+    
+    assert_equal expected, S.explain_data(:scores, H["Sally" => 1000, "Joe" => "300"])
   end
 end
