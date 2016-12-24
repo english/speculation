@@ -341,6 +341,22 @@ class SpeculationTest < Minitest::Test
 
 
     assert_equal expected, S.explain_data(:ingredient, V[11, "peaches"])
+
+    S.def(:even, -> (x) { x.count.even? })
+    S.def(:nested, S.cat(names_sym: -> (x) { x == :names },
+                         names: S.spec(S.zero_or_more(String)),
+                         nums_sym: -> (x) { x == :nums },
+                         nums: S.spec(S.constrained(S.one_or_more(Numeric),
+                                                    -> (nums) { nums.count.even? }))))
+
+    expected = H[:"Speculation::Core/problems" => V[
+      H[:path => V[:nums],
+        :val => V[1, 2, 3, 4, 5],
+        :in => V[3],
+        # TODO: `:pred` should have `nums.count.even?` for this to be useful
+        :via => V[:nested]]]]
+
+    assert_equal expected, S.explain_data(:nested, [:names, ["a", "b"], :nums, [1, 2, 3, 4, 5]])
   end
 
   def test_explain_tuple

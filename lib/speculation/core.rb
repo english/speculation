@@ -1010,6 +1010,7 @@ module Speculation
             in: _in]]
       end
 
+      input ||= []
       x = input.first
 
       unless regex?(p)
@@ -1023,21 +1024,21 @@ module Speculation
       case p[:op.ns]
       when :accept.ns then nil
       when :amp.ns
-        # if input.empty?
-        #   if accept_nil?(p[:p1])
-        #     explain_pred_list(p[:predicates], path, via, _in, preturn(p[:p1]))
-        #   else
-        #     insufficient.call(path)
-        #   end
-        # else
-        #   p1 = deriv(p[:p1], x)
+        if input.empty?
+          if accept_nil?(p[:p1])
+            explain_pred_list(p[:predicates], path, via, _in, preturn(p[:p1]))
+          else
+            insufficient.call(path)
+          end
+        else
+          p1 = deriv(p[:p1], x)
 
-        #   if p1
-        #     explain_pred_list(p[:predicates], path, via, _in, preturn(p[:p1]))
-        #   else
-        #     op_explain(p[:p1], path, via, _in, input)
-        #   end
-        # end
+          if p1
+            explain_pred_list(p[:predicates], path, via, _in, preturn(p1))
+          else
+            op_explain(p[:p1], path, via, _in, input)
+          end
+        end
       when :pcat.ns
         pks = p[:predicates].zip(p[:keys])
         pred, k = if pks.count == 1
@@ -1052,6 +1053,8 @@ module Speculation
         else
           op_explain(pred, path, via, _in, input)
         end
+      when :rep.ns
+        op_explain(p[:p1], path, via, _in, input)
       else
         raise "Unexpected #{:op.ns} #{p[:op.ns]}"
       end
