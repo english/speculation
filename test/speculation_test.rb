@@ -221,6 +221,10 @@ class SpeculationTest < Minitest::Test
 
     refute S.valid?(:person_unq.ns, H[])
 
+    refute S.valid?(:person_unq.ns, H[:first_name => "Elon",
+                                      :last_name  => "Musk",
+                                      :email      => "not-an-email"])
+
     assert S.valid?(:person_unq.ns, H[:first_name => "Elon",
                                       :last_name  => "Musk",
                                       :email      => "elon@example.com"])

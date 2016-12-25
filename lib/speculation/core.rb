@@ -220,13 +220,8 @@ module Speculation
       def initialize(keys_pred:, pred_exprs:, req_keys:, req_specs:, opt_keys:, opt_specs:)
         @keys_pred  = keys_pred
         @pred_exprs = pred_exprs
-        @req_keys   = req_keys
-        @req_specs  = req_specs
-        @opt_keys   = opt_keys
-        @opt_specs  = opt_specs
 
-        # is this needed?
-        @key_to_spec_map = H[@req_keys.concat(@opt_keys).zip(@req_specs.concat(@opt_specs))]
+        @key_to_spec_map = H[req_keys.concat(opt_keys).zip(req_specs.concat(opt_specs))]
       end
 
       def conform(value)
@@ -554,10 +549,13 @@ module Speculation
         end
       end
 
+      req_specs = req + req_un
+      req_keys = req + req_un.map { |s| s.unnamespaced }
+
       keys_pred = -> (x) { pred_exprs.all? { |f| f.call(x) } }
 
       HashSpec.new(keys_pred: keys_pred, pred_exprs: V.new(pred_exprs),
-                   req_keys: V.new(req), req_specs: V.new(req),
+                   req_keys: V.new(req_keys), req_specs: V.new(req_specs),
                    opt_keys: V.new(opt), opt_specs: V.new(opt))
     end
 
