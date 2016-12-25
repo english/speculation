@@ -414,4 +414,15 @@ class SpeculationTest < Minitest::Test
 
     assert_equal expected, S.explain_data(:nested.ns, [:names, ["a", "b"], :nums, ["1"]])
   end
+
+  def test_explain
+    S.def(:person.ns(:unq),
+          S.keys(req_un: [:first_name.ns, :last_name.ns, :email.ns],
+                 opt_un: [:phone.ns]))
+
+    assert_equal <<~EOS, S.explain(:person.ns(:unq), first_name: "Elon")
+      val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: "key?(:last_name)"
+      val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: "key?(:email)"
+    EOS
+  end
 end

@@ -217,15 +217,14 @@ module Speculation
     class HashSpec
       attr_accessor :name
 
-      def initialize(keys_pred:, pred_exprs:, req_keys:, req_specs:, opt_keys:, opt_specs:)
-        @keys_pred  = keys_pred
-        @pred_exprs = pred_exprs
-
+      def initialize(req_keys:, req_specs:, opt_keys:, opt_specs:)
+        # TODO: opt_keys???
+        @req_keys = req_keys
         @key_to_spec_map = H[req_keys.concat(opt_keys).zip(req_specs.concat(opt_specs))]
       end
 
       def conform(value)
-        return :invalid.ns unless @keys_pred.call(value)
+        return :invalid.ns unless @req_keys.to_set.subset?(value.keys)
 
         reg = Core.registry
 
@@ -257,14 +256,12 @@ module Speculation
           return V[H[path: path, pred: :hash?, val: value, via: via, in: _in]]
         end
 
-        reg = Core.registry
-
-        problems = @pred_exprs.
-          reject { |pred| pred.call(value) }.
-          map { |pred| H[path: path, pred: Core.explain_pred(pred), val: value, via: via, in: _in] }
+        problems = @req_keys.
+          reject { |k| value.key?(k) }.
+          map { |k| H[path: path, pred: "key?(#{k.inspect})", val: value, via: via, in: _in] }
 
         problems += value.flat_map do |(k, v)|
-          next unless reg.key?(@key_to_spec_map[k])
+          next unless Core.registry.key?(@key_to_spec_map[k])
 
           unless Core.pvalid?(@key_to_spec_map.fetch(k), v)
             Core.explain1(@key_to_spec_map.fetch(k), path.conj(k), via, _in.conj(k), v)
@@ -409,11 +406,9 @@ module Speculation
 
       def explain(path, via, _in, value)
         if !value.respond_to?(:each)
-          # TODO: add `pred: 'value.respond_to?(:each)'`
-          V[H[path: path, val: value, via: via, in: _in]]
+          V[H[path: path, val: value, via: via, in: _in, pred: "respond_to?(:each)"]]
         elsif @preds.count != value.count
-          # TODO: add `pred: 'value.count == preds.count'`
-          V[H[path: path, val: value, via: via, in: _in]]
+          V[H[path: path, val: value, via: via, in: _in, pred: "count == predicates.count"]]
         else
           probs = @preds.zip(value).each_with_index.flat_map do |(pred, x), index|
             unless Core.pvalid?(pred, x)
@@ -438,7 +433,8 @@ module Speculation
 
     def self.def(key, spec)
       unless key.is_a?(Symbol) && key.namespaced?
-        raise ArgumentError, "key must be a namespaced Symbol, e.g. #{:my_spec.ns}"
+        raise ArgumentError,
+          "key must be a namespaced Symbol, e.g. #{:my_spec.ns}, given #{key}"
       end
 
       spec = if spec?(spec) || regex?(spec) || registry[key]
@@ -541,25 +537,10 @@ module Speculation
         raise "all keys must be namespaced"
       end
 
-      # arbitrary map test
-      is_map = -> (x) { x.respond_to?(:key?) }
-      pred_exprs = [is_map]
-      pred_exprs += req.map do |key|
-        -> (x) { x.key?(key) }
-      end
-      pred_exprs += req_un.map do |key|
-        -> (x) do
-          x.key?(key.unnamespaced)
-        end
-      end
-
       req_specs = req + req_un
-      req_keys = req + req_un.map { |s| s.unnamespaced }
+      req_keys = req + req_un.map { |k| k.unnamespaced }
 
-      keys_pred = -> (x) { pred_exprs.all? { |f| f.call(x) } }
-
-      HashSpec.new(keys_pred: keys_pred, pred_exprs: V.new(pred_exprs),
-                   req_keys: V.new(req_keys), req_specs: V.new(req_specs),
+      HashSpec.new(req_keys: V.new(req_keys), req_specs: V.new(req_specs),
                    opt_keys: V.new(opt), opt_specs: V.new(opt))
     end
 
@@ -585,8 +566,39 @@ module Speculation
     end
 
     def self.explain_data(spec, value)
-      # TODO: manage spec names
-      _explain_data(spec, V[], name=V[spec], V[], value)
+      _explain_data(spec, V[], V[spec_name(spec)], V[], value)
+    end
+
+    def self.explain(spec, x, out = StringIO.new)
+      data = explain_data(spec, x)
+      return "Success!" unless data
+
+      s = ""
+
+      data.fetch(:problems.ns).each do |prob|
+        path, pred, val, reason, via, _in = prob.values_at(:path, :pred, :val, :reason, :via, :in)
+
+        s << "In: #{_in.inspect} " unless _in.empty?
+        s << "val: #{val.inspect} fails"
+        s << " spec: #{via.last.inspect}" unless via.empty?
+        s << " at: #{path.inspect}" unless path.empty?
+        s << " predicate: #{pred.inspect}"
+        s << ", #{reason.inspect}" if reason
+
+        prob.each do |k, v|
+          unless [:path, :pred, :val, :reason, :via, :in].include?(k)
+            s << "\n\t #{k.inspect} #{v.inspect}"
+          end
+        end
+
+        s << "\n"
+      end
+
+      data.each do |k, v|
+        s << "#{k} #{v}\n" unless k == :problems.ns
+      end
+
+      s
     end
 
     def self._explain_data(spec, path, via, _in, value)
@@ -1099,7 +1111,7 @@ module Speculation
         return explain1(pred, path, via, _in, x)
       end
 
-      if count && count != x.count # TODO: bound this count?
+      if count && count != x.count
         return V[H[path: path, pred: 'count == x.count', val: x, via: via, in: _in]]
       end
 
