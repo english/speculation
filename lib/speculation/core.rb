@@ -17,6 +17,14 @@ module Speculation
               :"#{namespace}/#{self}"
             end
           end
+
+          def namespaced?
+            to_s.include?("/")
+          end
+
+          def unnamespaced
+            to_s.split("/").last.to_sym
+          end
         end
       end
     end
@@ -209,12 +217,13 @@ module Speculation
     class HashSpec
       attr_accessor :name
 
-      def initialize(keys_pred:, req_keys:, req_specs:, opt_keys:, opt_specs:)
-        @keys_pred = keys_pred
-        @req_keys  = req_keys
-        @req_specs = req_specs
-        @opt_keys  = opt_keys
-        @opt_specs = opt_specs
+      def initialize(keys_pred:, pred_exprs:, req_keys:, req_specs:, opt_keys:, opt_specs:)
+        @keys_pred  = keys_pred
+        @pred_exprs = pred_exprs
+        @req_keys   = req_keys
+        @req_specs  = req_specs
+        @opt_keys   = opt_keys
+        @opt_specs  = opt_specs
 
         # is this needed?
         @key_to_spec_map = H[@req_keys.concat(@opt_keys).zip(@req_specs.concat(@opt_specs))]
@@ -255,7 +264,11 @@ module Speculation
 
         reg = Core.registry
 
-        problems = V[*value].flat_map do |(k, v)|
+        problems = @pred_exprs.
+          reject { |pred| pred.call(value) }.
+          map { |pred| H[path: path, pred: Core.explain_pred(pred), val: value, via: via, in: _in] }
+
+        problems += value.flat_map do |(k, v)|
           next unless reg.key?(@key_to_spec_map[k])
 
           unless Core.pvalid?(@key_to_spec_map.fetch(k), v)
@@ -524,19 +537,28 @@ module Speculation
       H[:op.ns => :amp.ns, p1: regex, predicates: preds]
     end
 
-    def self.keys(req: V[], opt: V[])
+    def self.keys(req: [], opt: [], req_un: [], opt_un: [])
+      unless (req + opt + req_un + opt_un).all? { |s| s.namespaced? }
+        raise "all keys must be namespaced"
+      end
+
       # arbitrary map test
       is_map = -> (x) { x.respond_to?(:key?) }
-      pred_exprs = V[is_map]
+      pred_exprs = [is_map]
       pred_exprs += req.map do |key|
         -> (x) { x.key?(key) }
+      end
+      pred_exprs += req_un.map do |key|
+        -> (x) do
+          x.key?(key.unnamespaced)
+        end
       end
 
       keys_pred = -> (x) { pred_exprs.all? { |f| f.call(x) } }
 
-      HashSpec.new(keys_pred: keys_pred,
-                   req_keys: req, req_specs: req,
-                   opt_keys: opt, opt_specs: opt)
+      HashSpec.new(keys_pred: keys_pred, pred_exprs: V.new(pred_exprs),
+                   req_keys: V.new(req), req_specs: V.new(req),
+                   opt_keys: V.new(opt), opt_specs: V.new(opt))
     end
 
     def self.coll_of(spec, opts = {})

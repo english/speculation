@@ -213,6 +213,17 @@ class SpeculationTest < Minitest::Test
                                         :last_name.ns(self)  => "Musk",
                                         :email.ns(self)      => "elon@example.com",
                                         :acctid.ns(self)     => "123"])
+
+    # unqualified keys
+    S.def(:person_unq.ns,
+          S.keys(req_un: [:first_name.ns(self), :last_name.ns(self), :email.ns(self)],
+                 opt_un: [:phone.ns(self)]))
+
+    refute S.valid?(:person_unq.ns, H[])
+
+    assert S.valid?(:person_unq.ns, H[:first_name => "Elon",
+                                      :last_name  => "Musk",
+                                      :email      => "elon@example.com"])
   end
 
   def test_coll_of
@@ -266,7 +277,6 @@ class SpeculationTest < Minitest::Test
 
     expected = H[
       :"Speculation::Core/problems" => V[
-        # TODO: will require magic to add: `pred: x.even?,`
         H[path: V[], val: 1, via: V[:even], in: V[], pred: "<proc>"]
       ]
     ]
