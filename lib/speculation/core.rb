@@ -437,6 +437,10 @@ module Speculation
     end
 
     def self.def(key, spec)
+      unless key.is_a?(Symbol) && key.namespaced?
+        raise ArgumentError, "key must be a namespaced Symbol, e.g. #{:my_spec.ns}"
+      end
+
       spec = if spec?(spec) || regex?(spec) || registry[key]
                spec
              else
