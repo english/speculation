@@ -424,5 +424,12 @@ class SpeculationTest < Minitest::Test
       val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: "key?(:last_name)"
       val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: "key?(:email)"
     EOS
+
+    email_regex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,63}$/
+    S.def(:email.ns, S.and(String, email_regex))
+
+    assert_equal <<~EOS, S.explain(:person.ns(:unq), first_name: "Elon", last_name: "Musk", email: "elon")
+      In: [:email] val: "elon" fails spec: :"Speculation::Core/email" at: [:email] predicate: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,63}$/
+    EOS
   end
 end

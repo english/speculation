@@ -578,10 +578,10 @@ module Speculation
       data.fetch(:problems.ns).each do |prob|
         path, pred, val, reason, via, _in = prob.values_at(:path, :pred, :val, :reason, :via, :in)
 
-        s << "In: #{_in.inspect} " unless _in.empty?
+        s << "In: #{_in.to_a.inspect} " unless _in.empty?
         s << "val: #{val.inspect} fails"
         s << " spec: #{via.last.inspect}" unless via.empty?
-        s << " at: #{path.inspect}" unless path.empty?
+        s << " at: #{path.to_a.inspect}" unless path.empty?
         s << " predicate: #{pred.inspect}"
         s << ", #{reason.inspect}" if reason
 
