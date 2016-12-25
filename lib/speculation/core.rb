@@ -102,7 +102,7 @@ module Speculation
 
       def explain(path, via, _in, value)
         if Core.invalid?(Core.dt(@predicate, value))
-          V[H[path: path, val: value, via: via, in: _in, pred: Core.explain_pred(@predicate)]]
+          V[H[path: path, val: value, via: via, in: _in, pred: @predicate]]
         end
       end
 
@@ -605,7 +605,20 @@ module Speculation
       probs = specize(spec).explain(path, via, _in, value)
 
       if probs&.any?
+        # TODO: deal with procs better...
+        probs = probs.map do |p|
+          p.put(:pred) { |pred| Proc === pred ? "<proc>" : pred }
+        end
+
         H[:problems.ns => probs]
+      end
+    end
+
+    def self.explain_pred(predicate)
+      if Proc === predicate
+        "<proc>"
+      else
+        predicate
       end
     end
 
@@ -634,7 +647,7 @@ module Speculation
 
         spec.explain(path, via, _in, value)
       else
-        V[H[path: path, val: value, via: via, in: _in, pred: explain_pred(pred)]]
+        V[H[path: path, val: value, via: via, in: _in, pred: pred]]
       end
     end
 
@@ -1123,17 +1136,6 @@ module Speculation
 
       if distinct && !x.empty? && x.uniq.count != x.count # OPTIMIZE: distinct check
         V[H[path: path, pred: 'distinct?', val: x, via: via, in: _in]]
-      end
-    end
-
-    def self.explain_pred(predicate)
-      case predicate
-      when Proc then "<proc>"
-      when Class then predicate.inspect
-      when Regexp then predicate.inspect
-      else
-        binding.pry
-        predicate.inspect
       end
     end
   end

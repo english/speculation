@@ -282,7 +282,7 @@ class SpeculationTest < Minitest::Test
 
     expected = H[
       :"Speculation::Core/problems" => V[
-        H[path: V[], val: "s", in: V[], via: V[:even_integer.ns, :integer.ns], pred: "Integer"]
+        H[path: V[], val: "s", in: V[], via: V[:even_integer.ns, :integer.ns], pred: Integer]
       ]
     ]
     assert_equal expected, S.explain_data(:even_integer.ns, "s")
@@ -316,7 +316,7 @@ class SpeculationTest < Minitest::Test
             :person.ns,
             :email.ns # clojure returns email-type for this...
           ],
-          pred: "/^[a-zA-Z1-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,63}$/"
+          pred: /^[a-zA-Z1-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,63}$/
         ]
       ]
     ]
@@ -328,8 +328,8 @@ class SpeculationTest < Minitest::Test
 
     expected = H[
       :"Speculation::Core/problems" => V[
-        H[path: V[:name], val: :foo, in: V[], via: V[:name_or_id.ns], pred: "String"],
-        H[path: V[:id], val: :foo, in: V[], via: V[:name_or_id.ns], pred: "Integer"],
+        H[path: V[:name], val: :foo, in: V[], via: V[:name_or_id.ns], pred: String],
+        H[path: V[:id], val: :foo, in: V[], via: V[:name_or_id.ns], pred: Integer],
       ]
     ]
 
@@ -339,13 +339,13 @@ class SpeculationTest < Minitest::Test
 
   def test_explain_regex
     S.def(:ingredient.ns, S.cat(quantity: Numeric, unit: Symbol))
+
     expected = H[:"Speculation::Core/problems" =>
                  V[H[path: V[:unit],
                      val: "peaches",
                      via: V[:ingredient.ns],
                      in: V[1],
-                     pred: "Symbol"]]]
-
+                     pred: Symbol]]]
 
     assert_equal expected, S.explain_data(:ingredient.ns, V[11, "peaches"])
 
@@ -373,7 +373,7 @@ class SpeculationTest < Minitest::Test
                      val: 3,
                      via: V[:point.ns],
                      in: V[2],
-                     pred: "Float"]]]
+                     pred: Float]]]
 
 
     assert_equal expected, S.explain_data(:point.ns, V[1.1, 2.2, 3])
@@ -387,7 +387,7 @@ class SpeculationTest < Minitest::Test
                      val: "300",
                      via: V[:scores.ns],
                      in: V["Joe", 1],
-                     pred: "Integer"]]]
+                     pred: Integer]]]
 
     assert_equal expected, S.explain_data(:scores.ns, H["Sally" => 1000, "Joe" => "300"])
   end
@@ -405,12 +405,12 @@ class SpeculationTest < Minitest::Test
         :val => "1",
         :in => V[3, 0],
         :via => V[:nested.ns],
-        :pred => "Integer"],
+        :pred => Integer],
        H[:path => V[:nums, :floats],
         :val => "1",
         :in => V[3, 0],
         :via => V[:nested.ns],
-        :pred => "Float"]]]
+        :pred => Float]]]
 
     assert_equal expected, S.explain_data(:nested.ns, [:names, ["a", "b"], :nums, ["1"]])
   end
