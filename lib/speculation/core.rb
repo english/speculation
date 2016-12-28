@@ -6,30 +6,30 @@ require 'hamster/set'
 require 'functional'
 
 module Speculation
-  module Core
-    def self.namespaced_symbols(namespace)
-      Module.new do
-        refine Symbol do
-          define_method(:ns) do |x = nil|
-            if x
-              :"#{x}/#{self}"
-            else
-              :"#{namespace}/#{self}"
-            end
+  def self.namespaced_symbols(namespace)
+    Module.new do
+      refine Symbol do
+        define_method(:ns) do |x = nil|
+          if x
+            :"#{x}/#{self}"
+          else
+            :"#{namespace}/#{self}"
           end
+        end
 
-          def namespaced?
-            to_s.include?("/")
-          end
+        def namespaced?
+          to_s.include?("/")
+        end
 
-          def unnamespaced
-            to_s.split("/").last.to_sym
-          end
+        def unnamespaced
+          to_s.split("/").last.to_sym
         end
       end
     end
-    using namespaced_symbols(self)
+  end
+  using namespaced_symbols(self)
 
+  module Core
     module Specize
       refine Symbol do
         def specize
@@ -427,6 +427,29 @@ module Speculation
       Protocol.Satisfy!(self, :Specize.ns, :Spec.ns)
     end
 
+    class MethodSpec
+      attr_reader :args, :ret, :fn
+      attr_accessor :name
+
+      def initialize(args: nil, ret: nil, fn: nil)
+        @args = args
+        @ret = ret
+        @fn = fn
+      end
+
+      def conform(value)
+      end
+
+      def explain(path, via, _in, value)
+      end
+
+      def specize
+        self
+      end
+
+      Protocol.Satisfy!(self, :Specize.ns, :Spec.ns)
+    end
+
     def self.registry
       REGISTRY.value
     end
@@ -446,6 +469,23 @@ module Speculation
       REGISTRY.swap { |reg| reg.store(key, with_name(spec, key)) }
 
       key
+    end
+
+    def self.fdef(method, spec)
+      # TODO think about how to key method specs...
+      self.def(:"__#{method.name}__/#{method.hash}", fspec(spec))
+    end
+
+    def self.fspec(args: nil, ret: nil, fn: nil) # TODO :gen
+      MethodSpec.new(args: spec(args), ret: spec(ret), fn: spec(fn))
+    end
+
+    def self.get_spec(key)
+      if Method === key
+        registry[:"__#{key.name}__/#{key.hash}"]
+      else
+        registry[key.to_sym]
+      end
     end
 
     def self.with_name(spec, name)
@@ -532,6 +572,7 @@ module Speculation
       H[:op.ns => :amp.ns, p1: regex, predicates: preds]
     end
 
+    # TODO: Handle more options
     def self.keys(req: [], opt: [], req_un: [], opt_un: [])
       unless (req + opt + req_un + opt_un).all? { |s| s.namespaced? }
         raise "all keys must be namespaced"
@@ -570,7 +611,10 @@ module Speculation
     end
 
     def self.explain(spec, x, out = StringIO.new)
-      data = explain_data(spec, x)
+      explain_str(explain_data(spec, x))
+    end
+
+    def self.explain_str(data)
       return "Success!" unless data
 
       s = ""
@@ -897,7 +941,7 @@ module Speculation
           regex2 = deriv(
             pcat(H[predicates: rest_preds, keys: rest_keys, return_value: add_ret(pred, return_value, key)]),
             value
-          ) 
+          )
         end
 
         alt2(regex1, regex2)
@@ -969,7 +1013,7 @@ module Speculation
       if spec.is_a?(Symbol)
         spec
       elsif regex?(spec)
-        spec.fetch(:name.ns)
+        spec[:name.ns]
       else
         spec.name
       end
@@ -1136,6 +1180,83 @@ module Speculation
 
       if distinct && !x.empty? && x.uniq.count != x.count # OPTIMIZE: distinct check
         V[H[path: path, pred: 'distinct?', val: x, via: via, in: _in]]
+      end
+    end
+  end
+
+  module Test
+    class DidNotConformError < StandardError
+      attr_reader :explain_data
+
+      def initialize(message, explain_data)
+        super(message)
+        @explain_data = explain_data
+      end
+    end
+
+    H = Hamster::Hash
+    V = Hamster::Vector
+    INSTRUMENTED_METHODS = Concurrent::Atom.new(H[])
+
+    def self.instrument(method)
+      # TODO take a colleciton of methods, or all instrumentable methods
+      # TODO take options
+      instrument1(method)
+    end
+
+    def self.instrument1(method)
+      spec = Core.get_spec(method)
+      return unless spec
+
+      instrumented_method = INSTRUMENTED_METHODS.value.fetch(method.hash, H[])
+
+      to_wrap = if instrumented_method[:wrapped] == method
+                  instrumented_method[:raw]
+                else
+                  method
+                end
+
+      checked = spec_checking_fn(method, spec)
+
+      # TODO owner or receiver? test variations
+      method.receiver.define_singleton_method(method.name, checked)
+
+      INSTRUMENTED_METHODS.swap do |methods|
+        methods.store(method.hash, H[raw: to_wrap, wrapped: checked])
+      end
+
+      method
+    end
+
+    def self.spec_checking_fn(method, spec)
+      spec = Core.maybe_spec(spec) # TODO needed?
+
+      conform = -> (method, role, spec, data, args) do
+        conformed = Core.conform(spec, data)
+
+        if conformed == :invalid.ns
+          _caller = caller(2, 1).first # TODO stacktrace-relevant-to-instrument
+
+          ed = Core.
+            _explain_data(spec, V[role], V[], V[], data).
+            store(:args.ns, args).
+            store(:failure.ns, :instrument).
+            store(:caller.ns, _caller)
+
+          raise DidNotConformError.new("Call to '#{method.name}' did not conform to spec:\n #{Core.explain_str(ed)}", ed)
+        else
+          conformed
+        end
+      end
+
+      -> (*args) do
+        # TODO add `instrument_enabled` configuration
+        if spec.args
+          conform.call(method, :args, spec.args, args, args)
+          method.call(*args)
+        else
+          method.call(*args)
+        end
       end
     end
   end

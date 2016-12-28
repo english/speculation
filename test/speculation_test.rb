@@ -4,11 +4,12 @@ require 'hamster'
 
 class SpeculationTest < Minitest::Test
   S = Speculation::Core
+  STest = Speculation::Test
   H = Hamster::Hash
   V = Hamster::Vector
   HSet = Hamster::Set
 
-  using Speculation::Core.namespaced_symbols(Speculation::Core)
+  using Speculation.namespaced_symbols(Speculation)
 
   def setup
     Speculation::Core.reset_registry!
@@ -431,5 +432,37 @@ class SpeculationTest < Minitest::Test
     assert_equal <<~EOS, S.explain(:person.ns(:unq), first_name: "Elon", last_name: "Musk", email: "elon")
       In: [:email] val: "elon" fails spec: :"Speculation::Core/email" at: [:email] predicate: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,63}$/
     EOS
+  end
+
+  def test_fdef_instrument
+    mod = Module.new do
+      def self.ranged_rand(start, eend)
+        start + rand(eend - start)
+      end
+    end
+
+    S.fdef(mod.method(:ranged_rand), args: S.and(S.cat(start: Integer, end: Integer),
+                                                 -> (args) { args[:start] < args[:end] }),
+                                     ret: Integer,
+                                     fn: S.and(-> (f) { f[:ret] >= f[:args][:start] },
+                                               -> (f) { f[:ret] < f[:args][:end] }))
+
+    STest.instrument(mod.method(:ranged_rand))
+
+    e = assert_raises(STest::DidNotConformError) { mod.ranged_rand(8, 5) }
+
+    assert_match /^Call to 'ranged_rand' did not conform to spec/, e.message
+
+    expected =
+      H[:"Speculation/failure" => :instrument,
+        :"Speculation/caller" => "/Users/jamie/Projects/speculation/test/speculation_test.rb:452:in `block in test_fdef_instrument'",
+        :"Speculation/problems" => V[H[:path => V[:args],
+                                       :val => H[:start => 8, :end => 5],
+                                       :in => V[],
+                                       :via => V[],
+                                       :pred => "<proc>"]],
+                                       :"Speculation/args" => [8, 5]]
+
+    assert_equal expected, e.explain_data
   end
 end
