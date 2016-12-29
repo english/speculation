@@ -467,7 +467,7 @@ class SpeculationTest < Minitest::Test
 
     expected =
       H[:"Speculation/failure" => :instrument,
-        :"Speculation/caller" => "/Users/jamie/Projects/speculation/test/speculation_test.rb:453:in `block in test_fdef_instrument'",
+        :"Speculation/caller" => "/Users/jamie/Projects/speculation/test/speculation_test.rb:464:in `block in test_fdef_instrument'",
         :"Speculation/problems" => V[H[:path => V[:args],
                                        :val => H[:start => 8, :end => 5],
                                        :in => V[],

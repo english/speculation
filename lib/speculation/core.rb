@@ -89,6 +89,18 @@ module Speculation
 
     REGISTRY = Concurrent::Atom.new(H[])
 
+    # TODO: Make this configurable
+    COLL_CHECK_LIMIT = 101
+    COLL_ERROR_LIMIT = 20
+
+    def self.coll_check_limit
+      COLL_CHECK_LIMIT
+    end
+
+    def self.coll_error_limit
+      COLL_ERROR_LIMIT
+    end
+
     class Spec
       attr_accessor :name
 
@@ -332,7 +344,16 @@ module Speculation
 
           return_value
         else
-          # TODO handle not @conform_all = false
+          # OPTIMIZE: check if value is indexed (array, hash etc.) vs not
+          # indexed (list, custom enumerable)
+          limit = Core.coll_check_limit
+
+          value.each_with_index do |item, index|
+            return value if index == limit
+            return :invalid.ns unless Core.valid?(spec, item)
+          end
+
+          value
         end
       end
 
@@ -346,19 +367,17 @@ module Speculation
 
         spec = @delayed_spec.value
 
-        if @conform_all
-          probs = value.each_with_index.flat_map do |v, i|
-            k = @kfn.call(i, v)
+        probs = value.lazy.each_with_index.flat_map do |v, i|
+          k = @kfn.call(i, v)
 
-            unless Core.valid?(spec, v)
-              Core.explain1(@predicate, path, via, _in.conj(k), v)
-            end
+          unless Core.valid?(spec, v)
+            Core.explain1(@predicate, path, via, _in.conj(k), v)
           end
-
-          V.new(probs.compact)
-        else
-          raise "TODO: Handle @conform_all = false"
         end
+
+        probs = @conform_all ? probs.to_a : probs.take(Core.coll_error_limit)
+
+        V.new(probs.compact)
       end
 
       private
