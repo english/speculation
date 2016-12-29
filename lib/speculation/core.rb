@@ -40,7 +40,7 @@ module Speculation
 
       refine Object do
         def specize
-          Core.spec(self)
+          Core.spec_impl(self, false)
         end
       end
     end
@@ -89,16 +89,23 @@ module Speculation
 
     REGISTRY = Concurrent::Atom.new(H[])
 
-    class PredicateSpec
+    class Spec
       attr_accessor :name
 
-      def initialize(predicate)
+      def initialize(predicate, should_conform)
         @predicate = predicate
+        @should_conform = should_conform
       end
 
       def conform(value)
         # calling #=== here so that a either a class or proc can be provided
-        @predicate === value ? value : :invalid.ns
+        ret = @predicate === value
+
+        if @should_conform
+          ret
+        else
+          ret ? value : :invalid.ns
+        end
       end
 
       def explain(path, via, _in, value)
@@ -301,8 +308,8 @@ module Speculation
         @delayed_spec = Concurrent::Delay.new { Core.specize(predicate) }
         @kfn = options.fetch(:kfn, -> (i, v) { i })
 
-        @conform_all, @kind, @distinct, @count, @min_count, @max_count =
-          options.values_at(:conform_all, :kind, :distinct, :count, :min_count, :max_count)
+        @conform_keys, @conform_all, @kind, @distinct, @count, @min_count, @max_count =
+          options.values_at(:conform_keys, :conform_all.ns, :kind, :distinct, :count, :min_count, :max_count)
       end
 
       def conform(value)
@@ -319,13 +326,13 @@ module Speculation
             if Core.invalid?(conformed_value)
               return :invalid.ns
             else
-              return_value = add(return_value, index, conformed_value)
+              return_value = add(return_value, index, value, conformed_value)
             end
           end
 
           return_value
         else
-          raise "TODO: handle not conforming all"
+          # TODO handle not @conform_all = false
         end
       end
 
@@ -356,9 +363,11 @@ module Speculation
 
       private
 
-      def add(coll, index, value)
+      def add(coll, index, value, conformed_value)
         if Utils.hash?(coll)
-          coll.merge(value.first => value.last)
+          key = @conform_keys ? conformed_value.first : value.first
+
+          coll.merge(key => conformed_value.last)
         else
           coll + [value]
         end
@@ -464,7 +473,7 @@ module Speculation
       spec = if spec?(spec) || regex?(spec) || registry[key]
                spec
              else
-               self.spec(spec)
+               self.spec_impl(spec, false)
              end
 
       REGISTRY.swap { |reg| reg.store(key, with_name(spec, key)) }
@@ -501,6 +510,10 @@ module Speculation
     end
 
     def self.spec(pred)
+      spec_impl(pred, false)
+    end
+
+    def self.spec_impl(pred, should_conform)
       if spec?(pred)
         pred
       elsif regex?(pred)
@@ -508,7 +521,7 @@ module Speculation
       elsif pred.is_a?(Symbol)
         the_spec(pred)
       else
-        PredicateSpec.new(pred)
+        Spec.new(pred, should_conform)
       end
     end
 
@@ -537,6 +550,10 @@ module Speculation
 
     def self.invalid?(value)
       value.equal?(:invalid.ns)
+    end
+
+    def self.conformer(f)
+      spec_impl(f, true)
     end
 
     def self.and(*preds)
@@ -588,15 +605,15 @@ module Speculation
     end
 
     def self.coll_of(spec, opts = {})
-      every(spec, conform_all: true, **opts)
+      every(spec, :conform_all.ns => true, **opts)
     end
 
     def self.tuple(*specs)
       TupleSpec.new(specs)
     end
 
-    def self.hash_of(key_predicate, value_predicate)
-      every_kv(key_predicate, value_predicate, kind: Utils.method(:hash?).to_proc, conform_all: true)
+    def self.hash_of(key_predicate, value_predicate, options = {})
+      every_kv(key_predicate, value_predicate, kind: Utils.method(:hash?).to_proc, :conform_all.ns => true, **options)
     end
 
     def self.every_kv(key_predicate, value_predicate, options)
@@ -1220,11 +1237,10 @@ module Speculation
 
       checked = spec_checking_fn(method, spec)
 
-      # TODO owner or receiver? test variations
-      if method.respond_to?(:receiver)
-        method.receiver.define_singleton_method(method.name, checked)
-      else
+      if method.is_a?(UnboundMethod)
         method.owner.class_eval { define_method(method.name, checked) }
+      else
+        method.receiver.define_singleton_method(method.name, checked)
       end
 
       INSTRUMENTED_METHODS.swap do |methods|

@@ -267,6 +267,21 @@ class SpeculationTest < Minitest::Test
     refute S.valid?(:scores.ns, { "Sally" => true, "Joe" => 500 })
   end
 
+  def test_conformer
+    S.def(:wont_conform_keys.ns, S.hash_of(S.and(Symbol, S.conformer(-> (x) { x.to_s })),
+                                           S.and(Float, S.conformer(-> (x) { x.to_i }))))
+
+    assert_equal({ foo: 1, bar: 2 },
+                 S.conform(:wont_conform_keys.ns, foo: 1.0, bar: 2.0))
+
+    S.def(:will_conform_keys.ns, S.hash_of(S.and(Symbol, S.conformer(-> (x) { x.to_s })),
+                                           S.and(Float, S.conformer(-> (x) { x.to_i })),
+                                           conform_keys: true))
+
+    assert_equal({ "foo" => 1, "bar" => 2 },
+                 S.conform(:will_conform_keys.ns, foo: 1.0, bar: 2.0))
+  end
+
   def test_explain_data
     S.def(:even.ns, -> (x) { x.even? })
 
@@ -452,7 +467,7 @@ class SpeculationTest < Minitest::Test
 
     expected =
       H[:"Speculation/failure" => :instrument,
-        :"Speculation/caller" => "/Users/jamie/Projects/speculation/test/speculation_test.rb:449:in `block in test_fdef_instrument'",
+        :"Speculation/caller" => "/Users/jamie/Projects/speculation/test/speculation_test.rb:453:in `block in test_fdef_instrument'",
         :"Speculation/problems" => V[H[:path => V[:args],
                                        :val => H[:start => 8, :end => 5],
                                        :in => V[],
