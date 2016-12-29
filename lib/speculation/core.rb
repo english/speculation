@@ -238,7 +238,6 @@ module Speculation
       attr_accessor :name
 
       def initialize(req_keys:, req_specs:, opt_keys:, opt_specs:)
-        # TODO: opt_keys???
         @req_keys = req_keys
         @key_to_spec_map = H[req_keys.concat(opt_keys).zip(req_specs.concat(opt_specs))]
       end
@@ -501,8 +500,7 @@ module Speculation
     end
 
     def self.fdef(method, spec)
-      # TODO think about how to key method specs...
-      self.def(:"__#{method.name}__/#{method.hash}", fspec(spec))
+      self.def(:"__method__#{method.name}/#{method.hash}", fspec(spec))
     end
 
     def self.fspec(args: nil, ret: nil, fn: nil) # TODO :gen
@@ -512,7 +510,7 @@ module Speculation
     def self.get_spec(key)
       case key
       when Method, UnboundMethod
-        registry[:"__#{key.name}__/#{key.hash}"]
+        registry[:"__method__#{key.name}/#{key.hash}"]
       else
         registry[key.to_sym]
       end
