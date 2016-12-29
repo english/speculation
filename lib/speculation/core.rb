@@ -4,6 +4,7 @@ require 'hamster/hash'
 require 'hamster/vector'
 require 'hamster/set'
 require 'functional'
+require 'speculation/utils'
 
 module Speculation
   def self.namespaced_symbols(namespace)
@@ -192,7 +193,7 @@ module Speculation
       end
 
       def conform(value)
-        if value.nil? || value.respond_to?(:each)
+        if value.nil? || Utils.collection?(value)
           Core.re_conform(@regex, value)
         else
           :invalid.ns
@@ -200,7 +201,7 @@ module Speculation
       end
 
       def explain(path, via, _in, value)
-        if value.nil? || value.respond_to?(:each)
+        if value.nil? || Utils.collection?(value)
           Core.re_explain(path, via, _in, @regex, value || V[])
         else
           V[H[path: path, val: value, via: via, in: _in]]
@@ -252,7 +253,7 @@ module Speculation
       end
 
       def explain(path, via, _in, value)
-        unless value.respond_to?(:key?)
+        unless Utils.hash?(value)
           return V[H[path: path, pred: :hash?, val: value, via: via, in: _in]]
         end
 
@@ -282,7 +283,7 @@ module Speculation
       attr_accessor :name
 
       def initialize(predicate, options)
-        collection_predicates = [options.fetch(:kind, -> (coll) { coll.respond_to?(:each) })]
+        collection_predicates = [options.fetch(:kind, Utils.method(:collection?))]
 
         if options.key?(:count)
           collection_predicates.push(-> (coll) { coll.count == options[:count] })
@@ -333,7 +334,7 @@ module Speculation
       end
 
       def explain(path, via, _in, value)
-        probs = Core.coll_prob(value, @kind, @distinct, @count, @min_count, @max_count, path, via, _in)
+        probs = Core.collection_problems(value, @kind, @distinct, @count, @min_count, @max_count, path, via, _in)
         return probs if probs
 
         spec = @delayed_spec.value
@@ -356,7 +357,7 @@ module Speculation
       private
 
       def add(coll, index, value)
-        if coll.respond_to?(:key?)
+        if Utils.hash?(coll)
           coll.merge(value.first => value.last)
         else
           coll + [value]
@@ -385,7 +386,7 @@ module Speculation
       def conform(collection)
         specs = @delayed_specs.value
 
-        unless collection.respond_to?(:count) && collection.count == specs.count
+        unless Utils.array?(collection) && collection.count == specs.count
           return :invalid.ns
         end
 
@@ -405,8 +406,8 @@ module Speculation
       end
 
       def explain(path, via, _in, value)
-        if !value.respond_to?(:each)
-          V[H[path: path, val: value, via: via, in: _in, pred: "respond_to?(:each)"]]
+        if !Utils.array?(value)
+          V[H[path: path, val: value, via: via, in: _in, pred: "array?"]]
         elsif @preds.count != value.count
           V[H[path: path, val: value, via: via, in: _in, pred: "count == predicates.count"]]
         else
@@ -594,8 +595,8 @@ module Speculation
       TupleSpec.new(specs)
     end
 
-    def self.map_of(key_predicate, value_predicate)
-      every_kv(key_predicate, value_predicate, kind: -> (x) { x.respond_to?(:key?) }, conform_all: true)
+    def self.hash_of(key_predicate, value_predicate)
+      every_kv(key_predicate, value_predicate, kind: Utils.method(:hash?).to_proc, conform_all: true)
     end
 
     def self.every_kv(key_predicate, value_predicate, options)
@@ -737,7 +738,7 @@ module Speculation
     end
 
     def self.regex?(x)
-      x.respond_to?(:get) && x.get(:op.ns) && x
+      Utils.hash?(x) && x[:op.ns] && x
     end
 
     def self.accept(x)
@@ -1162,8 +1163,8 @@ module Speculation
       end
     end
 
-    def self.coll_prob(x, kfn, distinct, count, min_count, max_count, path, via, _in)
-      pred = kfn || -> (coll) { coll.respond_to?(:each) }
+    def self.collection_problems(x, kfn, distinct, count, min_count, max_count, path, via, _in)
+      pred = kfn || Utils.method(:collection?).to_proc
 
       if !pvalid?(pred, x)
         return explain1(pred, path, via, _in, x)
@@ -1175,7 +1176,7 @@ module Speculation
 
       if min_count || max_count
         if x.count.between?(min_count || 0, max_count || Float::Infinity)
-          return V[H[path: path, pred: 'x.count.between?(min_count || 0, max_count || Float::Infinity)', val: x, via: via, in: _in]]
+          return V[H[path: path, pred: 'count.between?(min_count || 0, max_count || Float::Infinity)', val: x, via: via, in: _in]]
         end
       end
 
@@ -1212,7 +1213,7 @@ module Speculation
       instrumented_method = INSTRUMENTED_METHODS.value.fetch(method.hash, H[])
 
       to_wrap = if instrumented_method[:wrapped] == method
-                  instrumented_method[:raw]
+                  instrumented_method.fetch(:raw)
                 else
                   method
                 end

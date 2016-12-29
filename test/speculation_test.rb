@@ -254,8 +254,8 @@ class SpeculationTest < Minitest::Test
     refute S.valid?(:point.ns, [1, 2, "3"])
   end
 
-  def test_map_of
-    S.def(:scores.ns, S.map_of(String, Integer))
+  def test_hash_of
+    S.def(:scores.ns, S.hash_of(String, Integer))
 
     expected = { "Sally" => 1000, "Joe" => 500 }
     assert_equal expected, S.conform(:scores.ns, { "Sally" => 1000, "Joe" => 500 })
@@ -380,8 +380,8 @@ class SpeculationTest < Minitest::Test
     assert_equal expected, S.explain_data(:point.ns, V[1.1, 2.2, 3])
   end
 
-  def test_explain_map_of
-    S.def(:scores.ns, S.map_of(String, Integer))
+  def test_explain_hash_of
+    S.def(:scores.ns, S.hash_of(String, Integer))
 
     expected = H[:"Speculation/problems" =>
                  V[H[path: V[1],
