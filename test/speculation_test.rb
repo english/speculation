@@ -23,7 +23,7 @@ class SpeculationTest < Minitest::Test
     S.def(:int?.ns, -> (x) { x.is_a?(Integer) })
 
     assert_equal 2, S.conform(:int?.ns, 2)
-    assert_equal :"Speculation::Core/invalid", S.conform(:int?.ns, "two")
+    assert_equal :"Speculation/invalid", S.conform(:int?.ns, "two")
 
     assert S.valid?(:int?.ns, 2)
     refute S.valid?(:int?.ns, "two")
@@ -37,7 +37,7 @@ class SpeculationTest < Minitest::Test
   def test_conform_with_predicate
     predicate = -> (x) { x.is_a?(Integer) }
     assert_equal 2, S.conform(predicate, 2)
-    assert_equal :"Speculation::Core/invalid", S.conform(predicate, "two")
+    assert_equal :"Speculation/invalid", S.conform(predicate, "two")
 
     assert S.valid?(predicate, 2)
     refute S.valid?(predicate, "two")
@@ -48,8 +48,8 @@ class SpeculationTest < Minitest::Test
 
     S.def(:big_even.ns, S.and(Integer, :even?.ns, -> (x) { x > 1000 }))
 
-    assert_equal :"Speculation::Core/invalid", S.conform(:big_even.ns, :foo)
-    assert_equal :"Speculation::Core/invalid", S.conform(:big_even.ns, 100)
+    assert_equal :"Speculation/invalid", S.conform(:big_even.ns, :foo)
+    assert_equal :"Speculation/invalid", S.conform(:big_even.ns, 100)
     assert_equal 1_000_000, S.conform(:big_even.ns, 1_000_000)
 
     refute S.valid?(:big_even.ns, :foo)
@@ -60,7 +60,7 @@ class SpeculationTest < Minitest::Test
   def test_or_composition
     S.def(:name_or_id.ns, S.or(name: String, id: Integer))
 
-    assert_equal :"Speculation::Core/invalid", S.conform(:name_or_id.ns, :foo)
+    assert_equal :"Speculation/invalid", S.conform(:name_or_id.ns, :foo)
     assert_equal [:name, "abc"], S.conform(:name_or_id.ns, "abc")
     assert_equal [:id, 100], S.conform(:name_or_id.ns, 100)
   end
@@ -96,7 +96,7 @@ class SpeculationTest < Minitest::Test
 
     assert_equal [:a, :b, :c], S.conform(:seq_of_symbols.ns, [:a, :b, :c])
     assert_equal [], S.conform(:seq_of_symbols.ns, [])
-    assert_equal :"Speculation::Core/invalid", S.conform(:seq_of_symbols.ns, [1, 2, 3])
+    assert_equal :"Speculation/invalid", S.conform(:seq_of_symbols.ns, [1, 2, 3])
   end
 
   def test_nested_seq
@@ -136,7 +136,7 @@ class SpeculationTest < Minitest::Test
     S.def(:seq_of_symbols.ns, S.one_or_more(Symbol))
 
     assert_equal [:a, :b, :c], S.conform(:seq_of_symbols.ns, [:a, :b, :c])
-    assert_equal :"Speculation::Core/invalid", S.conform(:seq_of_symbols.ns, [])
+    assert_equal :"Speculation/invalid", S.conform(:seq_of_symbols.ns, [])
   end
 
   def test_zero_or_one
@@ -147,7 +147,7 @@ class SpeculationTest < Minitest::Test
 
     assert_equal 1, S.conform(:maybe_odd.ns, [1])
     assert_nil S.conform(:maybe_odd.ns, [])
-    assert_equal :"Speculation::Core/invalid", S.conform(:maybe_odd.ns, [2])
+    assert_equal :"Speculation/invalid", S.conform(:maybe_odd.ns, [2])
 
     S.def(:odds_then_maybe_even.ns, S.cat(odds: S.one_or_more(:odd.ns),
                                           even: S.zero_or_one(:even.ns)))
@@ -271,7 +271,7 @@ class SpeculationTest < Minitest::Test
     S.def(:even.ns, -> (x) { x.even? })
 
     expected = H[
-      :"Speculation::Core/problems" => V[
+      :"Speculation/problems" => V[
         H[path: V[], val: 1, via: V[:even.ns], in: V[], pred: "<proc>"]
       ]
     ]
@@ -282,7 +282,7 @@ class SpeculationTest < Minitest::Test
     S.def(:even_integer.ns, S.and(:integer.ns, :even.ns))
 
     expected = H[
-      :"Speculation::Core/problems" => V[
+      :"Speculation/problems" => V[
         H[path: V[], val: "s", in: V[], via: V[:even_integer.ns, :integer.ns], pred: Integer]
       ]
     ]
@@ -308,7 +308,7 @@ class SpeculationTest < Minitest::Test
     }
 
     expected = H[
-      :"Speculation::Core/problems" => V[
+      :"Speculation/problems" => V[
         H[
           path: V[:email.ns],
           val: "n/a",
@@ -328,7 +328,7 @@ class SpeculationTest < Minitest::Test
     S.def(:name_or_id.ns, S.or(name: String, id: Integer))
 
     expected = H[
-      :"Speculation::Core/problems" => V[
+      :"Speculation/problems" => V[
         H[path: V[:name], val: :foo, in: V[], via: V[:name_or_id.ns], pred: String],
         H[path: V[:id], val: :foo, in: V[], via: V[:name_or_id.ns], pred: Integer],
       ]
@@ -341,7 +341,7 @@ class SpeculationTest < Minitest::Test
   def test_explain_regex
     S.def(:ingredient.ns, S.cat(quantity: Numeric, unit: Symbol))
 
-    expected = H[:"Speculation::Core/problems" =>
+    expected = H[:"Speculation/problems" =>
                  V[H[path: V[:unit],
                      val: "peaches",
                      via: V[:ingredient.ns],
@@ -356,7 +356,7 @@ class SpeculationTest < Minitest::Test
                             nums: S.spec(S.constrained(S.one_or_more(Numeric),
                                                        -> (nums) { nums.count.even? }))))
 
-    expected = H[:"Speculation::Core/problems" => V[
+    expected = H[:"Speculation/problems" => V[
       H[:path => V[:nums],
         :val => V[1, 2, 3, 4, 5],
         :in => V[3],
@@ -369,7 +369,7 @@ class SpeculationTest < Minitest::Test
   def test_explain_tuple
     S.def(:point.ns, S.tuple(Float, Float, Float))
 
-    expected = H[:"Speculation::Core/problems" =>
+    expected = H[:"Speculation/problems" =>
                  V[H[path: V[2],
                      val: 3,
                      via: V[:point.ns],
@@ -383,7 +383,7 @@ class SpeculationTest < Minitest::Test
   def test_explain_map_of
     S.def(:scores.ns, S.map_of(String, Integer))
 
-    expected = H[:"Speculation::Core/problems" =>
+    expected = H[:"Speculation/problems" =>
                  V[H[path: V[1],
                      val: "300",
                      via: V[:scores.ns],
@@ -401,7 +401,7 @@ class SpeculationTest < Minitest::Test
                               ints: S.one_or_more(Integer),
                               floats: S.one_or_more(Float)))))
 
-    expected = H[:"Speculation::Core/problems" => V[
+    expected = H[:"Speculation/problems" => V[
        H[:path => V[:nums, :ints],
         :val => "1",
         :in => V[3, 0],
@@ -430,7 +430,7 @@ class SpeculationTest < Minitest::Test
     S.def(:email.ns, S.and(String, email_regex))
 
     assert_equal <<~EOS, S.explain(:person.ns(:unq), first_name: "Elon", last_name: "Musk", email: "elon")
-      In: [:email] val: "elon" fails spec: :"Speculation::Core/email" at: [:email] predicate: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,63}$/
+      In: [:email] val: "elon" fails spec: :"Speculation/email" at: [:email] predicate: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,63}$/
     EOS
   end
 
@@ -442,10 +442,7 @@ class SpeculationTest < Minitest::Test
     end
 
     S.fdef(mod.method(:ranged_rand), args: S.and(S.cat(start: Integer, end: Integer),
-                                                 -> (args) { args[:start] < args[:end] }),
-                                     ret: Integer,
-                                     fn: S.and(-> (f) { f[:ret] >= f[:args][:start] },
-                                               -> (f) { f[:ret] < f[:args][:end] }))
+                                                 -> (args) { args[:start] < args[:end] }))
 
     STest.instrument(mod.method(:ranged_rand))
 
@@ -455,7 +452,7 @@ class SpeculationTest < Minitest::Test
 
     expected =
       H[:"Speculation/failure" => :instrument,
-        :"Speculation/caller" => "/Users/jamie/Projects/speculation/test/speculation_test.rb:452:in `block in test_fdef_instrument'",
+        :"Speculation/caller" => "/Users/jamie/Projects/speculation/test/speculation_test.rb:449:in `block in test_fdef_instrument'",
         :"Speculation/problems" => V[H[:path => V[:args],
                                        :val => H[:start => 8, :end => 5],
                                        :in => V[],
@@ -464,5 +461,23 @@ class SpeculationTest < Minitest::Test
                                        :"Speculation/args" => [8, 5]]
 
     assert_equal expected, e.explain_data
+
+    mod.ranged_rand(5, 8)
+  end
+
+  def test_instrument_instance_method
+    klass = Class.new do
+      def bar(str)
+        "baz"
+      end
+    end
+
+    S.fdef(klass.instance_method(:bar), args: S.cat(str: String))
+
+    STest.instrument(klass.instance_method(:bar))
+
+    subject = klass.new
+    assert_raises(STest::DidNotConformError) { subject.bar(8) }
+    subject.bar('asd')
   end
 end

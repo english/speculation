@@ -481,7 +481,8 @@ module Speculation
     end
 
     def self.get_spec(key)
-      if Method === key
+      case key
+      when Method, UnboundMethod
         registry[:"__#{key.name}__/#{key.hash}"]
       else
         registry[key.to_sym]
@@ -1219,7 +1220,11 @@ module Speculation
       checked = spec_checking_fn(method, spec)
 
       # TODO owner or receiver? test variations
-      method.receiver.define_singleton_method(method.name, checked)
+      if method.respond_to?(:receiver)
+        method.receiver.define_singleton_method(method.name, checked)
+      else
+        method.owner.class_eval { define_method(method.name, checked) }
+      end
 
       INSTRUMENTED_METHODS.swap do |methods|
         methods.store(method.hash, H[raw: to_wrap, wrapped: checked])
@@ -1251,6 +1256,8 @@ module Speculation
 
       -> (*args) do
         # TODO add `instrument_enabled` configuration
+        method = method.bind(self) if method.is_a?(UnboundMethod)
+
         if spec.args
           conform.call(method, :args, spec.args, args, args)
           method.call(*args)
