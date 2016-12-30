@@ -1234,6 +1234,19 @@ module Speculation
     V = Hamster::Vector
     INSTRUMENTED_METHODS = Concurrent::Atom.new(H[])
 
+    @instrument_enabled = true
+
+    def self.with_instrument_disabled
+      @instrument_enabled = false
+      yield
+    ensure
+      @instrument_enabled = true
+    end
+
+    def self.instrument_enabled?
+      @instrument_enabled
+    end
+
     def self.instrument(method)
       # TODO take a colleciton of methods, or all instrumentable methods
       # TODO take options
@@ -1289,12 +1302,11 @@ module Speculation
       end
 
       -> (*args) do
-        # TODO add `instrument_enabled` configuration
         method = method.bind(self) if method.is_a?(UnboundMethod)
 
-        if spec.args
-          conform.call(method, :args, spec.args, args, args)
-          method.call(*args)
+        if Test.instrument_enabled?
+          conform.call(method, :args, spec.args, args, args) if spec.args
+          Test.with_instrument_disabled { method.call(*args) }
         else
           method.call(*args)
         end
