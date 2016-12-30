@@ -237,22 +237,23 @@ module Speculation
     class HashSpec
       attr_accessor :name
 
-      def initialize(req_keys:, req_specs:, opt_keys:, opt_specs:)
-        @req_keys = req_keys
+      def initialize(req:, req_un:, req_keys:, req_specs:, opt_keys:, opt_specs:, keys_pred:)
+        @req             = req
+        @req_un          = req_un
+        @req_keys        = req_keys
+        @keys_pred       = keys_pred
         @key_to_spec_map = H[req_keys.concat(opt_keys).zip(req_specs.concat(opt_specs))]
       end
 
       def conform(value)
-        return :invalid.ns unless @req_keys.to_set.subset?(value.keys)
+        return :invalid.ns unless @keys_pred.call(value)
 
         reg = Core.registry
-
         ret = value
-        keys = value
 
-        keys.each do |key, value|
-          sname = @key_to_spec_map.fetch(key, key)
-          spec = reg[sname]
+        value.each do |key, value|
+          spec_name = @key_to_spec_map.fetch(key, key)
+          spec = reg[spec_name]
 
           next unless spec
 
@@ -275,9 +276,14 @@ module Speculation
           return V[H[path: path, pred: :hash?, val: value, via: via, in: _in]]
         end
 
-        problems = @req_keys.
-          reject { |k| value.key?(k) }.
-          map { |k| H[path: path, pred: "key?(#{k.inspect})", val: value, via: via, in: _in] }
+        problems =
+          if @keys_pred.call(value)
+            V[]
+          else
+            pred = { req: @req, req_un: @req_un }.reject { |k, v| v.empty? }
+
+            V[H[path: path, pred: pred, val: value, via: via, in: _in]] 
+          end
 
         problems += value.flat_map do |(k, v)|
           next unless Core.registry.key?(@key_to_spec_map[k])
@@ -610,15 +616,68 @@ module Speculation
 
     # TODO: Handle more options
     def self.keys(req: [], opt: [], req_un: [], opt_un: [])
-      unless (req + opt + req_un + opt_un).all? { |s| s.namespaced? }
+      extract_keys = -> (symbol_or_arr) do
+        if symbol_or_arr.is_a?(Array)
+          symbol_or_arr[1..-1].flat_map(&extract_keys)
+        else
+          symbol_or_arr
+        end
+      end
+
+      req_keys     = req.flat_map(&extract_keys)
+      req_un_specs = req_un.flat_map(&extract_keys)
+
+      unless (req_keys + req_un_specs + opt + opt_un).all? { |s| s.is_a?(Symbol) && s.namespaced? }
         raise "all keys must be namespaced"
       end
 
-      req_specs = req + req_un
-      req_keys = req + req_un.map { |k| k.unnamespaced }
+      unk = -> (x) { x.unnamespaced }
 
-      HashSpec.new(req_keys: V.new(req_keys), req_specs: V.new(req_specs),
-                   opt_keys: V.new(opt), opt_specs: V.new(opt))
+      req_specs = req_keys + req_un_specs
+      req_keys  = req_keys + req_un_specs.map(&unk)
+
+      opt_keys  = opt + opt_un.map(&unk)
+      opt_specs = opt + opt_un
+
+      pred_exprs = [Utils.method(:hash?)]
+
+      parse_req = -> (ks, v, f) do
+        k, *ks = ks
+
+        ret = if k.is_a?(Array)
+          op, *kks = k
+          case op
+          when :or  then kks.one? { |k| parse_req.call([k], v, f) }
+          when :and then kks.all? { |k| parse_req.call([k], v, f) }
+          else      raise "Expected or, and, got #{op}"
+          end
+        else
+          v.key?(f.call(k))
+        end
+
+        if ks.any?
+          ret && parse_req.call(ks, v, f)
+        else
+          ret
+        end
+      end
+
+      pred_exprs.push(-> (v) { parse_req.call(req, v, Utils.method(:identity)) }) if req.any?
+      pred_exprs.push(-> (v) { parse_req.call(req_un, v, unk) }) if req_un.any?
+      keys_pred = -> (v) { pred_exprs.all? { |p| p.call(v) } }
+
+      HashSpec.new(req: req, req_un: req_un,
+                   req_keys: V.new(req_keys), req_specs: V.new(req_specs),
+                   opt_keys: V.new(opt_keys), opt_specs: V.new(opt_specs),
+                   keys_pred: keys_pred)
+    end
+
+    def self.keys_or(*ks)
+      [:or, *ks]
+    end
+
+    def self.keys_and(*ks)
+      [:and, *ks]
     end
 
     def self.coll_of(spec, opts = {})
@@ -821,7 +880,7 @@ module Speculation
     end
 
     def self._alt(predicates, keys)
-      identity = -> (x) { x }
+      identity = Utils.method(:identity)
       predicates, keys = filter_alt(predicates, keys, &identity)
       return unless predicates
 

@@ -221,6 +221,19 @@ class SpeculationTest < Minitest::Test
                                       email: "elon@example.com"])
   end
 
+  def test_keys_and_or
+    spec = S.keys(req: [:x.ns, :y.ns, S.keys_or(:secret.ns,
+                                                S.keys_and(:user.ns, :pwd.ns))])
+    S.def(:auth.ns, spec)
+
+    assert S.valid?(:auth.ns, :x.ns => "foo", :y.ns => "bar", :secret.ns => "secret")
+    assert S.valid?(:auth.ns, :x.ns => "foo", :y.ns => "bar", :user.ns => "user", :pwd.ns => "password")
+
+    refute S.valid?(:auth.ns, :x.ns => "foo", :y.ns => "bar", :secret.ns => "secret", :user.ns => "user", :pwd.ns => "password")
+    refute S.valid?(:auth.ns, :x.ns => "foo", :y.ns => "bar", :user.ns => "user")
+    refute S.valid?(:auth.ns, :x.ns => "foo", :y.ns => "bar")
+  end
+
   def test_coll_of
     S.def(:symbol_collection.ns, S.coll_of(Symbol))
 
@@ -436,9 +449,9 @@ class SpeculationTest < Minitest::Test
           S.keys(req_un: [:first_name.ns, :last_name.ns, :email.ns],
                  opt_un: [:phone.ns]))
 
+    # TODO improve explain message for missing keys.
     assert_equal <<~EOS, S.explain(:person.ns(:unq), first_name: "Elon")
-      val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: "key?(:last_name)"
-      val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: "key?(:email)"
+      val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: {:req_un=>[:"Speculation/first_name", :"Speculation/last_name", :"Speculation/email"]}
     EOS
 
     email_regex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,63}$/
@@ -448,6 +461,18 @@ class SpeculationTest < Minitest::Test
       In: [:email] val: "elon" fails spec: :"Speculation/email" at: [:email] predicate: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,63}$/
     EOS
   end
+
+  def test_explain_keys_and_or
+    S.def(:person.ns(:unq),
+          S.keys(req_un: [S.keys_or(S.keys_and(:first_name.ns, :last_name.ns), :email.ns)],
+                 opt_un: [:phone.ns]))
+
+    # TODO improve explain message for missing keys
+    assert_equal <<~EOS, S.explain(:person.ns(:unq), first_name: "Elon")
+      val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: {:req_un=>[[:or, [:and, :"Speculation/first_name", :"Speculation/last_name"], :"Speculation/email"]]}
+    EOS
+  end
+
 
   def test_fdef_instrument
     mod = Module.new do
@@ -465,17 +490,15 @@ class SpeculationTest < Minitest::Test
 
     assert_match /^Call to 'ranged_rand' did not conform to spec/, e.message
 
-    expected =
-      H[:"Speculation/failure" => :instrument,
-        :"Speculation/caller" => "/Users/jamie/Projects/speculation/test/speculation_test.rb:464:in `block in test_fdef_instrument'",
-        :"Speculation/problems" => V[H[:path => V[:args],
-                                       :val => H[:start => 8, :end => 5],
-                                       :in => V[],
-                                       :via => V[],
-                                       :pred => "<proc>"]],
-                                       :"Speculation/args" => [8, 5]]
+    assert_equal :instrument, e.explain_data.fetch(:"Speculation/failure")
+    assert_match %r{speculation/test/speculation_test\.rb:\d+:in `block in test_fdef_instrument'}, e.explain_data.fetch(:"Speculation/caller")
+    assert_equal V[H[:path => V[:args],
+                     :val => H[:start => 8, :end => 5],
+                     :in => V[],
+                     :via => V[],
+                     :pred => "<proc>"]], e.explain_data.fetch(:"Speculation/problems")
 
-    assert_equal expected, e.explain_data
+    assert_equal [8, 5], e.explain_data.fetch(:"Speculation/args")
 
     mod.ranged_rand(5, 8)
   end
