@@ -230,18 +230,18 @@ module Speculation
         reg = Core.registry
         ret = value
 
-        value.each do |key, value|
+        value.each do |key, v|
           spec_name = @key_to_spec_map.fetch(key, key)
           spec = reg[spec_name]
 
           next unless spec
 
-          conformed_value = spec.conform(value)
+          conformed_value = Core.conform(spec, v)
 
           if Core.invalid?(conformed_value)
             return :invalid.ns
           else
-            unless conformed_value.equal?(value)
+            unless conformed_value.equal?(v)
               ret = ret.merge(key => conformed_value)
             end
           end
@@ -473,7 +473,7 @@ module Speculation
           "key must be a namespaced Symbol, e.g. #{:my_spec.ns}, given #{key}"
       end
 
-      spec = if spec?(spec) || regex?(spec) || registry[key]
+      spec = if spec?(spec) || regex?(spec) || registry[spec]
                spec
              else
                self.spec_impl(spec, false)
@@ -838,7 +838,8 @@ module Speculation
     end
 
     def self.deep_resolve(reg, spec)
-      spec = reg[spec] until spec.is_a?(Symbol)
+      spec = reg[spec] until !spec.is_a?(Symbol)
+      spec
     end
 
     def self.specize(spec)
@@ -1046,7 +1047,7 @@ module Speculation
       spec = the_spec(pred)
 
       if spec
-        spec.conform(x)
+        conform(spec, x)
       else
         if pred.is_a?(Class) || pred.is_a?(Proc) || pred.is_a?(::Regexp)
           pred === x ? x : :invalid.ns
@@ -1066,7 +1067,7 @@ module Speculation
     end
 
     def self.maybe_spec(spec_or_key)
-      spec = (Symbol === spec_or_key && reg_resolve!(spec_or_key)) ||
+      spec = (Symbol === spec_or_key && reg_resolve(spec_or_key)) ||
         spec?(spec_or_key) ||
         regex?(spec_or_key) ||
         nil

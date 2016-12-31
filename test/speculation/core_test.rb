@@ -344,12 +344,13 @@ class SpeculationCoreTest < Minitest::Test
           in: V[:email.ns],
           via: V[
             :person.ns,
-            :email.ns # clojure returns email-type for this...
+            :email_type.ns
           ],
           pred: /^[a-zA-Z1-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,63}$/
         ]
       ]
     ]
+
     assert_equal expected, S.explain_data(:person.ns, input)
   end
 
