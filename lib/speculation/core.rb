@@ -5,6 +5,7 @@ require 'hamster/vector'
 require 'hamster/set'
 require 'functional'
 require 'speculation/utils'
+require 'speculation/gen'
 
 module Speculation
   using namespaced_symbols(self)
@@ -71,6 +72,7 @@ module Speculation
     # TODO: Make this configurable
     COLL_CHECK_LIMIT = 101
     COLL_ERROR_LIMIT = 20
+    RECURSION_LIMIT = 4
 
     def self.coll_check_limit
       COLL_CHECK_LIMIT
@@ -80,9 +82,11 @@ module Speculation
       COLL_ERROR_LIMIT
     end
 
+    # TODO add #inspect or #to_s so prints with name in error messages
     class Spec
       attr_accessor :name
 
+      # TODO handle gen arg
       def initialize(predicate, should_conform)
         @predicate = predicate
         @should_conform = should_conform
@@ -102,6 +106,14 @@ module Speculation
       def explain(path, via, _in, value)
         if Core.invalid?(Core.dt(@predicate, value))
           V[H[path: path, val: value, via: via, in: _in, pred: @predicate]]
+        end
+      end
+
+      def gen(_, _, _)
+        if @gfn
+          @gfn
+        else
+          Gen.gen_for_pred(@predicate)
         end
       end
 
@@ -138,6 +150,14 @@ module Speculation
 
       def explain(path, via, _in, value)
         Core.explain_pred_list(@preds, path, via, _in, value)
+      end
+
+      def gen(overrides, path, rmap)
+        if @gfn
+          @gfn
+        else
+          Core.gensub(@preds.first, overrides, path, rmap)
+        end
       end
 
       Protocol.Satisfy!(self, :Specize.ns, :Spec.ns)
@@ -177,6 +197,20 @@ module Speculation
         V.new(@keys).zip(@preds).flat_map do |(key, pred)|
           next if Core.pvalid?(pred, value)
           Core.explain1(pred, path.conj(key), via, _in, value)
+        end
+      end
+
+      def gen(overrides, path, rmap)
+        return gfn if @gfn
+
+        # TODO handle recur-limit with inck rmap
+        gs = @keys.zip(@preds).
+          map { |(k, p)| Core.gensub(p, overrides, path.conj(k), rmap) }.
+          compact
+
+        unless gs.empty?
+          gs = gs.map { |g| g.fetch(:gen) }
+          Gen.make_gen { branch(*gs) }
         end
       end
 
@@ -221,6 +255,9 @@ module Speculation
         @req_un          = req_un
         @req_keys        = req_keys
         @keys_pred       = keys_pred
+        @req_specs       = req_specs
+        @opt_keys        = opt_keys
+        @opt_specs       = opt_specs
         @key_to_spec_map = H[req_keys.concat(opt_keys).zip(req_specs.concat(opt_specs))]
       end
 
@@ -277,6 +314,29 @@ module Speculation
 
       def specize
         self
+      end
+
+      def gen(overrides, path, rmap)
+        return @gfn if @gfn
+
+        reqs = @req_keys.zip(@req_specs).
+          reduce(H[]) { |m, (k, s)|
+            m.put(k, Core.gensub(s, overrides, path.conj(k), rmap))
+          }
+
+        opts = @opt_keys.zip(@opt_specs).
+          reduce(H[]) { |m, (k, s)|
+            m.put(k, Core.gensub(s, overrides, path.conj(k), rmap))
+          }
+
+        Gen.make_gen do
+          count = choose(0, opts.count)
+          opts = H.new(opts.to_a.shuffle.take(count))
+
+          reqs.merge(opts).each_with_object({}) { |(k, s), h|
+            h[k] = instance_exec(&s.fetch(:gen))
+          }
+        end
       end
 
       Protocol.Satisfy!(self, :Specize.ns, :Spec.ns)
@@ -1251,6 +1311,27 @@ module Speculation
       if distinct && !x.empty? && x.uniq.count != x.count # OPTIMIZE: distinct check
         V[H[path: path, pred: 'distinct?', val: x, via: via, in: _in]]
       end
+    end
+
+    def self.gen(spec, overrides = nil)
+      gensub(spec, nil, V[], H[:recursion_limit.ns => RECURSION_LIMIT])
+    end
+
+    def self.gensub(spec, overrides, path, rmap)
+      spec = specize(spec)
+      gfn = overrides[spec.name || spec] || overrides[path] if overrides
+      # TODO gfn.call
+      g = gfn ? gfn : spec.gen(overrides, path, rmap)
+
+      if g
+        Gen.such_that(-> (x) { Core.valid?(spec, x) }, g, 100)
+      else
+        raise "unable to construct gen at: #{path.inspect} for: #{spec.inspect}"
+      end
+    end
+
+    def self.exercise(spec, n: 10, overrides: {})
+      Gen.sample(gen(spec, overrides), n)
     end
   end
 end
