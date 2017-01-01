@@ -520,6 +520,42 @@ module Speculation
       Protocol.Satisfy!(self, :Specize.ns, :Spec.ns)
     end
 
+    class NilableSpec
+      attr_accessor :name
+
+      def initialize(pred)
+        @pred = pred
+        @delayed_spec = Concurrent::Delay.new { Core.specize(pred) }
+      end
+
+      def conform(value)
+        value.nil? ? value : @delayed_spec.value.conform(value)
+      end
+
+      def explain(path, via, _in, value)
+        return if Core.pvalid?(@delayed_spec.value, value) || value.nil?
+
+        Core.
+          explain1(@pred, path.conj(:pred.ns), via, _in, value).
+          conj(H[path: path.conj(:nil.ns), pred: NilClass, val: value, via: via, in: _in])
+      end
+
+      def gen(overrides, path, rmap)
+        return @gfn if @gfn
+
+        -> (rantly) do
+          rantly.freq([1, Utils.constantly(nil)],
+                      [9, Core.gensub(@pred, overrides, path.conj(:pred.ns), rmap)])
+        end
+      end
+
+      def specize
+        self
+      end
+
+      Protocol.Satisfy!(self, :Specize.ns, :Spec.ns)
+    end
+
     def self.registry
       REGISTRY.value
     end
@@ -570,6 +606,10 @@ module Speculation
 
     def self.spec(pred)
       spec_impl(pred, false)
+    end
+
+    def self.nilable(pred)
+      NilableSpec.new(pred)
     end
 
     def self.spec_impl(pred, should_conform)

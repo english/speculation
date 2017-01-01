@@ -15,5 +15,9 @@ module Speculation
     def self.identity(x)
       x
     end
+
+    def self.constantly(x)
+      -> (*) { x }
+    end
   end
 end

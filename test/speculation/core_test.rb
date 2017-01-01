@@ -4,10 +4,12 @@ require 'speculation/utils'
 require 'speculation/namespaced_symbols'
 require 'speculation/core'
 require 'speculation/test'
+require 'speculation/gen'
 
 class SpeculationCoreTest < Minitest::Test
   S = Speculation::Core
   STest = Speculation::Test
+  Gen = Speculation::Gen
   H = Hamster::Hash
   V = Hamster::Vector
   HSet = Hamster::Set
@@ -475,5 +477,30 @@ class SpeculationCoreTest < Minitest::Test
     assert_equal <<~EOS, S.explain(:person.ns(:unq), first_name: "Elon")
       val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: {:req_un=>[[:or, [:and, :"SpeculationCoreTest/first_name", :"SpeculationCoreTest/last_name"], :"SpeculationCoreTest/email"]]}
     EOS
+  end
+
+  def test_nilable
+    S.def(:maybe_string.ns, S.nilable(String))
+
+    assert S.valid?(:maybe_string.ns, "foo")
+    assert S.valid?(:maybe_string.ns, nil)
+    refute S.valid?(:maybe_string.ns, 1)
+
+    ed = S.explain_data(:maybe_string.ns, 1)
+    expected = V[H[:path => V[:"Speculation/pred"],
+                   :val => 1,
+                   :in => V[],
+                   :via => V[:"SpeculationCoreTest/maybe_string"],
+                   :pred => String],
+                 H[:path => V[:"Speculation/nil"],
+                   :val => 1,
+                   :in => V[],
+                   :via => V[:"SpeculationCoreTest/maybe_string"],
+                   :pred => NilClass]]
+
+    assert_equal expected, ed.fetch(:problems.ns(Speculation))
+
+    val = Gen.generate(S.gen(:maybe_string.ns))
+    assert val.is_a?(String) || val.nil?
   end
 end
