@@ -209,8 +209,7 @@ module Speculation
           compact
 
         unless gs.empty?
-          gs = gs.map { |g| g.fetch(:gen) }
-          Gen.make_gen { branch(*gs) }
+          -> (r) { r.branch(*gs) }
         end
       end
 
@@ -329,12 +328,12 @@ module Speculation
             m.put(k, Core.gensub(s, overrides, path.conj(k), rmap))
           }
 
-        Gen.make_gen do
-          count = choose(0, opts.count)
+        -> (rantly) do
+          count = rantly.choose(0, opts.count)
           opts = H.new(opts.to_a.shuffle.take(count))
 
-          reqs.merge(opts).each_with_object({}) { |(k, s), h|
-            h[k] = instance_exec(&s.fetch(:gen))
+          reqs.merge(opts).each_with_object({}) { |(k, spec_gen), h|
+            h[k] = spec_gen.call(rantly)
           }
         end
       end

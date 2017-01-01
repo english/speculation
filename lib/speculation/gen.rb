@@ -1,5 +1,6 @@
 require 'speculation/core'
 require 'rantly'
+require 'rantly/shrinks'
 
 module Speculation
   using namespaced_symbols(self)
@@ -8,22 +9,16 @@ module Speculation
     H = Hamster::Hash
     V = Hamster::Vector
 
-    def self.make_gen(&block)
-      H[gen: block]
-    end
-
     @gen_builtins = H[
-      Integer => make_gen { integer },
-      String => make_gen { string }
+      Integer => -> (r) { r.integer },
+      String => -> (r) { r.string }
     ]
 
     # TODO honor max tries
     def self.such_that(pred, gen, max_tries)
-      gen = gen.fetch(:gen)
-
-      make_gen do
-        instance_exec(&gen).tap do |val|
-          guard(pred.call(val))
+      -> (rantly) do
+        gen.call(rantly).tap do |val|
+          rantly.guard(pred.call(val))
         end
       end
     end
@@ -34,13 +29,11 @@ module Speculation
     end
 
     def self.generate(gen)
-      gen = gen.fetch(:gen)
-      Rantly.value { instance_exec(&gen) }
+      Rantly.value { gen.call(self) }
     end
 
     def self.sample(gen, n)
-      gen = gen.fetch(:gen)
-      Rantly.map(n) { instance_exec(&gen) }
+      Rantly.map(n) { gen.call(self) }
     end
   end
 end
