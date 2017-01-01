@@ -1,7 +1,7 @@
-require 'speculation/core'
+# require 'speculation/core'
 
 module Speculation
-  using namespaced_symbols(self)
+  using NamespacedSymbols.refine(self)
 
   module Test
     class DidNotConformError < StandardError

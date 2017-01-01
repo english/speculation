@@ -1,5 +1,7 @@
 require 'test_helper'
 require 'hamster'
+require 'speculation/utils'
+require 'speculation/namespaced_symbols'
 require 'speculation/core'
 require 'speculation/test'
 

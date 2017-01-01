@@ -1,9 +1,11 @@
-require 'speculation/core'
+# require 'speculation/core'
 require 'rantly'
 require 'rantly/shrinks'
+require 'hamster/hash'
+require 'hamster/vector'
 
 module Speculation
-  using namespaced_symbols(self)
+  using NamespacedSymbols.refine(self)
 
   module Gen
     H = Hamster::Hash
@@ -11,7 +13,8 @@ module Speculation
 
     @gen_builtins = H[
       Integer => -> (r) { r.integer },
-      String => -> (r) { r.string }
+      String  => -> (r) { r.sized(r.range(0, 100)) { string } },
+      Float   => -> (r) { rand(Float::MIN..Float::MAX) },
     ]
 
     # TODO honor max tries

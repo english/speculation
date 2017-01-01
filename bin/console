@@ -1,10 +1,27 @@
 #!/usr/bin/env ruby
 
 require "bundler/setup"
-require "speculation"
 
 # You can add fixtures and/or initialization code here to make experimenting
 # with your gem easier. You can also use a different console, if you like.
+def reload!
+  Object.send :remove_const, :Speculation if Object.const_defined?(:Speculation)
+  Object.send :remove_const, :S           if Object.const_defined?(:S)
+  Object.send :remove_const, :STest       if Object.const_defined?(:STest)
+  Object.send :remove_const, :Gen         if Object.const_defined?(:Gen)
+
+  load './lib/speculation/namespaced_symbols.rb'
+  load './lib/speculation/utils.rb'
+  load './lib/speculation/gen.rb'
+  load './lib/speculation/core.rb'
+  load './lib/speculation/test.rb'
+
+  Object.const_set(:S, Speculation::Core)
+  Object.const_set(:STest, Speculation::Test)
+  Object.const_set(:Gen, Speculation::Gen)
+end
+
+reload!
 
 # (If you use this, don't forget to add pry to your Gemfile!)
 require "pry"

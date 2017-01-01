@@ -1,5 +1,7 @@
 require 'test_helper'
 require 'hamster'
+require 'speculation/utils'
+require 'speculation/namespaced_symbols'
 require 'speculation/core'
 require 'speculation/test'
 
@@ -10,7 +12,7 @@ class SpeculationCoreTest < Minitest::Test
   V = Hamster::Vector
   HSet = Hamster::Set
 
-  using Speculation.namespaced_symbols(Speculation)
+  using Speculation::NamespacedSymbols.refine(self)
 
   def setup
     Speculation::Core.reset_registry!
@@ -453,14 +455,14 @@ class SpeculationCoreTest < Minitest::Test
 
     # TODO improve explain message for missing keys.
     assert_equal <<~EOS, S.explain(:person.ns(:unq), first_name: "Elon")
-      val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: {:req_un=>[:"Speculation/first_name", :"Speculation/last_name", :"Speculation/email"]}
+      val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: {:req_un=>[:"SpeculationCoreTest/first_name", :"SpeculationCoreTest/last_name", :"SpeculationCoreTest/email"]}
     EOS
 
     email_regex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,63}$/
     S.def(:email.ns, S.and(String, email_regex))
 
     assert_equal <<~EOS, S.explain(:person.ns(:unq), first_name: "Elon", last_name: "Musk", email: "elon")
-      In: [:email] val: "elon" fails spec: :"Speculation/email" at: [:email] predicate: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,63}$/
+      In: [:email] val: "elon" fails spec: :"SpeculationCoreTest/email" at: [:email] predicate: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,63}$/
     EOS
   end
 
@@ -471,7 +473,7 @@ class SpeculationCoreTest < Minitest::Test
 
     # TODO improve explain message for missing keys
     assert_equal <<~EOS, S.explain(:person.ns(:unq), first_name: "Elon")
-      val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: {:req_un=>[[:or, [:and, :"Speculation/first_name", :"Speculation/last_name"], :"Speculation/email"]]}
+      val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: {:req_un=>[[:or, [:and, :"SpeculationCoreTest/first_name", :"SpeculationCoreTest/last_name"], :"SpeculationCoreTest/email"]]}
     EOS
   end
 end

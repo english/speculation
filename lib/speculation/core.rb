@@ -4,13 +4,15 @@ require 'hamster/hash'
 require 'hamster/vector'
 require 'hamster/set'
 require 'functional'
-require 'speculation/utils'
-require 'speculation/gen'
 
 module Speculation
-  using namespaced_symbols(self)
+  using NamespacedSymbols.refine(self)
 
   module Core
+    H = Hamster::Hash
+    V = Hamster::Vector
+    Protocol = Functional::Protocol
+
     module Specize
       refine Symbol do
         def specize
@@ -57,15 +59,11 @@ module Speculation
     Functional.SpecifyProtocol(:Spec.ns) do
       instance_method :conform, 1
       instance_method :explain, 4
-    end
+    end unless Protocol.Specified?(:Spec.ns)
 
     Functional.SpecifyProtocol(:Specize.ns) do
       instance_method :specize, 0
-    end
-
-    H = Hamster::Hash
-    V = Hamster::Vector
-    Protocol = Functional::Protocol
+    end unless Protocol.Specified?(:Specize.ns)
 
     REGISTRY = Concurrent::Atom.new(H[])
 

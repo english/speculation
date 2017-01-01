@@ -1,9 +1,11 @@
 require 'test_helper'
+require 'speculation/utils'
+require 'speculation/namespaced_symbols'
 require 'speculation/core'
 require 'speculation/gen'
 
 class SpeculationGenTest < Minitest::Test
-  using Speculation.namespaced_symbols(self)
+  using Speculation::NamespacedSymbols.refine(self)
 
   S = Speculation::Core
   Gen = Speculation::Gen
@@ -43,7 +45,6 @@ class SpeculationGenTest < Minitest::Test
     assert val.keys.include?(:y)
     assert val[:x].is_a?(String)
     assert val[:y].is_a?(Integer)
-
     assert val[:z].is_a?(Integer) if val.key?(:z)
   end
 end
