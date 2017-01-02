@@ -271,6 +271,17 @@ class SpeculationCoreTest < Minitest::Test
 
     assert S.valid?(:point.ns, [1, 2, 3])
     refute S.valid?(:point.ns, [1, 2, "3"])
+
+    expected = H[:"Speculation/problems" =>
+                 V[H[path: V[2],
+                     val: 3.0,
+                     via: V[:point.ns],
+                     in: V[2],
+                     pred: Integer]]]
+
+    assert_equal expected, S.explain_data(:point.ns, V[1, 2, 3.0])
+
+    assert Gen.generate(S.gen(:point.ns)).all? { |x| x.is_a?(Integer) }
   end
 
   def test_hash_of
@@ -399,20 +410,6 @@ class SpeculationCoreTest < Minitest::Test
         pred: "<proc>"]]] # TODO: need to do better
 
     assert_equal expected, S.explain_data(:nested.ns, [:names, ["a", "b"], :nums, [1, 2, 3, 4, 5]])
-  end
-
-  def test_explain_tuple
-    S.def(:point.ns, S.tuple(Float, Float, Float))
-
-    expected = H[:"Speculation/problems" =>
-                 V[H[path: V[2],
-                     val: 3,
-                     via: V[:point.ns],
-                     in: V[2],
-                     pred: Float]]]
-
-
-    assert_equal expected, S.explain_data(:point.ns, V[1.1, 2.2, 3])
   end
 
   def test_explain_hash_of

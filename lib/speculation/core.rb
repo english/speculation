@@ -514,6 +514,17 @@ module Speculation
         end
       end
 
+      def gen(overrides, path, rmap)
+        return @gen if @gen
+
+        gens = @preds.each_with_index.
+          map { |p, i| Core.gensub(p, overrides, path.conj(i), rmap) }
+
+        -> (rantly) do
+          gens.map { |g| g.call(rantly) }
+        end
+      end
+
       def with_gen(gen)
         self.class.new(@preds, gen)
       end
