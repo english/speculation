@@ -43,19 +43,6 @@ module Speculation
     end
     using Conj
 
-    module SpecName
-      refine Proc do
-        def name=(name)
-          @_specualtion_name = name
-        end
-
-        def name
-          @_specualtion_name
-        end
-      end
-    end
-    using SpecName
-
     Functional.SpecifyProtocol(:Spec.ns) do
       instance_method :conform, 1
       instance_method :explain, 4
