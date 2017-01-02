@@ -13,7 +13,7 @@ module Speculation
 
     @gen_builtins = H[
       Integer => -> (r) { r.integer },
-      String  => -> (r) { r.sized(r.range(0, 100)) { string } },
+      String  => -> (r) { r.sized(r.range(0, 100)) { string(:alpha) } },
       Float   => -> (r) { rand(Float::MIN..Float::MAX) },
     ]
 

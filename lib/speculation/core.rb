@@ -84,10 +84,10 @@ module Speculation
     class Spec
       attr_accessor :name
 
-      # TODO handle gen arg
-      def initialize(predicate, should_conform)
+      def initialize(predicate, should_conform, gen = nil)
         @predicate = predicate
         @should_conform = should_conform
+        @gen = gen
       end
 
       def conform(value)
@@ -111,13 +111,17 @@ module Speculation
       end
 
       def gen(_, _, _)
-        if @gfn
-          @gfn
+        if @gen
+          @gen
         elsif @predicate.is_a?(Set)
           -> (rantly) { rantly.choose(*@predicate) }
         else
           Gen.gen_for_pred(@predicate)
         end
+      end
+
+      def with_gen(gen)
+        self.class.new(@predicate, @should_conform, gen)
       end
 
       def specize
@@ -130,8 +134,9 @@ module Speculation
     class AndSpec
       attr_accessor :name
 
-      def initialize(preds)
+      def initialize(preds, gen = nil)
         @preds = preds
+        @gen = gen
         @specs = Concurrent::Delay.new do
           preds.map { |pred| Core.specize(pred) }
         end
@@ -156,11 +161,15 @@ module Speculation
       end
 
       def gen(overrides, path, rmap)
-        if @gfn
-          @gfn
+        if @gen
+          @gen
         else
           Core.gensub(@preds.first, overrides, path, rmap)
         end
+      end
+
+      def with_gen(gen)
+        self.class.new(@preds, gen)
       end
 
       Protocol.Satisfy!(self, :Specize.ns, :Spec.ns)
@@ -169,9 +178,11 @@ module Speculation
     class OrSpec
       attr_accessor :name
 
-      def initialize(named_specs)
+      def initialize(named_specs, gen = nil)
+        @named_specs = named_specs
         @keys = named_specs.keys
         @preds = preds = named_specs.values
+        @gen = gen
 
         @delayed_specs = Concurrent::Delay.new do
           preds.map { |spec| Core.specize(spec) }
@@ -204,7 +215,7 @@ module Speculation
       end
 
       def gen(overrides, path, rmap)
-        return gfn if @gfn
+        return gen if @gen
 
         # TODO handle recur-limit with inck rmap
         gs = @keys.zip(@preds).
@@ -214,6 +225,10 @@ module Speculation
         unless gs.empty?
           -> (r) { r.branch(*gs) }
         end
+      end
+
+      def with_gen(gen)
+        self.class.new(@named_specs, gen)
       end
 
       Protocol.Satisfy!(self, :Specize.ns, :Spec.ns)
@@ -246,20 +261,25 @@ module Speculation
         self
       end
 
+      def with_gen(gen)
+        self.class.new(@regex, gen)
+      end
+
       Protocol.Satisfy!(self, :Specize.ns, :Spec.ns)
     end
 
     class HashSpec
       attr_accessor :name
 
-      def initialize(req:, req_un:, req_keys:, req_specs:, opt_keys:, opt_specs:, keys_pred:)
+      def initialize(req:, req_un:, req_keys:, req_specs:, opt_keys:, opt_specs:, keys_pred:, gen: nil)
         @req             = req
         @req_un          = req_un
         @req_keys        = req_keys
-        @keys_pred       = keys_pred
         @req_specs       = req_specs
         @opt_keys        = opt_keys
         @opt_specs       = opt_specs
+        @keys_pred       = keys_pred
+        @gen             = gen
         @key_to_spec_map = H[req_keys.concat(opt_keys).zip(req_specs.concat(opt_specs))]
       end
 
@@ -319,7 +339,7 @@ module Speculation
       end
 
       def gen(overrides, path, rmap)
-        return @gfn if @gfn
+        return @gen if @gen
 
         reqs = @req_keys.zip(@req_specs).
           reduce(H[]) { |m, (k, s)|
@@ -341,13 +361,22 @@ module Speculation
         end
       end
 
+      def with_gen(gen)
+        self.class.new(req: @req, req_un: @req_un, req_keys: @req_keys,
+                       req_specs: @req_specs, opt_keys: @opt_keys, opt_specs: @opt_specs,
+                       keys_pred: @keys_pred, gen: gen)
+      end
+
       Protocol.Satisfy!(self, :Specize.ns, :Spec.ns)
     end
 
     class EverySpec
       attr_accessor :name
 
-      def initialize(predicate, options)
+      def initialize(predicate, options, gen = nil)
+        @predicate = predicate
+        @options = options
+
         collection_predicates = [options.fetch(:kind, Utils.method(:collection?))]
 
         if options.key?(:count)
@@ -362,10 +391,8 @@ module Speculation
         end
 
         @collection_predicate = -> (coll) { collection_predicates.all? { |f| f.call(coll) } }
-        @predicate = predicate
         @delayed_spec = Concurrent::Delay.new { Core.specize(predicate) }
         @kfn = options.fetch(:kfn, -> (i, v) { i })
-
         @conform_keys, @conform_all, @kind, @distinct, @count, @min_count, @max_count =
           options.values_at(:conform_keys, :conform_all.ns, :kind, :distinct, :count, :min_count, :max_count)
       end
@@ -426,6 +453,10 @@ module Speculation
         V.new(probs.compact)
       end
 
+      def with_gen(gen)
+        self.class.new(@predicate, @options, gen)
+      end
+
       private
 
       def add(coll, index, value, conformed_value)
@@ -449,8 +480,9 @@ module Speculation
     class TupleSpec
       attr_accessor :name
 
-      def initialize(preds)
+      def initialize(preds, gen = nil)
         @preds = preds
+        @gen   = gen
 
         @delayed_specs = Concurrent::Delay.new do
           preds.map { |pred| Core.specize(pred) }
@@ -495,6 +527,10 @@ module Speculation
         end
       end
 
+      def with_gen(gen)
+        self.class.new(@preds, gen)
+      end
+
       def specize
         self
       end
@@ -506,16 +542,21 @@ module Speculation
       attr_reader :args, :ret, :fn
       attr_accessor :name
 
-      def initialize(args: nil, ret: nil, fn: nil)
+      def initialize(args: nil, ret: nil, fn: nil, gen: nil)
         @args = args
         @ret = ret
         @fn = fn
+        @gen = gen
       end
 
       def conform(value)
       end
 
       def explain(path, via, _in, value)
+      end
+
+      def with_gen(gen)
+        self.class.new(args: @args, ret: @ret, fn: @fn, gen: @gen)
       end
 
       def specize
@@ -528,8 +569,9 @@ module Speculation
     class NilableSpec
       attr_accessor :name
 
-      def initialize(pred)
+      def initialize(pred, gen = nil)
         @pred = pred
+        @gen  = gen
         @delayed_spec = Concurrent::Delay.new { Core.specize(pred) }
       end
 
@@ -546,12 +588,16 @@ module Speculation
       end
 
       def gen(overrides, path, rmap)
-        return @gfn if @gfn
+        return @gen if @gen
 
         -> (rantly) do
           rantly.freq([1, Utils.constantly(nil)],
                       [9, Core.gensub(@pred, overrides, path.conj(:pred.ns), rmap)])
         end
+      end
+
+      def with_gen(gen)
+        self.class.new(@pred, gen)
       end
 
       def specize
@@ -1376,6 +1422,14 @@ module Speculation
 
     def self.exercise(spec, n: 10, overrides: {})
       Gen.sample(gen(spec, overrides), n)
+    end
+
+    def self.with_gen(spec, &gen)
+      if regex?(spec)
+        spec.put(:gfn.ns, gen)
+      else
+        specize(spec).with_gen(gen)
+      end
     end
   end
 end

@@ -47,4 +47,20 @@ class SpeculationGenTest < Minitest::Test
     assert val[:y].is_a?(Integer)
     assert val[:z].is_a?(Integer) if val.key?(:z)
   end
+
+  def test_with_gen
+    email_regex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,63}$/
+    spec = S.and(String, email_regex)
+    gen = -> (rantly) do
+      local_part = rantly.sized(rantly.range(1, 64)) { string(:alnum) }
+      subdomain = rantly.sized(rantly.range(1, 10)) { string(:alnum) }
+      tld = rantly.sized(3) { string(:alpha).downcase }
+
+      "#{local_part}@#{subdomain}.#{tld}"
+    end
+
+    S.def(:email_type.ns, S.with_gen(spec, &gen))
+
+    assert Gen.generate(S.gen(:email_type.ns)).is_a?(String)
+  end
 end
