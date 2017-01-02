@@ -91,8 +91,11 @@ module Speculation
       end
 
       def conform(value)
-        # calling #=== here so that a either a class or proc can be provided
-        ret = @predicate === value
+        ret = case @predicate
+              when Set           then @predicate.include?(value)
+              when Regexp, Class then @predicate === value
+              else                    @predicate.call(value)
+              end
 
         if @should_conform
           ret
@@ -110,6 +113,8 @@ module Speculation
       def gen(_, _, _)
         if @gfn
           @gfn
+        elsif @predicate.is_a?(Set)
+          -> (rantly) { rantly.choose(*@predicate) }
         else
           Gen.gen_for_pred(@predicate)
         end
@@ -1148,8 +1153,10 @@ module Speculation
       else
         if pred.is_a?(Class) || pred.is_a?(Proc) || pred.is_a?(::Regexp)
           pred === x ? x : :invalid.ns
+        elsif pred.is_a?(Set)
+          pred.include?(x) ? x : :invalid.ns
         else
-          raise "#{pred} is not a class, proc or regexp, expected a predicate proc or type"
+          raise "#{pred} is not a class, proc, set or regexp"
         end
       end
     end

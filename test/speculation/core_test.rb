@@ -1,5 +1,6 @@
 require 'test_helper'
 require 'hamster'
+require 'set'
 require 'speculation/utils'
 require 'speculation/namespaced_symbols'
 require 'speculation/core'
@@ -502,5 +503,25 @@ class SpeculationCoreTest < Minitest::Test
 
     val = Gen.generate(S.gen(:maybe_string.ns))
     assert val.is_a?(String) || val.nil?
+  end
+
+  def test_set_predicate
+    S.def(:suit.ns, Set[:club, :diamond, :heart, :spade])
+
+    assert S.valid?(:suit.ns, :club)
+    assert S.valid?(:suit.ns, :heart)
+    refute S.valid?(:suit.ns, :lung)
+
+    ed = S.explain_data(:suit.ns, 1)
+    expected = V[H[:path => V[],
+                   :val => 1,
+                   :via => V[:"SpeculationCoreTest/suit"],
+                   :in => V[],
+                   :pred => Set[:club, :diamond, :heart, :spade]]]
+
+    assert_equal expected, ed.fetch(:problems.ns(Speculation))
+
+    val = Gen.generate(S.gen(:suit.ns))
+    assert [:club, :diamon, :heart, :spade].include?(val)
   end
 end
