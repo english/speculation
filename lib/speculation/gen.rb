@@ -15,6 +15,8 @@ module Speculation
       Integer => -> (r) { r.integer },
       String  => -> (r) { r.sized(r.range(0, 100)) { string(:alpha) } },
       Float   => -> (r) { rand(Float::MIN..Float::MAX) },
+      Numeric => -> (r) { r.choose(rand(Float::MIN..Float::MAX), r.integer) },
+      Symbol  => -> (r) { r.sized(r.range(0, 100)) { string(:alpha).to_sym } },
     ]
 
     # TODO honor max tries

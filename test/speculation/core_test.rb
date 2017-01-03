@@ -21,10 +21,6 @@ class SpeculationCoreTest < Minitest::Test
     Speculation::Core.reset_registry!
   end
 
-  def test_that_it_has_a_version_number
-    refute_nil ::Speculation::VERSION
-  end
-
   def test_conform_with_existing_spec
     S.def(:int?.ns, -> (x) { x.is_a?(Integer) })
 
@@ -106,9 +102,10 @@ class SpeculationCoreTest < Minitest::Test
   end
 
   def test_nested_seq
-    S.def(:nested.ns, S.cat(names_sym: -> (x) { x == :names },
+    S.def(:nested.ns, S.cat(names_sym: Set[:names],
                             names: S.spec(S.zero_or_more(String)),
-                            nums_sym: -> (x) { x == :nums }, nums: S.spec(S.zero_or_more(Numeric))))
+                            nums_sym: Set[:nums],
+                            nums: S.spec(S.zero_or_more(Numeric))))
 
     conformed = S.conform(:nested.ns, [:names, ["a", "b"], :nums, [1, 2]])
 
@@ -519,6 +516,6 @@ class SpeculationCoreTest < Minitest::Test
     assert_equal expected, ed.fetch(:problems.ns(Speculation))
 
     val = Gen.generate(S.gen(:suit.ns))
-    assert [:club, :diamon, :heart, :spade].include?(val)
+    assert [:club, :diamond, :heart, :spade].include?(val)
   end
 end

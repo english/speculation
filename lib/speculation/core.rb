@@ -210,7 +210,7 @@ module Speculation
           compact
 
         unless gs.empty?
-          -> (r) { r.branch(*gs) }
+          -> (rantly) { rantly.branch(*gs) }
         end
       end
 
@@ -224,8 +224,9 @@ module Speculation
     class RegexSpec
       attr_accessor :name
 
-      def initialize(regex)
+      def initialize(regex, gen = nil)
         @regex = regex
+        @gen = gen
       end
 
       def conform(value)
@@ -242,6 +243,12 @@ module Speculation
         else
           V[H[path: path, val: value, via: via, in: _in]]
         end
+      end
+
+      def gen(overrides, path, rmap)
+        return @gen if @gen
+
+        Core.re_gen(@regex, overrides, path, rmap)
       end
 
       def specize
@@ -1232,7 +1239,7 @@ module Speculation
         spec
       elsif regex?(spec)
         spec[:name.ns]
-      else
+      elsif spec.respond_to?(:name)
         spec.name
       end
     end
@@ -1406,8 +1413,9 @@ module Speculation
     end
 
     def self.gensub(spec, overrides, path, rmap)
+      overrides ||= {}
       spec = specize(spec)
-      gfn = overrides[spec.name || spec] || overrides[path] if overrides
+      gfn = overrides[spec.name || spec] || overrides[path]
       # TODO gfn.call
       g = gfn ? gfn : spec.gen(overrides, path, rmap)
 
@@ -1415,6 +1423,76 @@ module Speculation
         Gen.such_that(-> (x) { Core.valid?(spec, x) }, g, 100)
       else
         raise "unable to construct gen at: #{path.inspect} for: #{spec.inspect}"
+      end
+    end
+
+    def self.re_gen(p, overrides, path, rmap)
+      origp = p
+      p = reg_resolve!(p)
+
+      op, ps, ks, p1, p2, splice, ret, id, gen = p.values_at(
+        :op.ns, :predicates, :keys, :p1, :p2, :splice, :return_value, :id, :gen.ns
+      ) if regex?(p)
+
+      # TODO inck rmap
+      ggens = -> (ps, ks) do
+        ps.zip(ks).map do |p, k|
+          re_gen(p, overrides, k ? path.conj(k) : k, rmap)
+        end
+      end
+
+      ogen = overrides[spec_name(origp)] ||
+        overrides[spec_name(p)] ||
+        overrides[path]
+
+      if ogen
+        if [:accept, nil].include?(op)
+          return -> (rantly) { [*ogen.call(rantly)] }
+        else
+          return -> (rantly) { ogen.call(rantly) }
+        end
+      end
+
+      return gen if gen
+
+      if p
+        case op
+        when :accept.ns
+          if ret == :nil.ns
+            -> (rantly) { [] }
+          else
+            -> (rantly) { [ret] }
+          end
+        when nil
+          g = gensub(p, overrides, path, rmap)
+
+          -> (rantly) { [g.call(rantly)] }
+        when :amp.ns
+          re_gen(p1, overrides, path, rmap)
+        when :pcat.ns
+          gens = ggens.call(ps, ks)
+
+          if gens.all?
+            -> (rantly) do
+              gens.flat_map { |g| g.call(rantly) }
+            end
+          end
+        when :alt.ns
+          gens = ggens.call(ps, ks).compact
+
+          -> (rantly) { rantly.branch(*gens) } unless gens.empty?
+        when :rep.ns
+          # TODO: recur_limit
+          g = re_gen(p2, overrides, path, rmap)
+
+          if g
+            # TODO wrap in shrinkable?
+            -> (rantly) do
+              # TODO how big?
+              rantly.range(0, 6).times.flat_map { g.call(rantly) }
+            end
+          end
+        end
       end
     end
 

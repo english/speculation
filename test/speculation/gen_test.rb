@@ -63,4 +63,45 @@ class SpeculationGenTest < Minitest::Test
 
     assert Gen.generate(S.gen(:email_type.ns)).is_a?(String)
   end
+
+  def test_regex_gen
+    S.def(:ingredient.ns, S.cat(quantity: Numeric, unit: Symbol))
+
+    quantity, unit = Gen.generate(S.gen(:ingredient.ns))
+
+    assert_kind_of Numeric, quantity
+    assert_kind_of Symbol, unit
+
+    S.def(:nested.ns, S.cat(names_sym: Set[:names],
+                            names: S.spec(S.zero_or_more(String)),
+                            nums_sym: Set[:nums],
+                            nums: S.spec(S.zero_or_more(Numeric))))
+
+    names_sym, names, nums_sym, nums = Gen.generate(S.gen(:nested.ns))
+
+    assert_kind_of Symbol, names_sym
+    assert_kind_of Array, names
+    assert_kind_of Symbol, nums_sym
+    assert_kind_of Array, nums
+
+    assert names.all? { |n| n.is_a?(String) }
+    assert nums.all? { |n| n.is_a?(Numeric) }
+
+    S.def(:non_nested.ns, S.cat(names_sym: Set[:names],
+                                names: S.zero_or_more(String),
+                                nums_sym: Set[:nums],
+                                nums: S.zero_or_more(Numeric)))
+
+    non_nested = Gen.generate(S.gen(:non_nested.ns))
+    syms, names_and_nums = non_nested.partition { |x| x.is_a?(Symbol) }
+    assert_equal [:names, :nums], syms.sort
+    assert names_and_nums.all? { |x| x.is_a?(String) || x.is_a?(Numeric) }
+
+    S.def(:config.ns, S.cat(prop: String, val: S.alt(s: String, b: Set[true, false])))
+
+    prop, val = Gen.generate(S.gen(:config.ns))
+
+    assert_kind_of String, prop
+    assert [String, TrueClass, FalseClass].include?(val.class)
+  end
 end
