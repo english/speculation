@@ -28,9 +28,12 @@ module Speculation
       end
     end
 
-    # TODO handle pred being a set
     def self.gen_for_pred(pred)
-      @gen_builtins[pred]
+      if pred.is_a?(Set)
+        -> (r) { r.choose(*pred) }
+      else
+        @gen_builtins[pred]
+      end
     end
 
     def self.generate(gen)

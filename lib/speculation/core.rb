@@ -100,8 +100,6 @@ module Speculation
       def gen(_, _, _)
         if @gen
           @gen
-        elsif @predicate.is_a?(Set)
-          -> (rantly) { rantly.choose(*@predicate) }
         else
           Gen.gen_for_pred(@predicate)
         end
@@ -314,7 +312,7 @@ module Speculation
           else
             pred = { req: @req, req_un: @req_un }.reject { |k, v| v.empty? }
 
-            V[H[path: path, pred: pred, val: value, via: via, in: _in]] 
+            V[H[path: path, pred: pred, val: value, via: via, in: _in]]
           end
 
         problems += value.flat_map do |(k, v)|
