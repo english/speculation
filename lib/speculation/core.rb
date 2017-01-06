@@ -46,6 +46,7 @@ module Speculation
     Functional.SpecifyProtocol(:Spec.ns) do
       instance_method :conform, 1
       instance_method :explain, 4
+      instance_method :gen, 3
     end unless Protocol.Specified?(:Spec.ns)
 
     Functional.SpecifyProtocol(:Specize.ns) do
@@ -600,6 +601,20 @@ module Speculation
         self.class.new(args: @args, ret: @ret, fn: @fn, gen: @gen)
       end
 
+      def gen(overrides, path, rmap)
+        return @gen if @gen
+
+        -> (rantly) do
+          -> (*args) do
+            unless Core.pvalid?(@args, args)
+              raise Core.explain(@args, args)
+            end
+
+            Gen.generate(Core.gen(@ret, overrides))
+          end
+        end
+      end
+
       def specize
         self
       end
@@ -872,7 +887,7 @@ module Speculation
       _explain_data(spec, V[], V[spec_name(spec)], V[], value)
     end
 
-    def self.explain(spec, x, out = StringIO.new)
+    def self.explain(spec, x)
       explain_str(explain_data(spec, x))
     end
 

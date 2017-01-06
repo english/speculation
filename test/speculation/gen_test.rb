@@ -104,4 +104,25 @@ class SpeculationGenTest < Minitest::Test
     assert_kind_of String, prop
     assert [String, TrueClass, FalseClass].include?(val.class)
   end
+
+  def test_fdef_gen
+    mod = Module.new do
+      def self.ranged_rand(start, eend)
+        start + rand(eend - start)
+      end
+    end
+
+    S.def(:ranged_rand.ns,
+          S.fdef(mod.method(:ranged_rand),
+                 args: S.and(S.cat(start: Integer, end: Integer),
+                             -> (args) { args[:start] < args[:end] }),
+                 ret: Integer))
+
+    genned = Gen.generate(S.gen(:ranged_rand.ns))
+
+    assert_kind_of Proc, genned
+    assert_kind_of Integer, genned.call(1, 2)
+    # fails :args spec
+    assert_raises(RuntimeError) { genned.call(2, 1) }
+  end
 end
