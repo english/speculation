@@ -19,5 +19,19 @@ module Speculation
     def self.constantly(x)
       -> (*) { x }
     end
+
+    def self.distinct?(xs)
+      seen = Set[]
+
+      xs.each do |x|
+        if seen.include?(x)
+          return false
+        else
+          seen << x
+        end
+      end
+
+      true
+    end
   end
 end

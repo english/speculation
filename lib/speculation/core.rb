@@ -385,8 +385,9 @@ module Speculation
         @collection_predicate = -> (coll) { collection_predicates.all? { |f| f.call(coll) } }
         @delayed_spec = Concurrent::Delay.new { Core.specize(predicate) }
         @kfn = options.fetch(:kfn, -> (i, v) { i })
-        @conform_keys, @conform_all, @kind, @distinct, @count, @min_count, @max_count =
-          options.values_at(:conform_keys, :conform_all.ns, :kind, :distinct, :count, :min_count, :max_count)
+        @conform_keys, @conform_all, @kind, @gen_into, @gen_max, @distinct, @count, @min_count, @max_count =
+          options.values_at(:conform_keys, :conform_all.ns, :kind, :gen_into, :gen_max, :distinct, :count, :min_count, :max_count)
+        @gen_max ||= 20
       end
 
       def conform(value)
@@ -443,6 +444,43 @@ module Speculation
         probs = @conform_all ? probs.to_a : probs.take(Core.coll_error_limit)
 
         V.new(probs.compact)
+      end
+
+      def gen(overrides, path, rmap)
+        return @gen if @gen
+
+        pgen = Core.gensub(@predicate, overrides, path, rmap)
+        # TODO handle ~~:gen-into~~ and :kind options
+
+        -> (rantly) do
+          val = if @distinct
+                  if @count
+                    rantly.array(@count, &pgen).tap { |arr| rantly.guard(Utils.distinct?(arr)) }
+                  else
+                    min = @min_count || 0
+                    max = @max_count || [@gen_max, 2 * min].max
+                    count = rantly.range(min, max)
+                    rantly.array(count, &pgen).tap { |arr| rantly.guard(Utils.distinct?(arr)) }
+                  end
+                elsif @count
+                  rantly.array(@count, &pgen)
+                elsif @min_count || @max_count
+                  min = @min_count || 0
+                  max = @max_count || [@gen_max, 2 * min].max
+                  count = rantly.range(min, max)
+                  rantly.array(count, &pgen)
+                else
+                  count = rantly.range(0, @gen_max)
+                  rantly.array(count, &pgen)
+                end
+
+          # TODO handle gen_into: Set[] etc.
+          if @gen_into.is_a?(Hash)
+            val.to_h
+          else
+            val
+          end
+        end
       end
 
       def with_gen(gen)
@@ -818,7 +856,7 @@ module Speculation
     end
 
     def self.hash_of(key_predicate, value_predicate, options = {})
-      every_kv(key_predicate, value_predicate, kind: Utils.method(:hash?).to_proc, :conform_all.ns => true, **options)
+      every_kv(key_predicate, value_predicate, kind: Utils.method(:hash?).to_proc, gen_into: {}, :conform_all.ns => true, **options)
     end
 
     def self.every_kv(key_predicate, value_predicate, options)
@@ -1401,7 +1439,7 @@ module Speculation
         end
       end
 
-      if distinct && !x.empty? && x.uniq.count != x.count # OPTIMIZE: distinct check
+      if distinct && !x.empty? && Utils.distinct?(x)
         V[H[path: path, pred: 'distinct?', val: x, via: via, in: _in]]
       end
     end

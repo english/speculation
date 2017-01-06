@@ -11,6 +11,7 @@ class SpeculationCoreTest < Minitest::Test
   S = Speculation::Core
   STest = Speculation::Test
   Gen = Speculation::Gen
+  Utils = Speculation::Utils
   H = Hamster::Hash
   V = Hamster::Vector
   HSet = Hamster::Set
@@ -261,6 +262,24 @@ class SpeculationCoreTest < Minitest::Test
     assert S.valid?(S.coll_of(Integer, min_count: 3, max_count: 4), [1, 2, 3])
     assert S.valid?(S.coll_of(Integer, min_count: 3, max_count: 4), [1, 2, 3, 4])
     refute S.valid?(S.coll_of(Integer, min_count: 3, max_count: 4), [1, 2, 3, 4, 5])
+
+    Gen.generate(S.gen(:symbol_collection.ns)).each do |x|
+      assert_kind_of Symbol, x
+    end
+
+    coll = Gen.generate(S.gen(S.coll_of(Integer, min_count: 3, max_count: 4)))
+
+    coll.each do |x|
+      assert_kind_of Integer, x
+    end
+
+    assert coll.count.between?(3, 4)
+
+    coll = Gen.generate(S.gen(S.coll_of(Integer, min_count: 3, max_count: 4, distinct: true)))
+    assert Utils.distinct?(coll)
+
+    coll = Gen.generate(S.gen(S.coll_of(Integer, count: 4)))
+    assert_equal 4, coll.count
   end
 
   def test_tuple
@@ -292,6 +311,11 @@ class SpeculationCoreTest < Minitest::Test
 
     refute S.valid?(:scores.ns, H["Sally" => 1000, :Joe => 500])
     refute S.valid?(:scores.ns, { "Sally" => true, "Joe" => 500 })
+
+    hash = Gen.generate(S.gen(:scores.ns))
+
+    hash.keys.each { |key| assert_kind_of String, key }
+    hash.values.each { |value| assert_kind_of Integer, value }
   end
 
   def test_conformer
