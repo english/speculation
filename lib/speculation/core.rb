@@ -60,6 +60,9 @@ module Speculation
     COLL_ERROR_LIMIT = 20
     RECURSION_LIMIT = 4
 
+    # The number of times an anonymous fn specified by fspec will be (generatively) tested during conform
+    FSPEC_ITERATIONS = 21
+
     def self.coll_check_limit
       COLL_CHECK_LIMIT
     end
@@ -580,7 +583,7 @@ module Speculation
       Protocol.Satisfy!(self, :Specize.ns, :Spec.ns)
     end
 
-    class MethodSpec
+    class FnSpec
       attr_reader :args, :ret, :fn
       attr_accessor :name
 
@@ -592,9 +595,19 @@ module Speculation
       end
 
       def conform(value)
+        raise "Can't conform fspec without args spec: #{self.inspect}" unless @args
+        return :invalid.ns unless value.is_a?(Proc) || value.is_a?(Method)
+
+        # TODO: quick-check the function to determine validity
+        #       returning fn here so that fn generation can happen
+        #       (since it will can fspec.conform and check it's not
+        #       :invalid
+        value
       end
 
       def explain(path, via, _in, value)
+        # TODO implement me
+        raise NotImplementedError
       end
 
       def with_gen(gen)
@@ -688,8 +701,8 @@ module Speculation
       self.def(:"__method__#{method.name}/#{method.hash}", fspec(spec))
     end
 
-    def self.fspec(args: nil, ret: nil, fn: nil) # TODO :gen
-      MethodSpec.new(args: spec(args), ret: spec(ret), fn: spec(fn))
+    def self.fspec(args: nil, ret: nil, fn: nil, gen: nil) # TODO :gen
+      FnSpec.new(args: spec(args), ret: spec(ret), fn: spec(fn) , gen: gen)
     end
 
     def self.get_spec(key)
@@ -1467,7 +1480,6 @@ module Speculation
       overrides ||= {}
       spec = specize(spec)
       gfn = overrides[spec.name || spec] || overrides[path]
-      # TODO gfn.call
       g = gfn ? gfn : spec.gen(overrides, path, rmap)
 
       if g
