@@ -1,5 +1,6 @@
-# require 'speculation/core'
+require 'set'
 require 'rantly'
+require 'rantly/property'
 require 'rantly/shrinks'
 require 'hamster/hash'
 require 'hamster/vector'

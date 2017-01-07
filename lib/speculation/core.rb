@@ -1,3 +1,4 @@
+require 'set'
 require 'concurrent/atom'
 require 'concurrent/delay'
 require 'hamster/hash'
@@ -15,6 +16,18 @@ module Speculation
 
     module Specize
       refine Symbol do
+        def specize
+          Core.reg_resolve!(self).specize
+        end
+      end
+
+      refine Method do
+        def specize
+          Core.reg_resolve!(self).specize
+        end
+      end
+
+      refine UnboundMethod do
         def specize
           Core.reg_resolve!(self).specize
         end
@@ -681,9 +694,9 @@ module Speculation
     end
 
     def self.def(key, spec)
-      unless key.is_a?(Symbol) && key.namespaced?
+      unless (key.is_a?(Symbol) && key.namespaced?) || key.is_a?(Method) || key.is_a?(UnboundMethod)
         raise ArgumentError,
-          "key must be a namespaced Symbol, e.g. #{:my_spec.ns}, given #{key}"
+          "key must be a namespaced Symbol, e.g. #{:my_spec.ns}, given #{key}, or a Method"
       end
 
       spec = if spec?(spec) || regex?(spec) || registry[spec]
@@ -698,29 +711,29 @@ module Speculation
     end
 
     def self.fdef(method, spec)
-      self.def(:"__method__#{method.name}/#{method.hash}", fspec(spec))
+      self.def(method, fspec(spec))
     end
 
     def self.fspec(args: nil, ret: nil, fn: nil, gen: nil) # TODO :gen
-      FnSpec.new(args: spec(args), ret: spec(ret), fn: spec(fn) , gen: gen)
+      FnSpec.new(args: spec(args), ret: spec(ret), fn: spec(fn), gen: gen)
     end
 
     def self.get_spec(key)
       case key
       when Method, UnboundMethod
-        registry[:"__method__#{key.name}/#{key.hash}"]
+        registry[key]
+      when Symbol
+        registry[key]
       else
-        registry[key.to_sym]
+        raise "key must be a method or symbol, got: #{key}"
       end
     end
 
     def self.with_name(spec, name)
-      if spec.is_a?(Symbol)
-        spec
-      elsif regex?(spec)
-        spec.put(:name.ns, name)
-      else
-        spec.tap { |s| s.name = name }
+      case spec
+      when Symbol, Method, UnboundMethod then spec
+      when method(:regex?).to_proc then spec.put(:name.ns, name)
+      else spec.tap { |s| s.name = name }
       end
     end
 
@@ -737,7 +750,7 @@ module Speculation
         pred
       elsif regex?(pred)
         RegexSpec.new(pred)
-      elsif pred.is_a?(Symbol)
+      elsif ident?(pred)
         the_spec(pred)
       else
         Spec.new(pred, should_conform)
@@ -1037,12 +1050,16 @@ module Speculation
       end
     end
 
+    def self.ident?(x)
+      x.is_a?(Symbol) || x.is_a?(Method) || x.is_a?(UnboundMethod)
+    end
+
     def self.reg_resolve(key)
-      return key unless key.is_a?(Symbol)
+      return key unless ident?(key)
 
       spec = registry[key]
 
-      if spec.is_a?(Symbol)
+      if ident?(spec)
         deep_resolve(registry, spec)
       else
         spec
@@ -1050,12 +1067,12 @@ module Speculation
     end
 
     def self.reg_resolve!(key)
-      return key unless key.is_a?(Symbol)
+      return key unless ident?(key)
       reg_resolve(key) or raise "Unable to resolve spec: #{key}"
     end
 
     def self.deep_resolve(reg, spec)
-      spec = reg[spec] until !spec.is_a?(Symbol)
+      spec = reg[spec] until !ident?(spec)
       spec
     end
 
@@ -1299,7 +1316,7 @@ module Speculation
     end
 
     def self.spec_name(spec)
-      if spec.is_a?(Symbol)
+      if ident?(spec) # TODO when spec is a method?
         spec
       elsif regex?(spec)
         spec[:name.ns]
@@ -1473,7 +1490,7 @@ module Speculation
     end
 
     def self.gen(spec, overrides = nil)
-      gensub(spec, nil, V[], H[:recursion_limit.ns => RECURSION_LIMIT])
+      gensub(spec, overrides, V[], H[:recursion_limit.ns => RECURSION_LIMIT])
     end
 
     def self.gensub(spec, overrides, path, rmap)

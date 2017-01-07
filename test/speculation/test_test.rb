@@ -8,6 +8,7 @@ require 'speculation/test'
 class SpeculationTestTest < Minitest::Test
   S = Speculation::Core
   STest = Speculation::Test
+  Utils = Speculation::Utils
   H = Hamster::Hash
   V = Hamster::Vector
 
@@ -54,5 +55,28 @@ class SpeculationTestTest < Minitest::Test
     subject = klass.new
     assert_raises(STest::DidNotConformError) { subject.bar(8) }
     subject.bar('asd')
+  end
+
+  def test_check
+    mod = Module.new do
+      def self.ranged_rand(start, eend)
+        # start + rand(start..eend)
+        start + rand(eend - start)
+      end
+    end
+
+    S.fdef(mod.method(:ranged_rand),
+           args: S.and(S.cat(start: Integer, end: Integer),
+                       -> (args) { args[:start] < args[:end] }),
+           ret: Integer,
+           fn: S.and(-> (x) { x[:ret] >= x[:args][:start] },
+                     -> (x) { x[:ret] < x[:args][:end] }))
+
+    results = STest.check(mod.method(:ranged_rand))
+    assert_equal 1, results.count
+
+    result = results.first
+    assert_equal [:"Speculation::Test::Check/ret", :failure, :method, :spec], result.keys.sort
+    assert_equal mod.method(:ranged_rand), result[:method]
   end
 end

@@ -1,3 +1,5 @@
+require 'set'
+
 module Speculation
   module Utils
     def self.hash?(x)
