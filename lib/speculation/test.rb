@@ -134,64 +134,83 @@ module Speculation
 
     def self.quick_check(method, spec, opts)
       gen = opts[:gen]
-      num_tests = opts.fetch(:num_tests, 10000)
+      num_tests = opts.fetch(:num_tests, 100)
 
       g = begin
             Core.gen(spec.args, gen)
           rescue => e
-            e
+            return { result: e }
           end
 
-      if g.is_a?(Exception)
-        { result: g }
-      else
-        prop = ::Rantly::Property.new(g)
+      rantly_quick_check(g, num_tests) { |args| check_call(method, spec, args) }
+    end
 
-        e = nil
-        tests_ran = 0
-        begin
-          prop.check(num_tests) do |args|
-            tests_ran += 1
-            conformed_args = Core.conform(spec.args, args) if spec.args
+    def self.rantly_quick_check(gen, num_tests, &block)
+      i = 0
+      limit = 10
 
-            result =
-              if conformed_args == :invalid.ns
-                explain_check(args, spec.args, args, :args)
-              else
-                ret = method.call(*args)
-                conformed_ret = Core.conform(spec.ret, ret) if spec.ret
+      Rantly.singleton.generate(num_tests, 10, gen) do |val|
+        i += 1
 
-                if conformed_ret == :invalid.ns
-                  explain_check(args, spec.ret, ret, :ret)
-                else
-                  if spec.args && spec.ret && spec.fn
-                    if Core.valid?(spec.fn, args: conformed_args, ret: conformed_ret)
-                      true
-                    else
-                      explain_check(args, spec.fn, { args: conformed_args, ret: conformed_ret }, :fn)
-                    end
-                  else
-                    true
-                  end
-                end
-              end
+        result = block.call(val)
+        unless result == true
+          if val.respond_to?(:shrink?)
+            shrunk = shrink(val, result, block)
 
-            unless result == true
-              raise result
-            end
+            return {
+              fail: val,
+              num_tests: i,
+              result: result,
+              shrunk: shrunk,
+            }
+          else
+            return {
+              fail: val,
+              num_tests: i,
+              result: result,
+            }
           end
-        rescue SpecificiationBasedCheckFailed => ex
-          e = ex
-        end
-
-        {
-          failed_data: prop.failed_data,
-          shrunk_failed_data: prop.shrunk_failed_data,
-          num_tests: tests_ran
-        }.tap do |ret|
-          ret.merge!(ex.data.to_h) if ex
         end
       end
+
+      {
+        num_tests: i,
+        result: true,
+      }
+    end
+
+    def self.shrink(data, result, block, depth = 0, iteration = 0)
+      smallest = data
+      max_depth = depth
+
+      if data.shrinkable?
+        while iteration < 1024
+          shrunk_data = data.shrink
+          result = block.call(shrunk_data)
+
+          unless result == true
+            shrunk = shrink(assertion, shrunk_data, depth + 1, iteration + 1)
+
+            branch_smallest, branch_depth, iteration, branch_result =
+              shrunk.values_at(:smallest, :depth, :iteration, :result)
+
+            if branch_depth > max_depth
+              smallest = branch_smallest
+              max_depth = branch_depth
+              branch_result = result
+            end
+          end
+
+          break unless data.retry?
+        end
+      end
+
+      {
+        depth: max_depth,
+        iteration: iteration,
+        result: result,
+        smallest: smallest,
+      }
     end
 
     class SpecificiationBasedCheckFailed < StandardError
@@ -211,23 +230,52 @@ module Speculation
                        :failure.ns => :check_failed)
              end
 
-      SpecificiationBasedCheckFailed.new(data)
+      {
+        backtrace: caller,
+        cause: "Specification-based check failed",
+        data: data,
+      }
+    end
+
+    def self.check_call(method, spec, args)
+      conformed_args = Core.conform(spec.args, args) if spec.args
+
+      if conformed_args == :invalid.ns
+        return explain_check(args, spec.args, args, :args)
+      end
+
+      ret = method.call(*args)
+      conformed_ret = Core.conform(spec.ret, ret) if spec.ret
+
+      if conformed_ret == :invalid.ns
+        return explain_check(args, spec.ret, ret, :ret)
+      end
+
+      return true unless spec.args && spec.ret && spec.fn
+
+      if Core.valid?(spec.fn, args: conformed_args, ret: conformed_ret)
+        true
+      else
+        explain_check(args, spec.fn, { args: conformed_args, ret: conformed_ret }, :fn)
+      end
     end
 
     def self.make_check_result(method, spec, check_result)
-      {
+      result = {
         spec: spec,
         :ret.ns("Speculation::Test::Check") => check_result,
         method: method,
-      }.tap do |result|
-        if check_result[:failed_data]
-          result[:failure] = check_result[:failed_data]
-        end
+      }
 
-        if check_result[:shrunk_failed_data]
-          result[:failure] = check_result[:shrunk_failed_data]
-        end
+      if check_result[:result] && check_result[:result] != true
+        result[:failure] = check_result[:result]
       end
+
+      if check_result[:shrunk]
+        result[:failure] = check_result[:shrunk][:result]
+      end
+
+      result
     end
   end
 end
