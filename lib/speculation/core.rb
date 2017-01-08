@@ -738,7 +738,7 @@ module Speculation
     end
 
     def self.spec(pred)
-      spec_impl(pred, false)
+      spec_impl(pred, false) if pred
     end
 
     def self.nilable(pred)
