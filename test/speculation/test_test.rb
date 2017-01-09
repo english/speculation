@@ -1,9 +1,4 @@
 require 'test_helper'
-require 'hamster'
-require 'speculation/utils'
-require 'speculation/namespaced_symbols'
-require 'speculation/core'
-require 'speculation/test'
 
 class SpeculationTestTest < Minitest::Test
   S = Speculation::Core
@@ -19,14 +14,15 @@ class SpeculationTestTest < Minitest::Test
       end
     end
 
-    S.fdef(mod.method(:ranged_rand), args: S.and(S.cat(start: Integer, end: Integer),
-                                                 -> (args) { args[:start] < args[:end] }))
+    S.fdef(mod.method(:ranged_rand),
+           args: S.and(S.cat(start: Integer, end: Integer),
+                       -> (args) { args[:start] < args[:end] }))
 
     STest.instrument(mod.method(:ranged_rand))
 
     e = assert_raises(STest::DidNotConformError) { mod.ranged_rand(8, 5) }
 
-    assert_match /^Call to 'ranged_rand' did not conform to spec/, e.message
+    assert_match /^Call to '.*ranged_rand' did not conform to spec/, e.message
 
     assert_equal :instrument, e.explain_data.fetch(:"Speculation/failure")
     assert_match %r{speculation/test/speculation/test_test\.rb:\d+:in `block in test_fdef_instrument'}, e.explain_data.fetch(:"Speculation/caller")

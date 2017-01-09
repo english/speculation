@@ -9,16 +9,22 @@ def reload!
   Object.send :remove_const, :S           if Object.const_defined?(:S)
   Object.send :remove_const, :STest       if Object.const_defined?(:STest)
   Object.send :remove_const, :Gen         if Object.const_defined?(:Gen)
+  Object.send :remove_const, :Utils       if Object.const_defined?(:Utils)
 
   load './lib/speculation/namespaced_symbols.rb'
+  load './lib/speculation/identifier.rb'
   load './lib/speculation/utils.rb'
   load './lib/speculation/gen.rb'
   load './lib/speculation/core.rb'
   load './lib/speculation/test.rb'
+  load './lib/speculation/specs.rb'
 
   Object.const_set(:S, Speculation::Core)
   Object.const_set(:STest, Speculation::Test)
   Object.const_set(:Gen, Speculation::Gen)
+  Object.const_set(:Utils, Speculation::Utils)
+
+  STest.instrument
 end
 
 reload!

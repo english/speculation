@@ -35,5 +35,13 @@ module Speculation
 
       true
     end
+
+    def self.ident?(x)
+      x.is_a?(Symbol) || x.is_a?(Identifier)
+    end
+
+    def self.method?(x)
+      x.is_a?(Method) || x.is_a?(UnboundMethod)
+    end
   end
 end

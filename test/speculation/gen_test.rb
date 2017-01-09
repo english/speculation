@@ -1,14 +1,14 @@
 require 'test_helper'
-require 'speculation/utils'
-require 'speculation/namespaced_symbols'
-require 'speculation/core'
-require 'speculation/gen'
 
 class SpeculationGenTest < Minitest::Test
   using Speculation::NamespacedSymbols.refine(self)
 
   S = Speculation::Core
   Gen = Speculation::Gen
+
+  def setup
+    S.reset_registry!
+  end
 
   def test_generate
     assert_kind_of Integer, Gen.generate(S.gen(Integer))

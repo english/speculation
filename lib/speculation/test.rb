@@ -1,4 +1,4 @@
-# require 'speculation/core'
+require 'concurrent/atom'
 
 module Speculation
   using NamespacedSymbols.refine(self)
@@ -15,8 +15,8 @@ module Speculation
 
     H = Hamster::Hash
     V = Hamster::Vector
-    INSTRUMENTED_METHODS = Concurrent::Atom.new(H[])
 
+    @instrumented_methods = Concurrent::Atom.new(H[])
     @instrument_enabled = true
 
     def self.with_instrument_disabled
@@ -29,48 +29,80 @@ module Speculation
     def self.instrument_enabled?
       @instrument_enabled
     end
-
-    def self.instrument(method)
-      # TODO take a colleciton of methods, or all instrumentable methods
-      # TODO take options
-      instrument1(method)
+    
+    def self.instrumentable_methods(opts = {})
+      # TODO validate opts
+      Core.registry.keys.select(&method(:fn_spec_name?)).to_set.tap do |set|
+        set << opts[:spec].keys    if opts[:spec]
+        set << opts[:stub]         if opts[:stub]
+        set << opts[:replace].keys if opts[:replace]
+      end
     end
 
-    def self.instrument1(method)
-      spec = Core.get_spec(method)
+    def self.instrument(method_or_methods = instrumentable_methods, opts = {})
+      Array(method_or_methods).
+        map { |method| Speculation::Identifier(method) }.
+        uniq.
+        map { |ident| instrument1(ident, opts) }.
+        compact
+    end
+
+    def self.instrument1(ident, opts)
+      spec = Core.get_spec(ident)
       return unless spec
 
-      instrumented_method = INSTRUMENTED_METHODS.value.fetch(method.hash, H[])
+      raw, wrapped = @instrumented_methods.
+        value.
+        fetch(ident, H[]).
+        values_at(:raw, :wrapped)
 
-      to_wrap = if instrumented_method[:wrapped] == method
-                  instrumented_method.fetch(:raw)
-                else
-                  method
-                end
+      current = ident.get_method
+      to_wrap = wrapped == current ? raw : current
+      checked = spec_checking_fn(ident, current, spec)
 
-      checked = spec_checking_fn(method, spec)
+      ident.redefine_method!(checked)
 
-      if method.is_a?(UnboundMethod)
-        method.owner.class_eval { define_method(method.name, checked) }
-      else
-        method.receiver.define_singleton_method(method.name, checked)
+      wrapped = ident.get_method
+
+      @instrumented_methods.swap do |methods|
+        methods.store(ident, H[raw: to_wrap, wrapped: wrapped])
       end
 
-      INSTRUMENTED_METHODS.swap do |methods|
-        methods.store(method.hash, H[raw: to_wrap, wrapped: checked])
-      end
-
-      method
+      ident
     end
 
-    def self.spec_checking_fn(method, spec)
+    def self.unstrument(method_or_methods = nil)
+      method_or_methods ||= @instrumented_methods.value.keys
+
+      Array(method_or_methods).
+        map { |method| Speculation::Identifier(method) }.
+        map { |ident| unstrument1(ident) }.
+        compact
+    end
+
+    def self.unstrument1(ident)
+      instrumented = @instrumented_methods.value[ident]
+      return unless instrumented
+
+      raw, wrapped = instrumented.fetch_values(:raw, :wrapped)
+      @instrumented_methods.swap { |h| h.except(ident) }
+
+      current = ident.get_method
+
+      if wrapped == current
+        ident.redefine_method!(raw)
+        ident
+      end
+    end
+
+    def self.spec_checking_fn(ident, method, spec)
       spec = Core.maybe_spec(spec) # TODO needed?
 
       conform = -> (method, role, spec, data, args) do
         conformed = Core.conform(spec, data)
 
         if conformed == :invalid.ns
-          _caller = caller(2, 1).first # TODO stacktrace-relevant-to-instrument
+          _caller = caller(4, 1).first # TODO stacktrace-relevant-to-instrument
 
           ed = Core.
             _explain_data(spec, V[role], V[], V[], data).
@@ -78,7 +110,7 @@ module Speculation
             store(:failure.ns, :instrument).
             store(:caller.ns, _caller)
 
-          raise DidNotConformError.new("Call to '#{method.name}' did not conform to spec:\n #{Core.explain_str(ed)}", ed)
+          raise DidNotConformError.new("Call to '#{ident}' did not conform to spec:\n #{Core.explain_str(ed)}", ed)
         else
           conformed
         end
@@ -88,8 +120,16 @@ module Speculation
         method = method.bind(self) if method.is_a?(UnboundMethod)
 
         if Test.instrument_enabled?
-          conform.call(method, :args, spec.args, args, args) if spec.args
-          Test.with_instrument_disabled { method.call(*args) }
+          Test.with_instrument_disabled do
+            conform.call(method, :args, spec.args, args, args) if spec.args
+
+            begin
+              @instrument_enabled = true
+              method.call(*args)
+            ensure
+              @instrument_enabled = false
+            end
+          end
         else
           method.call(*args)
         end
@@ -98,27 +138,34 @@ module Speculation
 
     def self.checkable_methods(opts = {})
       # TODO validate opts
-      Core.registry.keys.select(&method(:fn_spec_name?)).to_set.tap do |set|
-        set << opts[:spec].keys if opts[:spec]
-      end
+      Core.
+        registry.
+        keys.
+        select(&method(:fn_spec_name?)).
+        reject(&:instance_method?).
+        to_set.
+        tap { |set| set << opts[:spec].keys if opts[:spec] }
     end
 
     def self.check(method_or_methods = checkable_methods, opts = {})
       Array(method_or_methods).
-        select { |method| checkable_methods(opts).include?(method) }.
-        map { |method| check1(method, opts) } # TODO pmap?
+        map { |method| Speculation::Identifier(method) }.
+        select { |ident| checkable_methods(opts).include?(ident) }.
+        map { |ident| check1(ident, opts) } # TODO pmap?
     end
 
     def self.fn_spec_name?(spec_name)
-      spec_name.is_a?(Method) || spec_name.is_a?(UnboundMethod)
+      spec_name.is_a?(Speculation::Identifier)
     end
 
-    def self.check1(method, opts)
-      spec = Core.get_spec(method)
+    def self.check1(ident, opts)
+      spec = Core.get_spec(ident)
       specd = Core.spec(spec)
 
-      # TODO handle unstrument-ing if already instrumented
-      # TODO handle method not existing anymore???
+      reinstrument = unstrument(ident).any?
+
+      # TODO handle method not existing anymore?
+      method = ident.get_method
 
       if spec.args
         check_result = quick_check(method, spec, opts)
@@ -130,6 +177,8 @@ module Speculation
           spec: spec
         }
       end
+    ensure
+      instrument(ident) if reinstrument
     end
 
     def self.quick_check(method, spec, opts)

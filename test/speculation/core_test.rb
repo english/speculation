@@ -1,11 +1,4 @@
 require 'test_helper'
-require 'hamster'
-require 'set'
-require 'speculation/utils'
-require 'speculation/namespaced_symbols'
-require 'speculation/core'
-require 'speculation/test'
-require 'speculation/gen'
 
 class SpeculationCoreTest < Minitest::Test
   S = Speculation::Core

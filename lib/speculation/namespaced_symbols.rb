@@ -11,12 +11,13 @@ module Speculation
             end
           end
 
-          def namespaced?
-            to_s.include?("/")
+          def name
+            to_s.split("/").last
           end
 
-          def unnamespaced
-            to_s.split("/").last.to_sym
+          def namespace
+            parts = to_s.split("/")
+            parts.first if parts.count == 2
           end
         end
       end

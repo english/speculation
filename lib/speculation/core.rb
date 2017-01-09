@@ -21,13 +21,7 @@ module Speculation
         end
       end
 
-      refine Method do
-        def specize
-          Core.reg_resolve!(self).specize
-        end
-      end
-
-      refine UnboundMethod do
+      refine Identifier do
         def specize
           Core.reg_resolve!(self).specize
         end
@@ -609,6 +603,7 @@ module Speculation
 
       def conform(value)
         raise "Can't conform fspec without args spec: #{self.inspect}" unless @args
+        # TODO value.is_a?(Method) correct? maybe Identifier?
         return :invalid.ns unless value.is_a?(Proc) || value.is_a?(Method)
 
         # TODO: quick-check the function to determine validity
@@ -694,9 +689,11 @@ module Speculation
     end
 
     def self.def(key, spec)
-      unless (key.is_a?(Symbol) && key.namespaced?) || key.is_a?(Method) || key.is_a?(UnboundMethod)
+      key = Speculation::Identifier(key)
+
+      unless Utils.ident?(key) && key.namespace
         raise ArgumentError,
-          "key must be a namespaced Symbol, e.g. #{:my_spec.ns}, given #{key}, or a Method"
+          "key must be a namespaced Symbol, e.g. #{:my_spec.ns}, given #{key}, or a Speculation::Identifier"
       end
 
       spec = if spec?(spec) || regex?(spec) || registry[spec]
@@ -711,7 +708,8 @@ module Speculation
     end
 
     def self.fdef(method, spec)
-      self.def(method, fspec(spec))
+      ident = Speculation::Identifier(method)
+      self.def(ident, fspec(spec))
     end
 
     def self.fspec(args: nil, ret: nil, fn: nil, gen: nil) # TODO :gen
@@ -719,21 +717,16 @@ module Speculation
     end
 
     def self.get_spec(key)
-      case key
-      when Method, UnboundMethod
-        registry[key]
-      when Symbol
-        registry[key]
-      else
-        raise "key must be a method or symbol, got: #{key}"
-      end
+      registry[Speculation::Identifier(key)]
     end
 
     def self.with_name(spec, name)
-      case spec
-      when Symbol, Method, UnboundMethod then spec
-      when method(:regex?).to_proc then spec.put(:name.ns, name)
-      else spec.tap { |s| s.name = name }
+      if Utils.ident?(spec)
+        spec
+      elsif regex?(spec)
+        spec.put(:name.ns, name)
+      else
+        spec.tap { |s| s.name = name }
       end
     end
 
@@ -750,7 +743,7 @@ module Speculation
         pred
       elsif regex?(pred)
         RegexSpec.new(pred)
-      elsif ident?(pred)
+      elsif Utils.ident?(pred)
         the_spec(pred)
       else
         Spec.new(pred, should_conform)
@@ -762,7 +755,9 @@ module Speculation
     end
 
     def self.reset_registry!
-      REGISTRY.reset(H[])
+      REGISTRY.reset(
+        REGISTRY.value.select { |k, v| k.namespace.to_s == self.to_s }
+      )
     end
 
     def self.conform(spec, value)
@@ -835,11 +830,11 @@ module Speculation
       req_keys     = req.flat_map(&extract_keys)
       req_un_specs = req_un.flat_map(&extract_keys)
 
-      unless (req_keys + req_un_specs + opt + opt_un).all? { |s| s.is_a?(Symbol) && s.namespaced? }
+      unless (req_keys + req_un_specs + opt + opt_un).all? { |s| s.is_a?(Symbol) && s.namespace }
         raise "all keys must be namespaced"
       end
 
-      unk = -> (x) { x.unnamespaced }
+      unk = -> (x) { x.name.to_sym }
 
       req_specs = req_keys + req_un_specs
       req_keys  = req_keys + req_un_specs.map(&unk)
@@ -1050,16 +1045,12 @@ module Speculation
       end
     end
 
-    def self.ident?(x)
-      x.is_a?(Symbol) || x.is_a?(Method) || x.is_a?(UnboundMethod)
-    end
-
     def self.reg_resolve(key)
-      return key unless ident?(key)
+      return key unless Utils.ident?(key)
 
       spec = registry[key]
 
-      if ident?(spec)
+      if Utils.ident?(spec)
         deep_resolve(registry, spec)
       else
         spec
@@ -1067,12 +1058,18 @@ module Speculation
     end
 
     def self.reg_resolve!(key)
-      return key unless ident?(key)
-      reg_resolve(key) or raise "Unable to resolve spec: #{key}"
+      return key unless Utils.ident?(key)
+      spec = reg_resolve(key)
+
+      if spec
+        spec
+      else
+        raise "Unable to resolve spec: #{key}"
+      end
     end
 
     def self.deep_resolve(reg, spec)
-      spec = reg[spec] until !ident?(spec)
+      spec = reg[spec] until !Utils.ident?(spec)
       spec
     end
 
@@ -1316,7 +1313,7 @@ module Speculation
     end
 
     def self.spec_name(spec)
-      if ident?(spec) # TODO when spec is a method?
+      if Utils.ident?(spec) # TODO when spec is a method?
         spec
       elsif regex?(spec)
         spec[:name.ns]
@@ -1468,7 +1465,7 @@ module Speculation
     end
 
     def self.collection_problems(x, kfn, distinct, count, min_count, max_count, path, via, _in)
-      pred = kfn || Utils.method(:collection?).to_proc
+      pred = kfn || Utils.method(:collection?)
 
       if !pvalid?(pred, x)
         return explain1(pred, path, via, _in, x)
@@ -1587,5 +1584,20 @@ module Speculation
         specize(spec).with_gen(gen)
       end
     end
+
+    def self.def_builtins
+      any_spec = with_gen(Utils.constantly(true)) do |r|
+        # TODO more gens
+        r.branch(:integer, :float, :string, :boolean, [:literal, nil])
+      end
+
+      self.def(:any.ns(self), any_spec)
+      self.def(:boolean.ns(self), Set[true, false])
+      self.def(:proc.ns(self), Proc)
+      self.def(:enumerable.ns(self), self.or(hash: hash_of(:any.ns(self), :any.ns(self)),
+                                             array: zero_or_more(:any.ns(self))))
+    end
+
+    def_builtins
   end
 end
