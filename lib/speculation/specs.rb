@@ -29,7 +29,7 @@ module Speculation
 
     S.def(:coll.ns, -> (x) { U.collection?(x) })
     S.fdef(U.method(:distinct?),
-           args: S.cat(coll: -> (coll) { U.collection?(coll) }),
+           args: S.cat(coll: S.coll_of(:any.ns(S))),
            ret: :boolean.ns(S))
 
     S.fdef(U.method(:ident?),
