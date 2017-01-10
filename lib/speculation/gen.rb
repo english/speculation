@@ -18,6 +18,8 @@ module Speculation
       Float   => -> (r) { rand(Float::MIN..Float::MAX) },
       Numeric => -> (r) { r.choose(rand(Float::MIN..Float::MAX), r.integer) },
       Symbol  => -> (r) { r.sized(r.range(0, 100)) { string(:alpha).to_sym } },
+      TrueClass => -> (r) { true },
+      FalseClass => -> (r) { false },
     ]
 
     # TODO honor max tries

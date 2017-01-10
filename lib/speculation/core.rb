@@ -1593,9 +1593,15 @@ module Speculation
 
       self.def(:any.ns(self), any_spec)
       self.def(:boolean.ns(self), Set[true, false])
-      self.def(:proc.ns(self), Proc)
-      self.def(:enumerable.ns(self), self.or(hash: hash_of(:any.ns(self), :any.ns(self)),
-                                             array: zero_or_more(:any.ns(self))))
+      self.def(:enumerable.ns(self),
+               self.or(hash: hash_of(:any.ns(self), :any.ns(self)),
+                       array: zero_or_more(:any.ns(self))))
+      self.def(:positive_integer.ns(self),
+               with_gen(self.and(Integer, :positive?.to_proc)) { |r| r.range(1) })
+
+      self.def(:natural_integer.ns(self),
+               with_gen(self.and(Integer, Utils.complement(&:negative?)),
+                        &:positive_integer)) # Rantly#positive_integer is actually a natural integer
     end
 
     def_builtins

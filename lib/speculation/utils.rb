@@ -22,6 +22,10 @@ module Speculation
       -> (*) { x }
     end
 
+    def self.complement(&f)
+      -> (*args) { !f.call(*args) }
+    end
+
     def self.distinct?(xs)
       seen = Set[]
 

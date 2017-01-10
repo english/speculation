@@ -24,7 +24,7 @@ module Speculation
 
     S.fdef(U.method(:constantly),
            args: S.cat(x: :any.ns(S)),
-           ret: :proc.ns(S),
+           ret: Proc,
            fn: -> (x) { x[:args][:x].equal?(x[:ret].call) })
 
     S.def(:coll.ns, -> (x) { U.collection?(x) })
@@ -39,5 +39,9 @@ module Speculation
     S.fdef(U.method(:method?),
            args: S.cat(x: :any.ns(S)),
            ret: :boolean.ns(S))
+
+    S.fdef(U.method(:complement),
+           args: S.cat(x: Proc),
+           ret: Proc)
   end
 end
