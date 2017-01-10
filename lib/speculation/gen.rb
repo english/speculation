@@ -13,13 +13,15 @@ module Speculation
     V = Hamster::Vector
 
     @gen_builtins = H[
-      Integer => -> (r) { r.integer },
-      String  => -> (r) { r.sized(r.range(0, 100)) { string(:alpha) } },
-      Float   => -> (r) { rand(Float::MIN..Float::MAX) },
-      Numeric => -> (r) { r.choose(rand(Float::MIN..Float::MAX), r.integer) },
-      Symbol  => -> (r) { r.sized(r.range(0, 100)) { string(:alpha).to_sym } },
-      TrueClass => -> (r) { true },
+      Integer    => -> (r) { r.integer },
+      String     => -> (r) { r.sized(r.range(0, 100)) { string(:alpha) } },
+      Float      => -> (r) { rand(Float::MIN..Float::MAX) },
+      Numeric    => -> (r) { r.choose(rand(Float::MIN..Float::MAX), r.integer) },
+      Symbol     => -> (r) { r.sized(r.range(0, 100)) { string(:alpha).to_sym } },
+      TrueClass  => -> (r) { true },
       FalseClass => -> (r) { false },
+      Date       => -> (r) { gen_for_pred(Time).call(r).to_date },
+      Time       => -> (r) { Time.at(r.range(-569001744000, 569001744000)) }, # 20k BC => 20k AD
     ]
 
     # TODO honor max tries
@@ -40,11 +42,11 @@ module Speculation
     end
 
     def self.generate(gen)
-      Rantly.value { gen.call(self) }
+      Rantly.value(&gen)
     end
 
     def self.sample(gen, n)
-      Rantly.map(n) { gen.call(self) }
+      Rantly.map(n, &gen)
     end
   end
 end

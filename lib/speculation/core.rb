@@ -1586,22 +1586,26 @@ module Speculation
     end
 
     def self.def_builtins
-      any_spec = with_gen(Utils.constantly(true)) do |r|
-        # TODO more gens
-        r.branch(:integer, :float, :string, :boolean, [:literal, nil])
-      end
+      # TODO more gens
+      any_gen = -> (r) { r.branch(:integer, :float, :string, :boolean, [:literal, nil]) }
+      self.def(:any.ns(self),
+               with_gen(Utils.constantly(true), &any_gen))
 
-      self.def(:any.ns(self), any_spec)
       self.def(:boolean.ns(self), Set[true, false])
+
       self.def(:enumerable.ns(self),
                self.or(hash: hash_of(:any.ns(self), :any.ns(self)),
                        array: zero_or_more(:any.ns(self))))
+
       self.def(:positive_integer.ns(self),
                with_gen(self.and(Integer, :positive?.to_proc)) { |r| r.range(1) })
 
       self.def(:natural_integer.ns(self),
                with_gen(self.and(Integer, Utils.complement(&:negative?)),
                         &:positive_integer)) # Rantly#positive_integer is actually a natural integer
+
+      self.def(:negative_integer.ns(self),
+               with_gen(self.and(Integer, :negative.to_proc)) { |r| r.range(nil, -1) })
     end
 
     def_builtins
