@@ -284,6 +284,7 @@ module Speculation
         @keys_pred       = keys_pred
         @gen             = gen
         @key_to_spec_map = H[req_keys.concat(opt_keys).zip(req_specs.concat(opt_specs))]
+        @id = "something..."
       end
 
       def conform(value)
@@ -343,6 +344,8 @@ module Speculation
 
       def gen(overrides, path, rmap)
         return @gen if @gen
+
+        rmap = inck(rmap, @id)
 
         reqs = @req_keys.zip(@req_specs).
           reduce(H[]) { |m, (k, s)|
@@ -1501,6 +1504,15 @@ module Speculation
       else
         raise "unable to construct gen at: #{path.inspect} for: #{spec.inspect}"
       end
+    end
+
+    def self.recur_limit?(rmap, id, path, k)
+      rmap[id] > rmap[:recursion_limit.ns] &&
+        path.include?(s)
+    end
+
+    def self.inck(m, k)
+      m.merge(k => m.fetch(k, 0) + 1)
     end
 
     def self.re_gen(p, overrides, path, rmap)
