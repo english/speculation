@@ -13,6 +13,7 @@ module Speculation
       end
     end
 
+    S = Speculation
     H = Hamster::Hash
     V = Hamster::Vector
 
@@ -32,7 +33,7 @@ module Speculation
     
     def self.instrumentable_methods(opts = {})
       # TODO validate opts
-      Core.registry.keys.select(&method(:fn_spec_name?)).to_set.tap do |set|
+      S.registry.keys.select(&method(:fn_spec_name?)).to_set.tap do |set|
         set << opts[:spec].keys    if opts[:spec]
         set << opts[:stub]         if opts[:stub]
         set << opts[:replace].keys if opts[:replace]
@@ -41,14 +42,14 @@ module Speculation
 
     def self.instrument(method_or_methods = instrumentable_methods, opts = {})
       Array(method_or_methods).
-        map { |method| Speculation::Identifier(method) }.
+        map { |method| S::Identifier(method) }.
         uniq.
         map { |ident| instrument1(ident, opts) }.
         compact
     end
 
     def self.instrument1(ident, opts)
-      spec = Core.get_spec(ident)
+      spec = S.get_spec(ident)
       return unless spec
 
       raw, wrapped = @instrumented_methods.
@@ -75,7 +76,7 @@ module Speculation
       method_or_methods ||= @instrumented_methods.value.keys
 
       Array(method_or_methods).
-        map { |method| Speculation::Identifier(method) }.
+        map { |method| S::Identifier(method) }.
         map { |ident| unstrument1(ident) }.
         compact
     end
@@ -96,21 +97,21 @@ module Speculation
     end
 
     def self.spec_checking_fn(ident, method, spec)
-      spec = Core.maybe_spec(spec) # TODO needed?
+      spec = S.maybe_spec(spec) # TODO needed?
 
       conform = -> (method, role, spec, data, args) do
-        conformed = Core.conform(spec, data)
+        conformed = S.conform(spec, data)
 
         if conformed == :invalid.ns
           _caller = caller(4, 1).first # TODO stacktrace-relevant-to-instrument
 
-          ed = Core.
+          ed = S.
             _explain_data(spec, V[role], V[], V[], data).
             store(:args.ns, args).
             store(:failure.ns, :instrument).
             store(:caller.ns, _caller)
 
-          raise DidNotConformError.new("Call to '#{ident}' did not conform to spec:\n #{Core.explain_str(ed)}", ed)
+          raise DidNotConformError.new("Call to '#{ident}' did not conform to spec:\n #{S.explain_str(ed)}", ed)
         else
           conformed
         end
@@ -138,7 +139,7 @@ module Speculation
 
     def self.checkable_methods(opts = {})
       # TODO validate opts
-      Core.
+      S.
         registry.
         keys.
         select(&method(:fn_spec_name?)).
@@ -149,18 +150,18 @@ module Speculation
 
     def self.check(method_or_methods = checkable_methods, opts = {})
       Array(method_or_methods).
-        map { |method| Speculation::Identifier(method) }.
+        map { |method| S::Identifier(method) }.
         select { |ident| checkable_methods(opts).include?(ident) }.
         map { |ident| check1(ident, opts) } # TODO pmap?
     end
 
     def self.fn_spec_name?(spec_name)
-      spec_name.is_a?(Speculation::Identifier)
+      spec_name.is_a?(S::Identifier)
     end
 
     def self.check1(ident, opts)
-      spec = Core.get_spec(ident)
-      specd = Core.spec(spec)
+      spec = S.get_spec(ident)
+      specd = S.spec(spec)
 
       reinstrument = unstrument(ident).any?
 
@@ -186,7 +187,7 @@ module Speculation
       num_tests = opts.fetch(:num_tests, 100)
 
       g = begin
-            Core.gen(spec.args, gen)
+            S.gen(spec.args, gen)
           rescue => e
             return { result: e }
           end
@@ -272,8 +273,8 @@ module Speculation
     end
 
     def self.explain_check(args, spec, v, role)
-      data = unless Core.valid?(spec, v)
-               Core._explain_data(spec, [role], [], [], v).
+      data = unless S.valid?(spec, v)
+               S._explain_data(spec, [role], [], [], v).
                  merge(:args.ns => args,
                        :val.ns => v,
                        :failure.ns => :check_failed)
@@ -287,14 +288,14 @@ module Speculation
     end
 
     def self.check_call(method, spec, args)
-      conformed_args = Core.conform(spec.args, args) if spec.args
+      conformed_args = S.conform(spec.args, args) if spec.args
 
       if conformed_args == :invalid.ns
         return explain_check(args, spec.args, args, :args)
       end
 
       ret = method.call(*args)
-      conformed_ret = Core.conform(spec.ret, ret) if spec.ret
+      conformed_ret = S.conform(spec.ret, ret) if spec.ret
 
       if conformed_ret == :invalid.ns
         return explain_check(args, spec.ret, ret, :ret)
@@ -302,7 +303,7 @@ module Speculation
 
       return true unless spec.args && spec.ret && spec.fn
 
-      if Core.valid?(spec.fn, args: conformed_args, ret: conformed_ret)
+      if S.valid?(spec.fn, args: conformed_args, ret: conformed_ret)
         true
       else
         explain_check(args, spec.fn, { args: conformed_args, ret: conformed_ret }, :fn)

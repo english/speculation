@@ -15,11 +15,11 @@ def reload!
   load './lib/speculation/identifier.rb'
   load './lib/speculation/utils.rb'
   load './lib/speculation/gen.rb'
-  load './lib/speculation/core.rb'
+  load './lib/speculation.rb'
   load './lib/speculation/test.rb'
   load './lib/speculation/specs.rb'
 
-  Object.const_set(:S, Speculation::Core)
+  Object.const_set(:S, Speculation)
   Object.const_set(:STest, Speculation::Test)
   Object.const_set(:Gen, Speculation::Gen)
   Object.const_set(:Utils, Speculation::Utils)

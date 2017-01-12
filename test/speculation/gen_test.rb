@@ -1,10 +1,10 @@
 require 'test_helper'
 
 class SpeculationGenTest < Minitest::Test
-  using Speculation::NamespacedSymbols.refine(self)
+  S = Speculation
+  Gen = S::Gen
 
-  S = Speculation::Core
-  Gen = Speculation::Gen
+  using S::NamespacedSymbols.refine(self)
 
   def setup
     S.reset_registry!

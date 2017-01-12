@@ -2,7 +2,7 @@ module Speculation
   module Specs
     using Speculation::NamespacedSymbols.refine(self)
 
-    S = Speculation::Core
+    S = Speculation
     U = Speculation::Utils
 
     S.fdef(U.method(:hash?),

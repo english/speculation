@@ -1,7 +1,7 @@
 require 'test_helper'
 
 class SpeculationTestTest < Minitest::Test
-  S = Speculation::Core
+  S = Speculation
   STest = Speculation::Test
   Utils = Speculation::Utils
   H = Hamster::Hash

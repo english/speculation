@@ -1,18 +1,18 @@
 require 'test_helper'
 
-class SpeculationCoreTest < Minitest::Test
-  S = Speculation::Core
-  STest = Speculation::Test
-  Gen = Speculation::Gen
-  Utils = Speculation::Utils
+class SpeculationTest < Minitest::Test
+  S = Speculation
+  STest = S::Test
+  Gen = S::Gen
+  Utils = S::Utils
   H = Hamster::Hash
   V = Hamster::Vector
   HSet = Hamster::Set
 
-  using Speculation::NamespacedSymbols.refine(self)
+  using S::NamespacedSymbols.refine(self)
 
   def setup
-    Speculation::Core.reset_registry!
+    S.reset_registry!
   end
 
   def test_conform_with_existing_spec
@@ -469,14 +469,14 @@ class SpeculationCoreTest < Minitest::Test
 
     # TODO improve explain message for missing keys.
     assert_equal <<~EOS, S.explain(:person.ns(:unq), first_name: "Elon")
-      val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: {:req_un=>[:"SpeculationCoreTest/first_name", :"SpeculationCoreTest/last_name", :"SpeculationCoreTest/email"]}
+      val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: {:req_un=>[:"SpeculationTest/first_name", :"SpeculationTest/last_name", :"SpeculationTest/email"]}
     EOS
 
     email_regex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,63}$/
     S.def(:email.ns, S.and(String, email_regex))
 
     assert_equal <<~EOS, S.explain(:person.ns(:unq), first_name: "Elon", last_name: "Musk", email: "elon")
-      In: [:email] val: "elon" fails spec: :"SpeculationCoreTest/email" at: [:email] predicate: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,63}$/
+      In: [:email] val: "elon" fails spec: :"SpeculationTest/email" at: [:email] predicate: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,63}$/
     EOS
   end
 
@@ -487,7 +487,7 @@ class SpeculationCoreTest < Minitest::Test
 
     # TODO improve explain message for missing keys
     assert_equal <<~EOS, S.explain(:person.ns(:unq), first_name: "Elon")
-      val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: {:req_un=>[[:or, [:and, :"SpeculationCoreTest/first_name", :"SpeculationCoreTest/last_name"], :"SpeculationCoreTest/email"]]}
+      val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: {:req_un=>[[:or, [:and, :"SpeculationTest/first_name", :"SpeculationTest/last_name"], :"SpeculationTest/email"]]}
     EOS
   end
 
@@ -502,12 +502,12 @@ class SpeculationCoreTest < Minitest::Test
     expected = V[H[:path => V[:"Speculation/pred"],
                    :val => 1,
                    :in => V[],
-                   :via => V[:"SpeculationCoreTest/maybe_string"],
+                   :via => V[:"SpeculationTest/maybe_string"],
                    :pred => String],
                  H[:path => V[:"Speculation/nil"],
                    :val => 1,
                    :in => V[],
-                   :via => V[:"SpeculationCoreTest/maybe_string"],
+                   :via => V[:"SpeculationTest/maybe_string"],
                    :pred => NilClass]]
 
     assert_equal expected, ed.fetch(:problems.ns(Speculation))
@@ -526,7 +526,7 @@ class SpeculationCoreTest < Minitest::Test
     ed = S.explain_data(:suit.ns, 1)
     expected = V[H[:path => V[],
                    :val => 1,
-                   :via => V[:"SpeculationCoreTest/suit"],
+                   :via => V[:"SpeculationTest/suit"],
                    :in => V[],
                    :pred => Set[:club, :diamond, :heart, :spade]]]
 
