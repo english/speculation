@@ -5,6 +5,7 @@ require 'hamster/hash'
 require 'hamster/set'
 require 'hamster/vector'
 require 'set'
+require 'securerandom'
 
 require "speculation/identifier"
 require "speculation/namespaced_symbols"
@@ -161,11 +162,11 @@ module Speculation
       S.explain_pred_list(@preds, path, via, _in, value)
     end
 
-    def gen(overrides, path, rmap)
+    def gen(overrides, path, rhash)
       if @gen
         @gen
       else
-        S.gensub(@preds.first, overrides, path, rmap)
+        S.gensub(@preds.first, overrides, path, rhash)
       end
     end
 
@@ -177,9 +178,10 @@ module Speculation
   end
 
   class OrSpec
-    attr_accessor :name
+    attr_accessor :name, :id
 
     def initialize(named_specs, gen = nil)
+      @id = SecureRandom.uuid
       @named_specs = named_specs
       @keys = named_specs.keys
       @preds = preds = named_specs.values
@@ -215,12 +217,17 @@ module Speculation
       end
     end
 
-    def gen(overrides, path, rmap)
+    def gen(overrides, path, rhash)
       return gen if @gen
 
-      # TODO handle recur-limit with inck rmap
       gs = @keys.zip(@preds).
-        map { |(k, p)| S.gensub(p, overrides, path.conj(k), rmap) }.
+        map { |(k, p)|
+          rhash = S.inck(rhash, @id)
+
+          unless S.recur_limit?(rhash, @id, path, k)
+            S.gensub(p, overrides, path.conj(k), rhash)
+          end
+        }.
         compact
 
       unless gs.empty?
@@ -259,10 +266,10 @@ module Speculation
       end
     end
 
-    def gen(overrides, path, rmap)
+    def gen(overrides, path, rhash)
       return @gen if @gen
 
-      S.re_gen(@regex, overrides, path, rmap)
+      S.re_gen(@regex, overrides, path, rhash)
     end
 
     def specize
@@ -277,9 +284,10 @@ module Speculation
   end
 
   class HashSpec
-    attr_accessor :name
+    attr_accessor :name, :id
 
     def initialize(req:, req_un:, req_keys:, req_specs:, opt_keys:, opt_specs:, keys_pred:, gen: nil)
+      @id              = SecureRandom.uuid
       @req             = req
       @req_un          = req_un
       @req_keys        = req_keys
@@ -346,21 +354,24 @@ module Speculation
       self
     end
 
-    def gen(overrides, path, rmap)
+    # TODO overrrides
+    def gen(overrides, path, rhash)
       return @gen if @gen
+
+      rhash = S.inck(rhash, @id)
 
       reqs = @req_keys.zip(@req_specs).
         reduce(H[]) { |m, (k, s)|
-          m.put(k, S.gensub(s, overrides, path.conj(k), rmap))
+          m.put(k, S.gensub(s, overrides, path.conj(k), rhash))
         }
 
       opts = @opt_keys.zip(@opt_specs).
         reduce(H[]) { |m, (k, s)|
-          m.put(k, S.gensub(s, overrides, path.conj(k), rmap))
+          m.put(k, S.gensub(s, overrides, path.conj(k), rhash))
         }
 
       -> (rantly) do
-        count = rantly.choose(0, opts.count)
+        count = rantly.range(0, opts.count)
         opts = H.new(opts.to_a.shuffle.take(count))
 
         reqs.merge(opts).each_with_object({}) { |(k, spec_gen), h|
@@ -462,10 +473,10 @@ module Speculation
       V.new(probs.compact)
     end
 
-    def gen(overrides, path, rmap)
+    def gen(overrides, path, rhash)
       return @gen if @gen
 
-      pgen = S.gensub(@predicate, overrides, path, rmap)
+      pgen = S.gensub(@predicate, overrides, path, rhash)
       # TODO handle ~~:gen-into~~ and :kind options
 
       -> (rantly) do
@@ -573,11 +584,11 @@ module Speculation
       end
     end
 
-    def gen(overrides, path, rmap)
+    def gen(overrides, path, rhash)
       return @gen if @gen
 
       gens = @preds.each_with_index.
-        map { |p, i| S.gensub(p, overrides, path.conj(i), rmap) }
+        map { |p, i| S.gensub(p, overrides, path.conj(i), rhash) }
 
       -> (rantly) do
         gens.map { |g| g.call(rantly) }
@@ -627,7 +638,7 @@ module Speculation
       self.class.new(args: @args, ret: @ret, fn: @fn, gen: @gen)
     end
 
-    def gen(overrides, path, rmap)
+    def gen(overrides, path, rhash)
       return @gen if @gen
 
       -> (rantly) do
@@ -669,12 +680,12 @@ module Speculation
         conj(H[path: path.conj(:nil.ns), pred: NilClass, val: value, via: via, in: _in])
     end
 
-    def gen(overrides, path, rmap)
+    def gen(overrides, path, rhash)
       return @gen if @gen
 
       -> (rantly) do
         rantly.freq([1, Utils.constantly(nil)],
-                    [9, S.gensub(@pred, overrides, path.conj(:pred.ns), rmap)])
+                    [9, S.gensub(@pred, overrides, path.conj(:pred.ns), rhash)])
       end
     end
 
@@ -804,7 +815,7 @@ module Speculation
   end
 
   def self.alt(kv_specs)
-    _alt(kv_specs.values, kv_specs.keys)
+    _alt(kv_specs.values, kv_specs.keys).merge(id: SecureRandom.uuid)
   end
 
   def self.zero_or_more(predicate)
@@ -1001,7 +1012,7 @@ module Speculation
   def self.rep(p1, p2, return_value, splice)
     return unless p1
 
-    regex = H[:op.ns => :rep.ns, p2: p2, splice: splice]
+    regex = H[:op.ns => :rep.ns, p2: p2, splice: splice, id: SecureRandom.uuid]
 
     regex = if accept?(p1)
       regex.merge(p1: p2, return_value: return_value.add(p1[:return_value]))
@@ -1277,6 +1288,15 @@ module Speculation
     end
   end
 
+  def self.recur_limit?(rhash, id, path, k)
+    rhash[id] > rhash[:recursion_limit.ns] &&
+      path.include?(k)
+  end
+
+  def self.inck(h, k)
+    h.merge(k => h.fetch(k, 0).next)
+  end
+
   def self.dt(pred, x)
     return x unless pred
 
@@ -1318,7 +1338,7 @@ module Speculation
   end
 
   def self.spec_name(spec)
-    if Utils.ident?(spec) # TODO when spec is a method?
+    if Utils.ident?(spec)
       spec
     elsif regex?(spec)
       spec[:name.ns]
@@ -1495,11 +1515,11 @@ module Speculation
     gensub(spec, overrides, V[], H[:recursion_limit.ns => RECURSION_LIMIT])
   end
 
-  def self.gensub(spec, overrides, path, rmap)
+  def self.gensub(spec, overrides, path, rhash)
     overrides ||= {}
     spec = specize(spec)
     gfn = overrides[spec.name || spec] || overrides[path]
-    g = gfn ? gfn : spec.gen(overrides, path, rmap)
+    g = gfn ? gfn : spec.gen(overrides, path, rhash)
 
     if g
       Gen.such_that(-> (x) { S.valid?(spec, x) }, g, 100)
@@ -1508,18 +1528,25 @@ module Speculation
     end
   end
 
-  def self.re_gen(p, overrides, path, rmap)
+  def self.re_gen(p, overrides, path, rhash)
     origp = p
     p = reg_resolve!(p)
 
-    op, ps, ks, p1, p2, splice, ret, id, gen = p.values_at(
-      :op.ns, :predicates, :keys, :p1, :p2, :splice, :return_value, :id, :gen.ns
+    id, op, ps, ks, p1, p2, splice, ret, id, gen = p.values_at(
+      :id, :op.ns, :predicates, :keys, :p1, :p2, :splice, :return_value, :id, :gen.ns
     ) if regex?(p)
 
-    # TODO inck rmap
+    ks ||= []
+
+    id = p.id if p.respond_to?(:id)
+    rhash = inck(rhash, id) if id
+
     ggens = -> (ps, ks) do
       ps.zip(ks).map do |p, k|
-        re_gen(p, overrides, k ? path.conj(k) : k, rmap)
+        unless rhash && id && k && recur_limit?(rhash, id, path, k)
+          # TODO delay if we have an id?
+          re_gen(p, overrides, k ? path.conj(k) : k, rhash)
+        end
       end
     end
 
@@ -1546,11 +1573,11 @@ module Speculation
           -> (rantly) { [ret] }
         end
       when nil
-        g = gensub(p, overrides, path, rmap)
+        g = gensub(p, overrides, path, rhash)
 
         -> (rantly) { [g.call(rantly)] }
       when :amp.ns
-        re_gen(p1, overrides, path, rmap)
+        re_gen(p1, overrides, path, rhash)
       when :pcat.ns
         gens = ggens.call(ps, ks)
 
@@ -1564,14 +1591,17 @@ module Speculation
 
         -> (rantly) { rantly.branch(*gens) } unless gens.empty?
       when :rep.ns
-        # TODO: recur_limit
-        g = re_gen(p2, overrides, path, rmap)
+        if recur_limit?(rhash, id, [id], id)
+          -> (rantly) { [] }
+        else
+          g = re_gen(p2, overrides, path, rhash)
 
-        if g
-          # TODO wrap in shrinkable?
-          -> (rantly) do
-            # TODO how big?
-            rantly.range(0, 6).times.flat_map { g.call(rantly) }
+          if g
+            # TODO wrap in shrinkable?
+            -> (rantly) do
+              # TODO how big?
+              rantly.range(0, 30).times.flat_map { g.call(rantly) }
+            end
           end
         end
       end
@@ -1579,7 +1609,9 @@ module Speculation
   end
 
   def self.exercise(spec, n: 10, overrides: {})
-    Gen.sample(gen(spec, overrides), n)
+    Gen.sample(gen(spec, overrides), n).map { |value|
+      [value, conform(spec, value)]
+    }
   end
 
   def self.with_gen(spec, &gen)
