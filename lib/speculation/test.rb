@@ -122,7 +122,7 @@ module Speculation
 
         if Test.instrument_enabled?
           Test.with_instrument_disabled do
-            conform.call(method, :args, spec.args, args, args) if spec.args
+            conform.call(method, :args, spec.argspec, args, args) if spec.argspec
 
             begin
               @instrument_enabled = true
@@ -168,7 +168,7 @@ module Speculation
       # TODO handle method not existing anymore?
       method = ident.get_method
 
-      if spec.args
+      if spec.argspec
         check_result = quick_check(method, spec, opts)
         make_check_result(method, spec, check_result)
       else
@@ -187,7 +187,7 @@ module Speculation
       num_tests = opts.fetch(:num_tests, 100)
 
       g = begin
-            S.gen(spec.args, gen)
+            S.gen(spec.argspec, gen)
           rescue => e
             return { result: e }
           end
@@ -288,25 +288,25 @@ module Speculation
     end
 
     def self.check_call(method, spec, args)
-      conformed_args = S.conform(spec.args, args) if spec.args
+      conformed_args = S.conform(spec.argspec, args) if spec.argspec
 
       if conformed_args == :invalid.ns
-        return explain_check(args, spec.args, args, :args)
+        return explain_check(args, spec.argspec, args, :args)
       end
 
       ret = method.call(*args)
-      conformed_ret = S.conform(spec.ret, ret) if spec.ret
+      conformed_ret = S.conform(spec.retspec, ret) if spec.retspec
 
       if conformed_ret == :invalid.ns
-        return explain_check(args, spec.ret, ret, :ret)
+        return explain_check(args, spec.retspec, ret, :ret)
       end
 
-      return true unless spec.args && spec.ret && spec.fn
+      return true unless spec.argspec && spec.retspec && spec.fnspec
 
-      if S.valid?(spec.fn, args: conformed_args, ret: conformed_ret)
+      if S.valid?(spec.fnspec, args: conformed_args, ret: conformed_ret)
         true
       else
-        explain_check(args, spec.fn, { args: conformed_args, ret: conformed_ret }, :fn)
+        explain_check(args, spec.fnspec, { args: conformed_args, ret: conformed_ret }, :fn)
       end
     end
 

@@ -607,18 +607,18 @@ module Speculation
   end
 
   class FnSpec
-    attr_reader :args, :ret, :fn
+    attr_reader :argspec, :retspec, :fnspec
     attr_accessor :name
 
-    def initialize(args: nil, ret: nil, fn: nil, gen: nil)
-      @args = args
-      @ret = ret
-      @fn = fn
+    def initialize(argspec: nil, retspec: nil, fnspec: nil, gen: nil)
+      @argspec = argspec
+      @retspec = retspec
+      @fnspec = fnspec
       @gen = gen
     end
 
     def conform(value)
-      raise "Can't conform fspec without args spec: #{self.inspect}" unless @args
+      raise "Can't conform fspec without args spec: #{self.inspect}" unless @argspec
       # TODO value.is_a?(Method) correct? maybe Identifier?
       return :invalid.ns unless value.is_a?(Proc) || value.is_a?(Method)
 
@@ -635,7 +635,7 @@ module Speculation
     end
 
     def with_gen(gen)
-      self.class.new(args: @args, ret: @ret, fn: @fn, gen: @gen)
+      self.class.new(argspec: @argspec, retspec: @retspec, fnspec: @fnspec, gen: @gen)
     end
 
     def gen(overrides, path, rhash)
@@ -643,11 +643,11 @@ module Speculation
 
       -> (rantly) do
         -> (*args) do
-          unless S.pvalid?(@args, args)
-            raise S.explain(@args, args)
+          unless S.pvalid?(@argspec, args)
+            raise S.explain(@argspec, args)
           end
 
-          Gen.generate(S.gen(@ret, overrides))
+          Gen.generate(S.gen(@retspec, overrides))
         end
       end
     end
@@ -729,7 +729,7 @@ module Speculation
   end
 
   def self.fspec(args: nil, ret: nil, fn: nil, gen: nil) # TODO :gen
-    FnSpec.new(args: spec(args), ret: spec(ret), fn: spec(fn), gen: gen)
+    FnSpec.new(argspec: spec(args), retspec: spec(ret), fnspec: spec(fn), gen: gen)
   end
 
   def self.get_spec(key)
