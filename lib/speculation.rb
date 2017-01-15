@@ -886,12 +886,12 @@ module Speculation
       raise "all keys must be namespaced"
     end
 
-    unk = -> (x) { x.name.to_sym }
+    unqualify_key = -> (x) { x.name.to_sym }
 
     req_specs = req_keys + req_un_specs
-    req_keys  = req_keys + req_un_specs.map(&unk)
+    req_keys  = req_keys + req_un_specs.map(&unqualify_key)
 
-    opt_keys  = opt + opt_un.map(&unk)
+    opt_keys  = opt + opt_un.map(&unqualify_key)
     opt_specs = opt + opt_un
 
     pred_exprs = [Utils.method(:hash?)]
@@ -918,7 +918,7 @@ module Speculation
     end
 
     pred_exprs.push(-> (v) { parse_req.call(req, v, Utils.method(:identity)) }) if req.any?
-    pred_exprs.push(-> (v) { parse_req.call(req_un, v, unk) }) if req_un.any?
+    pred_exprs.push(-> (v) { parse_req.call(req_un, v, unqualify_key) }) if req_un.any?
     keys_pred = -> (v) { pred_exprs.all? { |p| p.call(v) } }
 
     HashSpec.new(req: req, req_un: req_un,
@@ -1355,13 +1355,13 @@ module Speculation
     spec = maybe_spec(spec_or_key)
     return spec if spec
 
-    if Symbol === spec_or_key
+    if Utils.ident?(spec_or_key)
       raise "Unable to resolve spec: #{spec_or_key}"
     end
   end
 
   def self.maybe_spec(spec_or_key)
-    spec = (Symbol === spec_or_key && reg_resolve(spec_or_key)) ||
+    spec = (Utils.ident?(spec_or_key) && reg_resolve(spec_or_key)) ||
       spec?(spec_or_key) ||
       regex?(spec_or_key) ||
       nil
