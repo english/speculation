@@ -130,6 +130,10 @@ module Speculation
       self
     end
 
+    def inspect
+      "#{self.class.to_s}(#{@name || @predicate.inspect})"
+    end
+
     Protocol.Satisfy!(self, :Specize.ns, :Spec.ns)
   end
 
@@ -172,6 +176,10 @@ module Speculation
 
     def with_gen(gen)
       self.class.new(@preds, gen)
+    end
+
+    def inspect
+      "#{self.class.to_s}(#{@name})"
     end
 
     Protocol.Satisfy!(self, :Specize.ns, :Spec.ns)
@@ -239,6 +247,10 @@ module Speculation
       self.class.new(@named_specs, gen)
     end
 
+    def inspect
+      "#{self.class.to_s}(#{@name})"
+    end
+
     Protocol.Satisfy!(self, :Specize.ns, :Spec.ns)
   end
 
@@ -278,6 +290,10 @@ module Speculation
 
     def with_gen(gen)
       self.class.new(@regex, gen)
+    end
+
+    def inspect
+      "#{self.class.to_s}(#{@name})"
     end
 
     Protocol.Satisfy!(self, :Specize.ns, :Spec.ns)
@@ -384,6 +400,10 @@ module Speculation
       self.class.new(req: @req, req_un: @req_un, req_keys: @req_keys,
                      req_specs: @req_specs, opt_keys: @opt_keys, opt_specs: @opt_specs,
                      keys_pred: @keys_pred, gen: gen)
+    end
+
+    def inspect
+      "#{self.class.to_s}(#{@name})"
     end
 
     Protocol.Satisfy!(self, :Specize.ns, :Spec.ns)
@@ -531,6 +551,10 @@ module Speculation
       coll.class.new
     end
 
+    def inspect
+      "#{self.class.to_s}(#{@name})"
+    end
+
     Protocol.Satisfy!(self, :Specize.ns, :Spec.ns)
   end
 
@@ -603,6 +627,10 @@ module Speculation
       self
     end
 
+    def inspect
+      "#{self.class.to_s}(#{@name})"
+    end
+
     Protocol.Satisfy!(self, :Specize.ns, :Spec.ns)
   end
 
@@ -656,6 +684,10 @@ module Speculation
       self
     end
 
+    def inspect
+      "#{self.class.to_s}(#{@name})"
+    end
+
     Protocol.Satisfy!(self, :Specize.ns, :Spec.ns)
   end
 
@@ -695,6 +727,10 @@ module Speculation
 
     def specize
       self
+    end
+
+    def inspect
+      "#{self.class.to_s}(#{@name})"
     end
 
     Protocol.Satisfy!(self, :Specize.ns, :Spec.ns)
