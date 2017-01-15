@@ -117,6 +117,7 @@ module Speculation
         end
       end
 
+      # TODO handle method taking a block as an argument
       -> (*args) do
         method = method.bind(self) if method.is_a?(UnboundMethod)
 
