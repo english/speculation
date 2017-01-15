@@ -36,7 +36,7 @@ module Speculation
     #        ret: Proc)
 
     S.fdef(U.method(:distinct?),
-           args: S.cat(coll: S.coll_of(:any.ns(S))),
+           args: S.cat(coll: Enumerable),
            ret: :boolean.ns(S))
 
     S.fdef(U.method(:ident?),
@@ -46,5 +46,15 @@ module Speculation
     S.fdef(U.method(:method?),
            args: S.cat(x: :any.ns(S)),
            ret: :boolean.ns(S))
+
+    S.fdef(U.method(:empty),
+           args: S.cat(coll: Enumerable),
+           ret: S.and(Enumerable, -> (coll) { coll.empty? }),
+           fn: -> (x) { x[:args][:coll].class == x[:ret].class })
+
+    S.fdef(U.method(:into),
+           args: S.cat(to: Enumerable, from: Enumerable),
+           ret: Enumerable,
+           fn: -> (x) { x[:args][:to].class == x[:ret].class })
   end
 end

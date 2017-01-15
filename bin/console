@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
 
 require "bundler/setup"
+require_relative '../lib/speculation.rb'
 
 # You can add fixtures and/or initialization code here to make experimenting
 # with your gem easier. You can also use a different console, if you like.
@@ -12,6 +13,7 @@ def reload!
   Object.send :remove_const, :Utils       if Object.const_defined?(:Utils)
 
   load './lib/speculation/namespaced_symbols.rb'
+  load './lib/speculation/conj.rb'
   load './lib/speculation/identifier.rb'
   load './lib/speculation/utils.rb'
   load './lib/speculation/gen.rb'
@@ -22,10 +24,18 @@ def reload!
   Object.const_set(:S, Speculation)
   Object.const_set(:STest, Speculation::Test)
   Object.const_set(:Gen, Speculation::Gen)
-  Object.const_set(:Utils, Speculation::Utils)
+  Object.const_set(:U, Speculation::Utils)
+  Object.const_set(:H, Hamster::Hash)
+  Object.const_set(:V, Hamster::Vector)
 
   STest.instrument
 end
+
+# allow running minitest assertions
+require 'minitest'
+include Minitest::Assertions
+def self.assertions; 1; end
+def self.assertions=(x);end
 
 reload!
 

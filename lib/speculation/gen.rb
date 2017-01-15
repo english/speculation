@@ -20,8 +20,38 @@ module Speculation
       Symbol     => -> (r) { r.sized(r.range(0, 100)) { string(:alpha).to_sym } },
       TrueClass  => -> (r) { true },
       FalseClass => -> (r) { false },
-      Date       => -> (r) { gen_for_pred(Time).call(r).to_date },
+      Date       => -> (r) { Gen.gen_for_pred(Time).call(r).to_date },
       Time       => -> (r) { Time.at(r.range(-569001744000, 569001744000)) }, # 20k BC => 20k AD
+      Array      => -> (r) do
+        size = r.range(0, 20)
+
+        r.array(size) do
+          gen = Gen.gen_for_pred(r.choose(Integer, String, Float, Symbol, Date, Time))
+          gen.call(r)
+        end
+      end,
+      Set        => -> (r) do
+        gen = Gen.gen_for_pred(Array)
+        Set.new(gen.call(r))
+      end,
+      Hash        => -> (r) do
+        kgen = Gen.gen_for_pred(r.choose(Integer, String, Float, Symbol, Date, Time))
+        vgen = Gen.gen_for_pred(r.choose(Integer, String, Float, Symbol, Date, Time))
+        size = r.range(0, 20)
+
+        h = {}
+        r.each(size) do
+          k = kgen.call(r)
+          r.guard(!h.key?(k))
+          h[k] = vgen.call(r)
+        end
+        h
+      end,
+      Enumerable => -> (r) do
+        klass = r.choose(Array, Hash, Set)
+        gen = Gen.gen_for_pred(klass)
+        gen.call(r)
+      end
     ]
 
     # TODO honor max tries

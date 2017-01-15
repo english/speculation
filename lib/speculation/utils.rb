@@ -1,6 +1,9 @@
 require 'set'
+require 'speculation/conj'
 
 module Speculation
+  using Conj
+
   module Utils
     def self.hash?(x)
       x.respond_to?(:store)
@@ -46,6 +49,14 @@ module Speculation
 
     def self.method?(x)
       x.is_a?(Method) || x.is_a?(UnboundMethod)
+    end
+
+    def self.empty(coll)
+      coll.class.new
+    end
+
+    def self.into(to, from)
+      from.reduce(to) { |memo, obj| memo.conj(obj) }
     end
   end
 end

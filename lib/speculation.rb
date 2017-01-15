@@ -9,6 +9,7 @@ require 'securerandom'
 
 require "speculation/identifier"
 require "speculation/namespaced_symbols"
+require "speculation/conj"
 require "speculation/utils"
 require "speculation/version"
 
@@ -19,6 +20,7 @@ module Speculation
   Protocol = Functional::Protocol
 
   using NamespacedSymbols.refine(S)
+  using Conj
 
   module Specize
     refine Symbol do
@@ -40,21 +42,6 @@ module Speculation
     end
   end
   using Specize
-
-  module Conj
-    refine Hamster::Hash do
-      def conj(v)
-        merge(v)
-      end
-    end
-
-    refine Hamster::Vector do
-      def conj(x)
-        add(x)
-      end
-    end
-  end
-  using Conj
 
   Functional.SpecifyProtocol(:Spec.ns) do
     instance_method :conform, 1
@@ -84,7 +71,6 @@ module Speculation
     COLL_ERROR_LIMIT
   end
 
-  # TODO add #inspect or #to_s so prints with name in error messages
   class Spec
     attr_accessor :name
 
@@ -96,9 +82,9 @@ module Speculation
 
     def conform(value)
       ret = case @predicate
-            when Set           then @predicate.include?(value)
-            when Regexp, Class then @predicate === value
-            else                    @predicate.call(value)
+            when Set            then @predicate.include?(value)
+            when Regexp, Module then @predicate === value
+            else                     @predicate.call(value)
             end
 
       if @should_conform
@@ -433,8 +419,32 @@ module Speculation
       @delayed_spec = Concurrent::Delay.new { S.specize(predicate) }
       @kfn = options.fetch(:kfn, -> (i, v) { i })
       @conform_keys, @conform_all, @kind, @gen_into, @gen_max, @distinct, @count, @min_count, @max_count =
-        options.values_at(:conform_keys, :conform_all.ns, :kind, :gen_into, :gen_max, :distinct, :count, :min_count, :max_count)
+        options.values_at(:conform_keys, :conform_all.ns, :kind, :into, :gen_max, :distinct, :count, :min_count, :max_count)
       @gen_max ||= 20
+      @conform_into = @gen_into
+
+      # returns a tuple of [init add complete] fns
+      @cfns = -> (x) do
+        if Utils.array?(x) && (!@conform_into || Utils.array?(@conform_into))
+          [Utils.method(:identity),
+           -> (ret, i, v, cv) { v.equal?(cv) ? ret : ret.insert(i, cv) },
+           Utils.method(:identity)]
+        elsif Utils.hash?(x) && ((@kind && !@conform_into) || Utils.hash?(@conform_into))
+          [@conform_keys ? Utils.method(:empty) : Utils.method(:identity),
+           -> (ret, i, v, cv) {
+            if v.equal?(cv) && !@conform_keys
+              ret
+            else
+              ret.merge((@conform_keys ? cv : v).first => cv.last)
+            end
+           },
+           Utils.method(:identity)]
+        else
+          [-> (x) { Utils.empty(@conform_into || x) },
+           -> (ret, i, v, cv) { ret.conj(cv) },
+           Utils.method(:identity)]
+        end
+      end
     end
 
     def conform(value)
@@ -443,7 +453,9 @@ module Speculation
       spec = @delayed_spec.value
 
       if @conform_all
-        return_value = init(value)
+        init, add, complete = @cfns.call(value)
+
+        return_value = init.call(value)
 
         value.each_with_index do |value, index|
           conformed_value = spec.conform(value)
@@ -451,11 +463,11 @@ module Speculation
           if S.invalid?(conformed_value)
             return :invalid.ns
           else
-            return_value = add(return_value, index, value, conformed_value)
+            return_value = add.call(return_value, index, value, conformed_value)
           end
         end
 
-        return_value
+        complete.call(return_value)
       else
         # OPTIMIZE: check if value is indexed (array, hash etc.) vs not
         # indexed (list, custom enumerable)
@@ -507,6 +519,7 @@ module Speculation
                   min = @min_count || 0
                   max = @max_count || [@gen_max, 2 * min].max
                   count = rantly.range(min, max)
+
                   rantly.array(count, &pgen).tap { |arr| rantly.guard(Utils.distinct?(arr)) }
                 end
               elsif @count
@@ -515,15 +528,15 @@ module Speculation
                 min = @min_count || 0
                 max = @max_count || [@gen_max, 2 * min].max
                 count = rantly.range(min, max)
+
                 rantly.array(count, &pgen)
               else
                 count = rantly.range(0, @gen_max)
                 rantly.array(count, &pgen)
               end
 
-        # TODO handle gen_into: Set[] etc.
-        if @gen_into.is_a?(Hash)
-          val.to_h
+        if @gen_into
+          Utils.into(Utils.empty(@gen_into), val)
         else
           val
         end
@@ -535,21 +548,6 @@ module Speculation
     end
 
     private
-
-    def add(coll, index, value, conformed_value)
-      if Utils.hash?(coll)
-        key = @conform_keys ? conformed_value.first : value.first
-
-        coll.merge(key => conformed_value.last)
-      else
-        coll + [value]
-      end
-    end
-
-    def init(coll)
-      # OPTIMIZE if we're not conforming we can return `coll`
-      coll.class.new
-    end
 
     def inspect
       "#{self.class.to_s}(#{@name})"
@@ -944,7 +942,7 @@ module Speculation
   end
 
   def self.hash_of(key_predicate, value_predicate, options = {})
-    every_kv(key_predicate, value_predicate, kind: Utils.method(:hash?).to_proc, gen_into: {}, :conform_all.ns => true, **options)
+    every_kv(key_predicate, value_predicate, kind: Utils.method(:hash?).to_proc, into: {}, :conform_all.ns => true, **options)
   end
 
   def self.every_kv(key_predicate, value_predicate, options)
@@ -1341,7 +1339,7 @@ module Speculation
     if spec
       conform(spec, x)
     else
-      if pred.is_a?(Class) || pred.is_a?(Proc) || pred.is_a?(::Regexp)
+      if pred.is_a?(Module) || pred.is_a?(Proc) || pred.is_a?(::Regexp)
         pred === x ? x : :invalid.ns
       elsif pred.is_a?(Set)
         pred.include?(x) ? x : :invalid.ns
@@ -1394,7 +1392,8 @@ module Speculation
         r
       else
         val = key ? H[key => return_value] : return_value
-        regex[:splice] ? r + val : r.conj(val)
+
+        regex[:splice] ? Utils.into(r, val) : r.conj(val)
       end
     end
 
@@ -1659,16 +1658,11 @@ module Speculation
   end
 
   def self.def_builtins
-    # TODO more gens
     any_gen = -> (r) { r.branch(:integer, :float, :string, :boolean, [:literal, nil]) }
     self.def(:any.ns(self),
              with_gen(Utils.constantly(true), &any_gen))
 
     self.def(:boolean.ns(self), Set[true, false])
-
-    self.def(:enumerable.ns(self),
-             self.or(hash: hash_of(:any.ns(self), :any.ns(self)),
-                     array: zero_or_more(:any.ns(self))))
 
     self.def(:positive_integer.ns(self),
              with_gen(self.and(Integer, :positive?.to_proc)) { |r| r.range(1) })

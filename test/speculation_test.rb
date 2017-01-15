@@ -256,23 +256,17 @@ class SpeculationTest < Minitest::Test
     assert S.valid?(S.coll_of(Integer, min_count: 3, max_count: 4), [1, 2, 3, 4])
     refute S.valid?(S.coll_of(Integer, min_count: 3, max_count: 4), [1, 2, 3, 4, 5])
 
+    assert_kind_of Set, S.conform(S.coll_of(Integer, into: Set[]), [1, 2, 3, 4, 5])
+    assert_kind_of Hash, S.conform(S.coll_of(S.coll_of(Integer), into: {}), [[1, 2], [3, 4]])
+
     Gen.generate(S.gen(:symbol_collection.ns)).each do |x|
       assert_kind_of Symbol, x
     end
 
-    coll = Gen.generate(S.gen(S.coll_of(Integer, min_count: 3, max_count: 4)))
-
-    coll.each do |x|
-      assert_kind_of Integer, x
-    end
-
+    coll = Gen.generate(S.gen(S.coll_of(Integer, min_count: 3, max_count: 4, distinct: true, into: Set[])))
     assert coll.count.between?(3, 4)
-
-    coll = Gen.generate(S.gen(S.coll_of(Integer, min_count: 3, max_count: 4, distinct: true)))
     assert Utils.distinct?(coll)
-
-    coll = Gen.generate(S.gen(S.coll_of(Integer, count: 4)))
-    assert_equal 4, coll.count
+    coll.each { |x| assert_kind_of Integer, x }
   end
 
   def test_tuple
