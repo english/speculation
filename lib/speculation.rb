@@ -402,7 +402,7 @@ module Speculation
       @predicate = predicate
       @options = options
 
-      collection_predicates = [options.fetch(:kind, Utils.method(:collection?))]
+      collection_predicates = [options.fetch(:kind, Enumerable)]
 
       if options.key?(:count)
         collection_predicates.push(-> (coll) { coll.count == options[:count] })
@@ -415,7 +415,7 @@ module Speculation
         end)
       end
 
-      @collection_predicate = -> (coll) { collection_predicates.all? { |f| f.call(coll) } }
+      @collection_predicate = -> (coll) { collection_predicates.all? { |f| f === coll } }
       @delayed_spec = Concurrent::Delay.new { S.specize(predicate) }
       @kfn = options.fetch(:kfn, -> (i, v) { i })
       @conform_keys, @conform_all, @kind, @gen_into, @gen_max, @distinct, @count, @min_count, @max_count =
@@ -512,6 +512,14 @@ module Speculation
       # TODO handle ~~:gen-into~~ and :kind options
 
       -> (rantly) do
+        init = if @gen_into
+                 Utils.empty(@gen_into)
+               elsif @kind
+                 Utils.empty(S.gensub(@kind, overrides, path, rhash).call(rantly))
+               else
+                 []
+               end
+
         val = if @distinct
                 if @count
                   rantly.array(@count, &pgen).tap { |arr| rantly.guard(Utils.distinct?(arr)) }
@@ -535,11 +543,7 @@ module Speculation
                 rantly.array(count, &pgen)
               end
 
-        if @gen_into
-          Utils.into(Utils.empty(@gen_into), val)
-        else
-          val
-        end
+        Utils.into(init, val)
       end
     end
 

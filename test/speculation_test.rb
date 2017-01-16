@@ -267,6 +267,12 @@ class SpeculationTest < Minitest::Test
     assert coll.count.between?(3, 4)
     assert Utils.distinct?(coll)
     coll.each { |x| assert_kind_of Integer, x }
+
+    assert S.valid?(S.coll_of(Integer, min_count: 3, max_count: 4, distinct: true, kind: Set), Set[1, 2, 3])
+    refute S.valid?(S.coll_of(Integer, min_count: 3, max_count: 4, distinct: true, kind: Array), Set[1, 2, 3])
+    assert S.valid?(S.coll_of(Integer, min_count: 3, max_count: 4, distinct: true, kind: Enumerable), Set[1, 2, 3])
+
+    assert_kind_of Enumerable, Gen.generate(S.gen(S.coll_of(Integer, min_count: 3, max_count: 4, distinct: true, kind: Enumerable)))
   end
 
   def test_tuple
