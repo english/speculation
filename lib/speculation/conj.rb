@@ -1,8 +1,16 @@
 module Speculation
   module Conj
     refine Hamster::Hash do
-      def conj(v)
-        merge(v)
+      def conj(x)
+        if Utils.array?(x)
+          unless x.count == 2
+            raise ArgumentError, "Array arg to conj must be a pair"
+          end
+
+          merge(x[0] => x[1])
+        else
+          merge(x)
+        end
       end
     end
 
@@ -26,8 +34,15 @@ module Speculation
 
     refine Hash do
       def conj(x)
-        k, v = x
-        merge(k => v)
+        if Utils.array?(x)
+          unless x.count == 2
+            raise ArgumentError, "Array arg to conj must be a pair"
+          end
+
+          merge(x[0] => x[1])
+        else
+          merge(x)
+        end
       end
     end
 

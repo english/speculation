@@ -26,11 +26,11 @@ class SpeculationTestTest < Minitest::Test
 
     assert_equal :instrument, e.explain_data.fetch(:"Speculation/failure")
     assert_match %r{speculation/test/speculation/test_test\.rb:\d+:in `block in test_fdef_instrument'}, e.explain_data.fetch(:"Speculation/caller")
-    assert_equal V[H[:path => V[:args],
-                     :val => H[:start => 8, :end => 5],
-                     :in => V[],
-                     :via => V[],
-                     :pred => "<proc>"]], e.explain_data.fetch(:"Speculation/problems")
+    assert_equal [{ :path => [:args],
+                    :val => { :start => 8, :end => 5 },
+                    :in => [],
+                    :via => [],
+                    :pred => "<proc>" }], e.explain_data.fetch(:"Speculation/problems")
 
     assert_equal [8, 5], e.explain_data.fetch(:"Speculation/args")
 

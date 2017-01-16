@@ -16,7 +16,7 @@ module Speculation
       Integer    => -> (r) { r.integer },
       String     => -> (r) { r.sized(r.range(0, 100)) { string(:alpha) } },
       Float      => -> (r) { rand(Float::MIN..Float::MAX) },
-      Numeric    => -> (r) { r.choose(rand(Float::MIN..Float::MAX), r.integer) },
+      Numeric    => -> (r) { r.branch(Gen.gen_for_pred(Integer), Gen.gen_for_pred(Float)) },
       Symbol     => -> (r) { r.sized(r.range(0, 100)) { string(:alpha).to_sym } },
       TrueClass  => -> (r) { true },
       FalseClass => -> (r) { false },
@@ -26,7 +26,7 @@ module Speculation
         size = r.range(0, 20)
 
         r.array(size) do
-          gen = Gen.gen_for_pred(r.choose(Integer, String, Float, Symbol, Date, Time))
+          gen = Gen.gen_for_pred(r.choose(Integer, String, Float, Symbol, Date, Time, Set[true, false]))
           gen.call(r)
         end
       end,
@@ -34,9 +34,9 @@ module Speculation
         gen = Gen.gen_for_pred(Array)
         Set.new(gen.call(r))
       end,
-      Hash        => -> (r) do
+      Hash       => -> (r) do
         kgen = Gen.gen_for_pred(r.choose(Integer, String, Float, Symbol, Date, Time))
-        vgen = Gen.gen_for_pred(r.choose(Integer, String, Float, Symbol, Date, Time))
+        vgen = Gen.gen_for_pred(r.choose(Integer, String, Float, Symbol, Date, Time, Set[true, false]))
         size = r.range(0, 20)
 
         h = {}

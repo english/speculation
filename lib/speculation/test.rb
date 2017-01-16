@@ -106,10 +106,8 @@ module Speculation
           _caller = caller(4, 1).first # TODO stacktrace-relevant-to-instrument
 
           ed = S.
-            _explain_data(spec, V[role], V[], V[], data).
-            store(:args.ns, args).
-            store(:failure.ns, :instrument).
-            store(:caller.ns, _caller)
+            _explain_data(spec, [role], [], [], data).
+            merge(:args.ns => args, :failure.ns => :instrument, :caller.ns => _caller)
 
           raise DidNotConformError.new("Call to '#{ident}' did not conform to spec:\n #{S.explain_str(ed)}", ed)
         else

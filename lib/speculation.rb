@@ -96,7 +96,7 @@ module Speculation
 
     def explain(path, via, _in, value)
       if S.invalid?(S.dt(@predicate, value))
-        V[H[path: path, val: value, via: via, in: _in, pred: @predicate]]
+        [{ path: path, val: value, via: via, in: _in, pred: @predicate }]
       end
     end
 
@@ -205,7 +205,7 @@ module Speculation
     def explain(path, via, _in, value)
       return unless !S.pvalid?(self, value)
 
-      V.new(@keys).zip(@preds).flat_map do |(key, pred)|
+      @keys.zip(@preds).flat_map do |(key, pred)|
         next if S.pvalid?(pred, value)
         S.explain1(pred, path.conj(key), via, _in, value)
       end
@@ -258,9 +258,9 @@ module Speculation
 
     def explain(path, via, _in, value)
       if value.nil? || Utils.collection?(value)
-        S.re_explain(path, via, _in, @regex, value || V[])
+        S.re_explain(path, via, _in, @regex, value || [])
       else
-        V[H[path: path, val: value, via: via, in: _in]]
+        [{ path: path, val: value, via: via, in: _in }]
       end
     end
 
@@ -329,16 +329,16 @@ module Speculation
 
     def explain(path, via, _in, value)
       unless Utils.hash?(value)
-        return V[H[path: path, pred: :hash?, val: value, via: via, in: _in]]
+        return [{ path: path, pred: :hash?, val: value, via: via, in: _in }]
       end
 
       problems =
         if @keys_pred.call(value)
-          V[]
+          []
         else
           pred = { req: @req, req_un: @req_un }.reject { |k, v| v.empty? }
 
-          V[H[path: path, pred: pred, val: value, via: via, in: _in]]
+          [{ path: path, pred: pred, val: value, via: via, in: _in }]
         end
 
       problems += value.flat_map do |(k, v)|
@@ -363,18 +363,18 @@ module Speculation
       rhash = S.inck(rhash, @id)
 
       reqs = @req_keys.zip(@req_specs).
-        reduce(H[]) { |m, (k, s)|
-          m.put(k, S.gensub(s, overrides, path.conj(k), rhash))
+        reduce({}) { |m, (k, s)|
+          m.merge(k => S.gensub(s, overrides, path.conj(k), rhash))
         }
 
       opts = @opt_keys.zip(@opt_specs).
-        reduce(H[]) { |m, (k, s)|
-          m.put(k, S.gensub(s, overrides, path.conj(k), rhash))
+        reduce({}) { |m, (k, s)|
+          m.merge(k => S.gensub(s, overrides, path.conj(k), rhash))
         }
 
       -> (rantly) do
         count = rantly.range(0, opts.count)
-        opts = H.new(opts.to_a.shuffle.take(count))
+        opts = opts.to_a.shuffle.take(count).to_h
 
         reqs.merge(opts).each_with_object({}) { |(k, spec_gen), h|
           h[k] = spec_gen.call(rantly)
@@ -501,15 +501,13 @@ module Speculation
       end
 
       probs = @conform_all ? probs.to_a : probs.take(S.coll_error_limit)
-
-      V.new(probs.compact)
+      probs.compact
     end
 
     def gen(overrides, path, rhash)
       return @gen if @gen
 
       pgen = S.gensub(@predicate, overrides, path, rhash)
-      # TODO handle ~~:gen-into~~ and :kind options
 
       -> (rantly) do
         init = if @gen_into
@@ -596,9 +594,9 @@ module Speculation
 
     def explain(path, via, _in, value)
       if !Utils.array?(value)
-        V[H[path: path, val: value, via: via, in: _in, pred: "array?"]]
+        [{ path: path, val: value, via: via, in: _in, pred: "array?" }]
       elsif @preds.count != value.count
-        V[H[path: path, val: value, via: via, in: _in, pred: "count == predicates.count"]]
+        [{ path: path, val: value, via: via, in: _in, pred: "count == predicates.count" }]
       else
         probs = @preds.zip(value).each_with_index.flat_map do |(pred, x), index|
           unless S.pvalid?(pred, x)
@@ -606,7 +604,7 @@ module Speculation
           end
         end
 
-        V.new(probs.compact)
+        probs.compact
       end
     end
 
@@ -711,7 +709,7 @@ module Speculation
 
       S.
         explain1(@pred, path.conj(:pred.ns), via, _in, value).
-        conj(H[path: path.conj(:nil.ns), pred: NilClass, val: value, via: via, in: _in])
+        conj({ path: path.conj(:nil.ns), pred: NilClass, val: value, via: via, in: _in })
     end
 
     def gen(overrides, path, rhash)
@@ -849,7 +847,7 @@ module Speculation
     keys = named_specs.keys
     predicates = named_specs.values
 
-    pcat(H[keys: keys, predicates: predicates, return_value: H[]])
+    pcat(H[keys: keys, predicates: predicates, return_value: {}])
   end
 
   def self.alt(kv_specs)
@@ -857,11 +855,11 @@ module Speculation
   end
 
   def self.zero_or_more(predicate)
-    rep(predicate, predicate, V[], false)
+    rep(predicate, predicate, [], false)
   end
 
   def self.one_or_more(predicate)
-    pcat(H[predicates: [predicate, rep(predicate, predicate, V[], true)], return_value: V[]])
+    pcat(H[predicates: [predicate, rep(predicate, predicate, [], true)], return_value: []])
   end
 
   def self.zero_or_one(predicate)
@@ -924,8 +922,8 @@ module Speculation
     keys_pred = -> (v) { pred_exprs.all? { |p| p.call(v) } }
 
     HashSpec.new(req: req, req_un: req_un,
-                 req_keys: V.new(req_keys), req_specs: V.new(req_specs),
-                 opt_keys: V.new(opt_keys), opt_specs: V.new(opt_specs),
+                 req_keys: req_keys, req_specs: req_specs,
+                 opt_keys: opt_keys, opt_specs: opt_specs,
                  keys_pred: keys_pred)
   end
 
@@ -959,7 +957,7 @@ module Speculation
   end
 
   def self.explain_data(spec, value)
-    _explain_data(spec, V[], V[spec_name(spec)], V[], value)
+    _explain_data(spec, [], [spec_name(spec)], [], value)
   end
 
   def self.explain(spec, x)
@@ -1003,10 +1001,11 @@ module Speculation
     if probs&.any?
       # TODO: deal with procs better...
       probs = probs.map do |p|
-        p.put(:pred) { |pred| Proc === pred ? "<proc>" : pred }
+        pred = p[:pred]
+        p.merge(pred: Proc === pred ? "<proc>" : pred)
       end
 
-      H[:problems.ns => probs]
+      { :problems.ns => probs }
     end
   end
 
@@ -1043,7 +1042,7 @@ module Speculation
 
       spec.explain(path, via, _in, value)
     else
-      V[H[path: path, val: value, via: via, in: _in, pred: pred]]
+      [{ path: path, val: value, via: via, in: _in, pred: pred }]
     end
   end
 
@@ -1053,7 +1052,7 @@ module Speculation
     regex = H[:op.ns => :rep.ns, p2: p2, splice: splice, id: SecureRandom.uuid]
 
     regex = if accept?(p1)
-      regex.merge(p1: p2, return_value: return_value.add(p1[:return_value]))
+      regex.merge(p1: p2, return_value: return_value.conj(p1[:return_value]))
     else
       regex.merge(p1: p1, return_value: return_value)
     end
@@ -1069,11 +1068,12 @@ module Speculation
 
     unless accept?(predicate)
       return H[:op.ns => :pcat.ns,
-               predicates: regex[:predicates], keys: keys,
+               predicates: regex[:predicates],
+               keys: keys,
                return_value: regex[:return_value]]
     end
 
-    val = keys ? H[key => predicate[:return_value]] : predicate[:return_value]
+    val = keys ? { key => predicate[:return_value] } : predicate[:return_value]
     return_value = regex[:return_value].conj(val)
 
     if rest_predicates
@@ -1153,7 +1153,7 @@ module Speculation
     return predicate unless key
     return return_value unless accept?(predicate)
 
-    accept(V[key, predicate[:return_value]])
+    accept([key, predicate[:return_value]])
   end
 
   def self.re_conform(regex, data)
@@ -1249,7 +1249,7 @@ module Speculation
           end
 
       if ks && ks.first
-        V[ks.first, r]
+        [ks.first, r]
       else
         r
       end
@@ -1289,7 +1289,7 @@ module Speculation
     case regex[:op.ns]
     when :accept.ns then nil
     when :pcat.ns
-      regex1 = pcat(H[predicates: V[deriv(pred, value), *rest_preds], keys: keys, return_value: return_value])
+      regex1 = pcat(H[predicates: [deriv(pred, value), *rest_preds], keys: keys, return_value: return_value])
       regex2 = nil
 
       if accept_nil?(pred)
@@ -1395,7 +1395,7 @@ module Speculation
       if return_value.empty?
         r
       else
-        val = key ? H[key => return_value] : return_value
+        val = key ? { key => return_value } : return_value
 
         regex[:splice] ? Utils.into(r, val) : r.conj(val)
       end
@@ -1408,7 +1408,7 @@ module Speculation
       if return_value == :nil.ns
         r
       else
-        r.conj(key ? H[key => return_value] : return_value)
+        r.conj(key ? { key => return_value } : return_value)
       end
     when :pcat.ns, :rep.ns then prop.call
     else
@@ -1435,19 +1435,19 @@ module Speculation
         if p[:op.ns] == :pcat.ns
           return op_explain(p, path, via, _in.conj(index), input[index..-1])
         else
-          return V[H[path: path,
-                     reason: "Extra input",
-                     val: input,
-                     via: via,
-                     in: _in.conj(index)]]
+          return [{ path: path,
+                    reason: "Extra input",
+                    val: input,
+                    via: via,
+                    in: _in.conj(index) }]
         end
       else
         return op_explain(p, path, via, _in.conj(index), input[index..-1]) ||
-          V[H[path: path,
-              reason: "Extra input",
-              val: input,
-              via: via,
-              in: _in.conj(index)]]
+          [{ path: path,
+             reason: "Extra input",
+             val: input,
+             via: via,
+             in: _in.conj(index) }]
       end
     end
 
@@ -1463,11 +1463,11 @@ module Speculation
     return unless p
 
     insufficient = -> (path) do
-      V[H[path: path,
-          reason: "Insufficient input",
-          val: V[],
-          via: via,
-          in: _in]]
+      [{ path: path,
+         reason: "Insufficient input",
+         val: [],
+         via: via,
+         in: _in }]
     end
 
     input ||= []
@@ -1520,7 +1520,7 @@ module Speculation
         op_explain(p, k ? path.conj(k) : path, via, _in, input)
       end
 
-      V.new(probs.compact)
+      probs.compact
     when :rep.ns
       op_explain(p[:p1], path, via, _in, input)
     else
@@ -1536,17 +1536,17 @@ module Speculation
     end
 
     if count && count != x.count
-      return V[H[path: path, pred: 'count == x.count', val: x, via: via, in: _in]]
+      return [{ path: path, pred: 'count == x.count', val: x, via: via, in: _in }]
     end
 
     if min_count || max_count
       if x.count.between?(min_count || 0, max_count || Float::Infinity)
-        return V[H[path: path, pred: 'count.between?(min_count || 0, max_count || Float::Infinity)', val: x, via: via, in: _in]]
+        return [{ path: path, pred: 'count.between?(min_count || 0, max_count || Float::Infinity)', val: x, via: via, in: _in }]
       end
     end
 
     if distinct && !x.empty? && Utils.distinct?(x)
-      V[H[path: path, pred: 'distinct?', val: x, via: via, in: _in]]
+      [{ path: path, pred: 'distinct?', val: x, via: via, in: _in }]
     end
   end
 

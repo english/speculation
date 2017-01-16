@@ -70,19 +70,19 @@ class SpeculationTest < Minitest::Test
 
     S.def(:config.ns, S.cat(prop: String, val: S.alt(s: String, b: :boolean.ns)))
 
-    assert_equal H[prop: "-server", val: V[:s, "foo"]], S.conform(:config.ns, V["-server", "foo"])
+    assert_equal({ prop: "-server", val: [:s, "foo"] }, S.conform(:config.ns, V["-server", "foo"]))
   end
 
   def test_nested_cat_sequence
     S.def(:nested.ns, S.cat(names_sym: -> (x) { x == :names },
-                         names: S.spec(S.cat(name1: String, name2: String)),
-                         nums_sym: -> (x) { x == :nums },
-                         nums: S.spec(S.cat(num1: Numeric, num2: Numeric))))
+                            names: S.spec(S.cat(name1: String, name2: String)),
+                            nums_sym: -> (x) { x == :nums },
+                            nums: S.spec(S.cat(num1: Numeric, num2: Numeric))))
 
-    expected = H[names_sym: :names,
+    expected = { names_sym: :names,
                  nums_sym: :nums,
-                 nums: H[num1: 1, num2: 2],
-                 names: H[name1: "a", name2: "b"]]
+                 nums: { num1: 1, num2: 2 },
+                 names: { name1: "a", name2: "b" } }
 
     assert_equal expected, S.conform(:nested.ns, [:names, ["a", "b"], :nums, [1, 2]])
   end
@@ -103,8 +103,8 @@ class SpeculationTest < Minitest::Test
 
     conformed = S.conform(:nested.ns, [:names, ["a", "b"], :nums, [1, 2]])
 
-    expected = H[names_sym: :names, names: V["a", "b"],
-                 nums_sym: :nums, nums: V[1, 2]]
+    expected = { names_sym: :names, names: V["a", "b"],
+                 nums_sym: :nums, nums: V[1, 2] }
 
     assert_equal expected, conformed
   end
@@ -115,8 +115,8 @@ class SpeculationTest < Minitest::Test
                               nums_sym: -> (x) { x == :nums },
                               nums: S.zero_or_more(Numeric)))
 
-    expected = H[names_sym: :names, names: V["a", "b"],
-                 nums_sym: :nums, nums: V[1, 2, 3]]
+    expected = { names_sym: :names, names: V["a", "b"],
+                 nums_sym: :nums, nums: V[1, 2, 3] }
 
     assert_equal expected, S.conform(:unnested.ns, [:names, "a", "b", :nums, 1, 2, 3])
   end
@@ -149,7 +149,7 @@ class SpeculationTest < Minitest::Test
     S.def(:odds_then_maybe_even.ns, S.cat(odds: S.one_or_more(:odd.ns),
                                           even: S.zero_or_one(:even.ns)))
 
-    expected = H[odds: V[1, 3, 5], even: 100]
+    expected = { odds: V[1, 3, 5], even: 100 }
     assert_equal expected, S.conform(:odds_then_maybe_even.ns, [1, 3, 5, 100])
   end
 
@@ -159,9 +159,9 @@ class SpeculationTest < Minitest::Test
             val: S.alt(s: String, b: -> (x) { [true, false].include?(x) }))))
 
     conformed = S.conform(:config.ns, V["-server", "foo", "-verbose", true, "-user", "joe"])
-    expected = V[H[prop: "-server",  val: V[:s, "foo"]],
-                 H[prop: "-verbose", val: V[:b, true]],
-                 H[prop: "-user",    val: V[:s, "joe"]]]
+    expected = [{ prop: "-server",  val: [:s, "foo"] },
+                { prop: "-verbose", val: [:b, true] },
+                { prop: "-user",    val: [:s, "joe"] }]
 
     assert_equal expected, conformed
   end
@@ -189,33 +189,33 @@ class SpeculationTest < Minitest::Test
           S.keys(req: [:first_name.ns, :last_name.ns, :email.ns],
                  opt: [:phone.ns]))
 
-    assert S.valid?(:person.ns, H[:first_name.ns => "Elon",
+    assert S.valid?(:person.ns, { :first_name.ns => "Elon",
                                   :last_name.ns  => "Musk",
-                                  :email.ns      => "elon@example.com"])
+                                  :email.ns      => "elon@example.com" })
 
     # Fails required key check
-    refute S.valid?(:person.ns, H[:first_name.ns => "Elon"])
+    refute S.valid?(:person.ns, { :first_name.ns => "Elon" })
 
     # Invalid value for key not specified in `req`
-    refute S.valid?(:person.ns, H[:first_name.ns => "Elon",
+    refute S.valid?(:person.ns, { :first_name.ns => "Elon",
                                   :last_name.ns  => "Musk",
                                   :email.ns      => "elon@example.com",
-                                  :acctid.ns     => "123"])
+                                  :acctid.ns     => "123" })
 
     # unqualified keys
     S.def(:person_unq.ns,
           S.keys(req_un: [:first_name.ns, :last_name.ns, :email.ns],
                  opt_un: [:phone.ns]))
 
-    refute S.valid?(:person_unq.ns, H[])
+    refute S.valid?(:person_unq.ns, {})
 
-    refute S.valid?(:person_unq.ns, H[first_name: "Elon",
+    refute S.valid?(:person_unq.ns, { first_name: "Elon",
                                       last_name: "Musk",
-                                      email: "not-an-email"])
+                                      email: "not-an-email" })
 
-    assert S.valid?(:person_unq.ns, H[first_name: "Elon",
+    assert S.valid?(:person_unq.ns, { first_name: "Elon",
                                       last_name: "Musk",
-                                      email: "elon@example.com"])
+                                      email: "elon@example.com" })
   end
 
   def test_keys_and_or
@@ -272,7 +272,7 @@ class SpeculationTest < Minitest::Test
     refute S.valid?(S.coll_of(Integer, min_count: 3, max_count: 4, distinct: true, kind: Array), Set[1, 2, 3])
     assert S.valid?(S.coll_of(Integer, min_count: 3, max_count: 4, distinct: true, kind: Enumerable), Set[1, 2, 3])
 
-    assert_kind_of Enumerable, Gen.generate(S.gen(S.coll_of(Integer, min_count: 3, max_count: 4, distinct: true, kind: Enumerable)))
+    assert_kind_of Array, Gen.generate(S.gen(S.coll_of(Integer, min_count: 3, max_count: 4, distinct: true, kind: Array)))
   end
 
   def test_tuple
@@ -281,12 +281,11 @@ class SpeculationTest < Minitest::Test
     assert S.valid?(:point.ns, [1, 2, 3])
     refute S.valid?(:point.ns, [1, 2, "3"])
 
-    expected = H[:"Speculation/problems" =>
-                 V[H[path: V[2],
-                     val: 3.0,
-                     via: V[:point.ns],
-                     in: V[2],
-                     pred: Integer]]]
+    expected = {
+      :"Speculation/problems" => [
+        { path: [2], val: 3.0, via: [:point.ns], in: [2], pred: Integer }
+      ]
+    }
 
     assert_equal expected, S.explain_data(:point.ns, V[1, 2, 3.0])
 
@@ -329,22 +328,22 @@ class SpeculationTest < Minitest::Test
   def test_explain_data
     S.def(:even.ns, -> (x) { x.even? })
 
-    expected = H[
-      :"Speculation/problems" => V[
-        H[path: V[], val: 1, via: V[:even.ns], in: V[], pred: "<proc>"]
+    expected = {
+      :"Speculation/problems" => [
+        { path: [], val: 1, via: [:even.ns], in: [], pred: "<proc>" }
       ]
-    ]
+    }
     assert_equal expected, S.explain_data(:even.ns, 1)
 
     S.def(:integer.ns, Integer)
     S.def(:even.ns, -> (x) { x.even? })
     S.def(:even_integer.ns, S.and(:integer.ns, :even.ns))
 
-    expected = H[
-      :"Speculation/problems" => V[
-        H[path: V[], val: "s", in: V[], via: V[:even_integer.ns, :integer.ns], pred: Integer]
+    expected = {
+      :"Speculation/problems" => [
+        { path: [], val: "s", in: [], via: [:even_integer.ns, :integer.ns], pred: Integer }
       ]
-    ]
+    }
     assert_equal expected, S.explain_data(:even_integer.ns, "s")
   end
 
@@ -366,20 +365,20 @@ class SpeculationTest < Minitest::Test
       :email.ns      => "n/a"
     }
 
-    expected = H[
-      :"Speculation/problems" => V[
-        H[
-          path: V[:email.ns],
+    expected = {
+      :"Speculation/problems" => [
+        {
+          path: [:email.ns],
           val: "n/a",
-          in: V[:email.ns],
-          via: V[
+          in: [:email.ns],
+          via: [
             :person.ns,
             :email_type.ns
           ],
           pred: /^[a-zA-Z1-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,63}$/
-        ]
+        }
       ]
-    ]
+    }
 
     assert_equal expected, S.explain_data(:person.ns, input)
   end
@@ -387,12 +386,12 @@ class SpeculationTest < Minitest::Test
   def test_explain_or
     S.def(:name_or_id.ns, S.or(name: String, id: Integer))
 
-    expected = H[
-      :"Speculation/problems" => V[
-        H[path: V[:name], val: :foo, in: V[], via: V[:name_or_id.ns], pred: String],
-        H[path: V[:id], val: :foo, in: V[], via: V[:name_or_id.ns], pred: Integer],
+    expected = {
+      :"Speculation/problems" => [
+        { path: V[:name], val: :foo, in: V[], via: V[:name_or_id.ns], pred: String },
+        { path: V[:id], val: :foo, in: V[], via: V[:name_or_id.ns], pred: Integer },
       ]
-    ]
+    }
 
     assert_equal expected, S.explain_data(:name_or_id.ns, :foo)
     assert_nil S.explain_data(:name_or_id.ns, 1)
@@ -401,12 +400,12 @@ class SpeculationTest < Minitest::Test
   def test_explain_regex
     S.def(:ingredient.ns, S.cat(quantity: Numeric, unit: Symbol))
 
-    expected = H[:"Speculation/problems" =>
-                 V[H[path: V[:unit],
-                     val: "peaches",
-                     via: V[:ingredient.ns],
-                     in: V[1],
-                     pred: Symbol]]]
+    expected = { :"Speculation/problems" =>
+                 [{ path: [:unit],
+                    val: "peaches",
+                    via: [:ingredient.ns],
+                    in: [1],
+                    pred: Symbol }] }
 
     assert_equal expected, S.explain_data(:ingredient.ns, V[11, "peaches"])
 
@@ -416,12 +415,15 @@ class SpeculationTest < Minitest::Test
                             nums: S.spec(S.constrained(S.one_or_more(Numeric),
                                                        -> (nums) { nums.count.even? }))))
 
-    expected = H[:"Speculation/problems" => V[
-      H[:path => V[:nums],
-        :val => V[1, 2, 3, 4, 5],
-        :in => V[3],
-        :via => V[:nested.ns],
-        pred: "<proc>"]]] # TODO: need to do better
+    expected = {
+      :"Speculation/problems" => [
+        { :path => [:nums],
+          :val => [1, 2, 3, 4, 5],
+          :in => [3],
+          :via => [:nested.ns],
+          pred: "<proc>" }
+      ]
+    }
 
     assert_equal expected, S.explain_data(:nested.ns, [:names, ["a", "b"], :nums, [1, 2, 3, 4, 5]])
   end
@@ -429,12 +431,12 @@ class SpeculationTest < Minitest::Test
   def test_explain_hash_of
     S.def(:scores.ns, S.hash_of(String, Integer))
 
-    expected = H[:"Speculation/problems" =>
-                 V[H[path: V[1],
-                     val: "300",
-                     via: V[:scores.ns],
-                     in: V["Joe", 1],
-                     pred: Integer]]]
+    expected = { :"Speculation/problems" =>
+                 [{ path: [1],
+                    val: "300",
+                    via: [:scores.ns],
+                    in: ["Joe", 1],
+                    pred: Integer }] }
 
     assert_equal expected, S.explain_data(:scores.ns, H["Sally" => 1000, "Joe" => "300"])
   end
@@ -447,17 +449,24 @@ class SpeculationTest < Minitest::Test
                               ints: S.one_or_more(Integer),
                               floats: S.one_or_more(Float)))))
 
-    expected = H[:"Speculation/problems" => V[
-       H[:path => V[:nums, :ints],
-        :val => "1",
-        :in => V[3, 0],
-        :via => V[:nested.ns],
-        :pred => Integer],
-       H[:path => V[:nums, :floats],
-        :val => "1",
-        :in => V[3, 0],
-        :via => V[:nested.ns],
-        :pred => Float]]]
+    expected = {
+      :"Speculation/problems" => [
+        {
+          :path => V[:nums, :ints],
+          :val => "1",
+          :in => V[3, 0],
+          :via => V[:nested.ns],
+          :pred => Integer
+        },
+        {
+          :path => V[:nums, :floats],
+          :val => "1",
+          :in => V[3, 0],
+          :via => V[:nested.ns],
+          :pred => Float
+        }
+      ]
+    }
 
     assert_equal expected, S.explain_data(:nested.ns, [:names, ["a", "b"], :nums, ["1"]])
   end
@@ -499,16 +508,16 @@ class SpeculationTest < Minitest::Test
     refute S.valid?(:maybe_string.ns, 1)
 
     ed = S.explain_data(:maybe_string.ns, 1)
-    expected = V[H[:path => V[:"Speculation/pred"],
-                   :val => 1,
-                   :in => V[],
-                   :via => V[:"SpeculationTest/maybe_string"],
-                   :pred => String],
-                 H[:path => V[:"Speculation/nil"],
-                   :val => 1,
-                   :in => V[],
-                   :via => V[:"SpeculationTest/maybe_string"],
-                   :pred => NilClass]]
+    expected = [{ :path => [:"Speculation/pred"],
+                  :val => 1,
+                  :in => [],
+                  :via => [:"SpeculationTest/maybe_string"],
+                  :pred => String },
+                { :path => [:"Speculation/nil"],
+                  :val => 1,
+                  :in => [],
+                  :via => [:"SpeculationTest/maybe_string"],
+                  :pred => NilClass }]
 
     assert_equal expected, ed.fetch(:problems.ns(Speculation))
 
@@ -524,11 +533,11 @@ class SpeculationTest < Minitest::Test
     refute S.valid?(:suit.ns, :lung)
 
     ed = S.explain_data(:suit.ns, 1)
-    expected = V[H[:path => V[],
-                   :val => 1,
-                   :via => V[:"SpeculationTest/suit"],
-                   :in => V[],
-                   :pred => Set[:club, :diamond, :heart, :spade]]]
+    expected = [{ :path => [],
+                  :val => 1,
+                  :via => [:"SpeculationTest/suit"],
+                  :in => [],
+                  :pred => Set[:club, :diamond, :heart, :spade] }]
 
     assert_equal expected, ed.fetch(:problems.ns(Speculation))
 
