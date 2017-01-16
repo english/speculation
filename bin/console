@@ -6,11 +6,9 @@ require_relative '../lib/speculation.rb'
 # You can add fixtures and/or initialization code here to make experimenting
 # with your gem easier. You can also use a different console, if you like.
 def reload!
-  Object.send :remove_const, :Speculation if Object.const_defined?(:Speculation)
-  Object.send :remove_const, :S           if Object.const_defined?(:S)
-  Object.send :remove_const, :STest       if Object.const_defined?(:STest)
-  Object.send :remove_const, :Gen         if Object.const_defined?(:Gen)
-  Object.send :remove_const, :Utils       if Object.const_defined?(:Utils)
+  [:Speculation, :S, :STest, :Gen, :U, :H, :V].each do |const|
+    Object.send :remove_const, const if Object.const_defined?(const)
+  end
 
   load './lib/speculation/namespaced_symbols.rb'
   load './lib/speculation/conj.rb'
