@@ -1584,7 +1584,7 @@ module Speculation
       ps.zip(ks).map do |p, k|
         unless rhash && id && k && recur_limit?(rhash, id, path, k)
           # TODO delay if we have an id?
-          re_gen(p, overrides, k ? path.conj(k) : k, rhash)
+          re_gen(p, overrides, k ? path.conj(k) : path, rhash)
         end
       end
     end
