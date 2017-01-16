@@ -219,8 +219,7 @@ class SpeculationTest < Minitest::Test
   end
 
   def test_keys_and_or
-    spec = S.keys(req: [:x.ns, :y.ns, S.keys_or(:secret.ns,
-                                                S.keys_and(:user.ns, :pwd.ns))])
+    spec = S.keys(req: [:x.ns, :y.ns, S.keys_or(:secret.ns, S.keys_and(:user.ns, :pwd.ns))])
     S.def(:auth.ns, spec)
 
     assert S.valid?(:auth.ns, :x.ns => "foo", :y.ns => "bar", :secret.ns => "secret")
