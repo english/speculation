@@ -549,8 +549,6 @@ module Speculation
       self.class.new(@predicate, @options, gen)
     end
 
-    private
-
     def inspect
       "#{self.class.to_s}(#{@name})"
     end
@@ -1128,7 +1126,16 @@ module Speculation
   end
 
   def self.specize(spec)
-    spec?(spec) || spec.specize
+    if spec?(spec)
+      spec
+    else
+      case spec
+      when Symbol, Identifier
+        specize(S.reg_resolve!(spec))
+      else
+        spec_impl(spec, false)
+      end
+    end
   end
 
   def self.alt2(p1, p2)
