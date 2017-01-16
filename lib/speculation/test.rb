@@ -149,7 +149,9 @@ module Speculation
         tap { |set| set << opts[:spec].keys if opts[:spec] }
     end
 
-    def self.check(method_or_methods = checkable_methods, opts = {})
+    def self.check(method_or_methods, opts = {})
+      method_or_methods ||= checkable_methods
+
       Array(method_or_methods).
         map { |method| S::Identifier(method) }.
         select { |ident| checkable_methods(opts).include?(ident) }.
@@ -165,8 +167,6 @@ module Speculation
       specd = S.spec(spec)
 
       reinstrument = unstrument(ident).any?
-
-      # TODO handle method not existing anymore?
       method = ident.get_method
 
       if spec.argspec
