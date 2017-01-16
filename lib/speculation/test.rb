@@ -147,7 +147,7 @@ module Speculation
         tap { |set| set << opts[:spec].keys if opts[:spec] }
     end
 
-    def self.check(method_or_methods, opts = {})
+    def self.check(method_or_methods = nil, opts = {})
       method_or_methods ||= checkable_methods
 
       Array(method_or_methods).
