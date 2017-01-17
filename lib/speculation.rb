@@ -22,16 +22,133 @@ module Speculation
   using NamespacedSymbols.refine(S)
   using Conj
 
-  module Specize
+  # TODO: Make these configurable
+
+  # A soft limit on how many times a branching spec
+  # (or/alt/*/opt-keys/multi-spec) can be recursed through during generation.
+  # After this a non-recursive branch will be chosen.
+  RECURSION_LIMIT = 4
+
+  # The number of times an anonymous fn specified by fspec will be
+  # (generatively) tested during conform.
+  FSPEC_ITERATIONS = 21
+
+  # The number of elements validated in a collection spec'ed with 'every'.
+  COLL_CHECK_LIMIT = 101
+
+  # The number of errors reported by explain in a collection spec'ed with
+  # 'every'
+  COLL_ERROR_LIMIT = 20
+
+  Functional.SpecifyProtocol(:Spec.ns) do
+    instance_method :conform, 1
+    instance_method :explain, 4
+    instance_method :gen, 3
+  end unless Protocol.Specified?(:Spec.ns)
+
+  @registry_ref = Concurrent::Atom.new(H[])
+
+  private_class_method def self.deep_resolve(reg, spec)
+    spec = reg[spec] until !Utils.ident?(spec)
+    spec
+  end
+
+  # returns the spec/regex at end of alias chain starting with k, nil if not
+  # found, k if k not ident
+  private_class_method def self.reg_resolve(key)
+    return key unless Utils.ident?(key)
+
+    spec = @registry_ref.value[key]
+
+    if Utils.ident?(spec)
+      deep_resolve(registry, spec)
+    else
+      spec
+    end
+  end
+
+  # returns the spec/regex at end of alias chain starting with k, throws if not
+  # found, k if k not ident
+  # private
+  def self._reg_resolve!(key)
+    return key unless Utils.ident?(key)
+    spec = reg_resolve(key)
+
+    if spec
+      spec
+    else
+      raise "Unable to resolve spec: #{key}"
+    end
+  end
+
+  # returns spec if spec is a spec object, else logical false, spec spec spec
+  def self.spec?(spec)
+    # TODO remove Protocol dependency, just use inheritance
+    spec if Protocol.Satisfy?(spec, :Spec.ns)
+  end
+
+  # returns x if x is a (Speculation) regex op, else logical false
+  def self.regex?(x)
+    Utils.hash?(x) && x[:op.ns] && x
+  end
+
+  private_class_method def self.with_name(spec, name)
+    if Utils.ident?(spec)
+      spec
+    elsif regex?(spec)
+      spec.put(:name.ns, name)
+    else
+      spec.tap { |s| s.name = name }
+    end
+  end
+
+  private_class_method def self.spec_name(spec)
+    if Utils.ident?(spec)
+      spec
+    elsif regex?(spec)
+      spec[:name.ns]
+    elsif spec.respond_to?(:name)
+      spec.name
+    end
+  end
+
+  # spec_or_key must be a spec, regex or resolvable ident, else returns nil
+  private_class_method def self.maybe_spec(spec_or_key)
+    spec = (Utils.ident?(spec_or_key) && reg_resolve(spec_or_key)) ||
+      spec?(spec_or_key) ||
+      regex?(spec_or_key) ||
+      nil
+
+    regex?(spec) ?
+      with_name(RegexSpec.new(spec), spec_name(spec)) :
+      spec
+  end
+
+  # spec-or-k must be a spec, regex or ident, else returns nil. Raises if
+  # unresolvable ident
+  private_class_method def self.the_spec(spec_or_key)
+    spec = maybe_spec(spec_or_key)
+    return spec if spec
+
+    if Utils.ident?(spec_or_key)
+      raise "Unable to resolve spec: #{spec_or_key}"
+    end
+  end
+
+  Functional.SpecifyProtocol(:Specize.ns) do
+    instance_method :specize, 0
+  end unless Protocol.Specified?(:Specize.ns)
+
+  using Module.new do
     refine Symbol do
       def specize
-        S.reg_resolve!(self).specize
+        S._reg_resolve!(self).specize
       end
     end
 
     refine Identifier do
       def specize
-        S.reg_resolve!(self).specize
+        S._reg_resolve!(self).specize
       end
     end
 
@@ -41,34 +158,168 @@ module Speculation
       end
     end
   end
-  using Specize
 
-  Functional.SpecifyProtocol(:Spec.ns) do
-    instance_method :conform, 1
-    instance_method :explain, 4
-    instance_method :gen, 3
-  end unless Protocol.Specified?(:Spec.ns)
-
-  Functional.SpecifyProtocol(:Specize.ns) do
-    instance_method :specize, 0
-  end unless Protocol.Specified?(:Specize.ns)
-
-  REGISTRY = Concurrent::Atom.new(H[])
-
-  # TODO: Make this configurable
-  COLL_CHECK_LIMIT = 101
-  COLL_ERROR_LIMIT = 20
-  RECURSION_LIMIT = 4
-
-  # The number of times an anonymous fn specified by fspec will be (generatively) tested during conform
-  FSPEC_ITERATIONS = 21
-
-  def self.coll_check_limit
-    COLL_CHECK_LIMIT
+  # private
+  def self._specize(spec)
+    if spec?(spec)
+      spec
+    else
+      case spec
+      when Symbol, Identifier
+        _specize(S._reg_resolve!(spec))
+      else
+        spec_impl(spec, false)
+      end
+    end
   end
 
-  def self.coll_error_limit
-    COLL_ERROR_LIMIT
+  # tests the validity of a conform return value
+  def self.invalid?(value)
+    value.equal?(:invalid.ns)
+  end
+
+  # Given a spec and a value, returns :Speculation/invalid if value does not
+  # match spec, else the (possibly destructured) value
+  def self.conform(spec, value)
+    _specize(spec).conform(value)
+  end
+
+  # TODO unform
+  # TODO form
+  # TODO abbrev
+  # TODO describe
+
+  # Takes a spec and a no-arg, generator block and returns a version of that
+  # spec that uses that generator
+  def self.with_gen(spec, &gen)
+    if regex?(spec)
+      spec.put(:gfn.ns, gen)
+    else
+      _specize(spec).with_gen(gen)
+    end
+  end
+
+  # @private
+  def self._explain_data(spec, path, via, _in, value)
+    probs = _specize(spec).explain(path, via, _in, value)
+
+    if probs&.any?
+      { :problems.ns => probs }
+    end
+  end
+
+  # Given a spec and a value x which ought to conform, returns nil if x
+  # conforms, else a hash with at least the key :"Speculation/problems" whose
+  # value is a collection of problem-hashes, where problem-hash has at least
+  # :path :pred and :val keys describing the predicate and the value that failed
+  # at that path.
+  def self.explain_data(spec, x)
+    name = spec_name(spec)
+    _explain_data(spec, [], [name] || [], [], x)
+  end
+
+  def self.explain_str(data)
+    return "Success!" unless data
+
+    s = ""
+
+    data.fetch(:problems.ns).each do |prob|
+      path, pred, val, reason, via, _in = prob.values_at(:path, :pred, :val, :reason, :via, :in)
+
+      s << "In: #{_in.to_a.inspect} " unless _in.empty?
+      s << "val: #{val.inspect} fails"
+      s << " spec: #{via.last.inspect}" unless via.empty?
+      s << " at: #{path.to_a.inspect}" unless path.empty?
+      s << " predicate: #{pred.inspect}"
+      s << ", #{reason.inspect}" if reason
+
+      prob.each do |k, v|
+        unless [:path, :pred, :val, :reason, :via, :in].include?(k)
+          s << "\n\t #{k.inspect} #{v.inspect}"
+        end
+      end
+
+      s << "\n"
+    end
+
+    data.each do |k, v|
+      s << "#{k} #{v}\n" unless k == :problems.ns
+    end
+
+    s
+  end
+
+  # Given a spec and a value that fails to conform, returns an explanation as a
+  # string
+  def self.explain(spec, x)
+    explain_str(explain_data(spec, x))
+  end
+
+  # @private
+  def self._gensub(spec, overrides, path, rhash)
+    overrides ||= {}
+    spec = _specize(spec)
+    gfn = overrides[spec.name || spec] || overrides[path]
+    g = gfn ? gfn : spec.gen(overrides, path, rhash)
+
+    if g
+      Gen.such_that(-> (x) { S.valid?(spec, x) }, g, 100)
+    else
+      raise "unable to construct gen at: #{path.inspect} for: #{spec.inspect}"
+    end
+  end
+
+  # Given a spec, returns the generator for it, or throws if none can be
+  # constructed.
+  #
+  # Optionally an overrides hash can be provided which should map
+  # spec names or paths (array of symbols) to no-arg generator Procs.
+  # These will be used instead of the generators at those names/paths. Note that
+  # parent generator (in the spec or overrides map) will supersede those of any
+  # subtrees. A generator for a regex op must always return a sequential
+  # collection (i.e. a generator for Speculation.zero_or_more should return
+  # either an empty array or an array with one item in it)
+  def self.gen(spec, overrides = nil)
+    _gensub(spec, overrides, V[], H[:recursion_limit.ns => RECURSION_LIMIT])
+  end
+
+  # returns an identifier if x is a method, otherwise x
+  private_class_method def self.Identifier(x)
+    case x
+    when Method
+      Identifier.new(x.receiver, x.name, false)
+    when UnboundMethod
+      Identifier.new(x.owner, x.name, true)
+    else
+      x
+    end
+  end
+
+  # Given a namespace-qualified symbol or Speculation::Identifier k, and a spec,
+  # spec-name, predicate or regex-op makes an entry in the registry mapping k to
+  # the spec
+  def self.def(key, spec)
+    key = Identifier(key)
+
+    unless Utils.ident?(key) && key.namespace
+      raise ArgumentError,
+        "key must be a namespaced Symbol, e.g. #{:my_spec.ns}, given #{key}, or a Speculation::Identifier"
+    end
+
+    spec = if spec?(spec) || regex?(spec) || registry[spec]
+             spec
+           else
+             self.spec_impl(spec, false)
+           end
+
+    @registry_ref.swap { |reg| reg.store(key, with_name(spec, key)) }
+
+    key
+  end
+
+  # returns the registry hash, prefer 'get_spec' to lookup a spec by name
+  def self.registry
+    @registry_ref.value
   end
 
   class Spec
@@ -130,7 +381,7 @@ module Speculation
       @preds = preds
       @gen = gen
       @specs = Concurrent::Delay.new do
-        preds.map { |pred| S.specize(pred) }
+        preds.map { |pred| S._specize(pred) }
       end
     end
 
@@ -156,7 +407,7 @@ module Speculation
       if @gen
         @gen
       else
-        S.gensub(@preds.first, overrides, path, rhash)
+        S._gensub(@preds.first, overrides, path, rhash)
       end
     end
 
@@ -182,7 +433,7 @@ module Speculation
       @gen = gen
 
       @delayed_specs = Concurrent::Delay.new do
-        preds.map { |spec| S.specize(spec) }
+        preds.map { |spec| S._specize(spec) }
       end
     end
 
@@ -219,7 +470,7 @@ module Speculation
           rhash = S.inck(rhash, @id)
 
           unless S.recur_limit?(rhash, @id, path, k)
-            S.gensub(p, overrides, path.conj(k), rhash)
+            S._gensub(p, overrides, path.conj(k), rhash)
           end
         }.
         compact
@@ -364,12 +615,12 @@ module Speculation
 
       reqs = @req_keys.zip(@req_specs).
         reduce({}) { |m, (k, s)|
-          m.merge(k => S.gensub(s, overrides, path.conj(k), rhash))
+          m.merge(k => S._gensub(s, overrides, path.conj(k), rhash))
         }
 
       opts = @opt_keys.zip(@opt_specs).
         reduce({}) { |m, (k, s)|
-          m.merge(k => S.gensub(s, overrides, path.conj(k), rhash))
+          m.merge(k => S._gensub(s, overrides, path.conj(k), rhash))
         }
 
       -> (rantly) do
@@ -416,7 +667,7 @@ module Speculation
       end
 
       @collection_predicate = -> (coll) { collection_predicates.all? { |f| f === coll } }
-      @delayed_spec = Concurrent::Delay.new { S.specize(predicate) }
+      @delayed_spec = Concurrent::Delay.new { S._specize(predicate) }
       @kfn = options.fetch(:kfn, -> (i, v) { i })
       @conform_keys, @conform_all, @kind, @gen_into, @gen_max, @distinct, @count, @min_count, @max_count =
         options.values_at(:conform_keys, :conform_all.ns, :kind, :into, :gen_max, :distinct, :count, :min_count, :max_count)
@@ -471,7 +722,7 @@ module Speculation
       else
         # OPTIMIZE: check if value is indexed (array, hash etc.) vs not
         # indexed (list, custom enumerable)
-        limit = S.coll_check_limit
+        limit = COLL_CHECK_LIMIT
 
         value.each_with_index do |item, index|
           return value if index == limit
@@ -500,20 +751,20 @@ module Speculation
         end
       end
 
-      probs = @conform_all ? probs.to_a : probs.take(S.coll_error_limit)
+      probs = @conform_all ? probs.to_a : probs.take(COLL_ERROR_LIMIT)
       probs.compact
     end
 
     def gen(overrides, path, rhash)
       return @gen if @gen
 
-      pgen = S.gensub(@predicate, overrides, path, rhash)
+      pgen = S._gensub(@predicate, overrides, path, rhash)
 
       -> (rantly) do
         init = if @gen_into
                  Utils.empty(@gen_into)
                elsif @kind
-                 Utils.empty(S.gensub(@kind, overrides, path, rhash).call(rantly))
+                 Utils.empty(S._gensub(@kind, overrides, path, rhash).call(rantly))
                else
                  []
                end
@@ -564,7 +815,7 @@ module Speculation
       @gen   = gen
 
       @delayed_specs = Concurrent::Delay.new do
-        preds.map { |pred| S.specize(pred) }
+        preds.map { |pred| S._specize(pred) }
       end
     end
 
@@ -610,7 +861,7 @@ module Speculation
       return @gen if @gen
 
       gens = @preds.each_with_index.
-        map { |p, i| S.gensub(p, overrides, path.conj(i), rhash) }
+        map { |p, i| S._gensub(p, overrides, path.conj(i), rhash) }
 
       -> (rantly) do
         gens.map { |g| g.call(rantly) }
@@ -695,7 +946,7 @@ module Speculation
     def initialize(pred, gen = nil)
       @pred = pred
       @gen  = gen
-      @delayed_spec = Concurrent::Delay.new { S.specize(pred) }
+      @delayed_spec = Concurrent::Delay.new { S._specize(pred) }
     end
 
     def conform(value)
@@ -715,7 +966,7 @@ module Speculation
 
       -> (rantly) do
         rantly.freq([1, Utils.constantly(nil)],
-                    [9, S.gensub(@pred, overrides, path.conj(:pred.ns), rhash)])
+                    [9, S._gensub(@pred, overrides, path.conj(:pred.ns), rhash)])
       end
     end
 
@@ -734,29 +985,6 @@ module Speculation
     Protocol.Satisfy!(self, :Specize.ns, :Spec.ns)
   end
 
-  def self.registry
-    REGISTRY.value
-  end
-
-  def self.def(key, spec)
-    key = Identifier(key)
-
-    unless Utils.ident?(key) && key.namespace
-      raise ArgumentError,
-        "key must be a namespaced Symbol, e.g. #{:my_spec.ns}, given #{key}, or a Speculation::Identifier"
-    end
-
-    spec = if spec?(spec) || regex?(spec) || registry[spec]
-             spec
-           else
-             self.spec_impl(spec, false)
-           end
-
-    REGISTRY.swap { |reg| reg.store(key, with_name(spec, key)) }
-
-    key
-  end
-
   def self.fdef(method, spec)
     ident = Identifier(method)
     self.def(ident, fspec(spec))
@@ -768,16 +996,6 @@ module Speculation
 
   def self.get_spec(key)
     registry[Identifier(key)]
-  end
-
-  def self.with_name(spec, name)
-    if Utils.ident?(spec)
-      spec
-    elsif regex?(spec)
-      spec.put(:name.ns, name)
-    else
-      spec.tap { |s| s.name = name }
-    end
   end
 
   def self.spec(pred)
@@ -800,33 +1018,18 @@ module Speculation
     end
   end
 
-  def self.spec?(spec)
-    spec if Protocol.Satisfy?(spec, :Spec.ns)
-  end
-
   def self.reset_registry!
-    REGISTRY.reset(
-      REGISTRY.value.select { |k, v| k.namespace.to_s == self.to_s }
+    @registry_ref.reset(
+      @registry_ref.value.select { |k, v| k.namespace.to_s == self.to_s }
     )
   end
 
-  def self.conform(spec, value)
-    spec = specize(spec)
-    spec = RegexSpec.new(spec) if regex?(spec)
-
-    spec.conform(value)
-  end
-
   def self.valid?(spec, value)
-    spec = specize(spec)
+    spec = _specize(spec)
     spec = RegexSpec.new(spec) if regex?(spec)
     value = spec.conform(value)
 
     !invalid?(value)
-  end
-
-  def self.invalid?(value)
-    value.equal?(:invalid.ns)
   end
 
   def self.conformer(f)
@@ -954,61 +1157,6 @@ module Speculation
     EverySpec.new(predicate, options)
   end
 
-  def self.explain_data(spec, value)
-    _explain_data(spec, [], [spec_name(spec)], [], value)
-  end
-
-  def self.explain(spec, x)
-    explain_str(explain_data(spec, x))
-  end
-
-  def self.explain_str(data)
-    return "Success!" unless data
-
-    s = ""
-
-    data.fetch(:problems.ns).each do |prob|
-      path, pred, val, reason, via, _in = prob.values_at(:path, :pred, :val, :reason, :via, :in)
-
-      s << "In: #{_in.to_a.inspect} " unless _in.empty?
-      s << "val: #{val.inspect} fails"
-      s << " spec: #{via.last.inspect}" unless via.empty?
-      s << " at: #{path.to_a.inspect}" unless path.empty?
-      s << " predicate: #{pred.inspect}"
-      s << ", #{reason.inspect}" if reason
-
-      prob.each do |k, v|
-        unless [:path, :pred, :val, :reason, :via, :in].include?(k)
-          s << "\n\t #{k.inspect} #{v.inspect}"
-        end
-      end
-
-      s << "\n"
-    end
-
-    data.each do |k, v|
-      s << "#{k} #{v}\n" unless k == :problems.ns
-    end
-
-    s
-  end
-
-  def self._explain_data(spec, path, via, _in, value)
-    probs = specize(spec).explain(path, via, _in, value)
-
-    if probs&.any?
-      { :problems.ns => probs }
-    end
-  end
-
-  def self.explain_pred(predicate)
-    if Proc === predicate
-      "<proc>"
-    else
-      predicate
-    end
-  end
-
   def self.explain_pred_list(preds, path, via, _in, value)
     return_value = value
 
@@ -1077,10 +1225,6 @@ module Speculation
     end
   end
 
-  def self.regex?(x)
-    Utils.hash?(x) && x[:op.ns] && x
-  end
-
   def self.accept(x)
     H[:op.ns => :accept.ns, return_value: x]
   end
@@ -1088,47 +1232,6 @@ module Speculation
   def self.accept?(hash)
     if hash.is_a?(H)
       hash[:op.ns] == :accept.ns
-    end
-  end
-
-  def self.reg_resolve(key)
-    return key unless Utils.ident?(key)
-
-    spec = registry[key]
-
-    if Utils.ident?(spec)
-      deep_resolve(registry, spec)
-    else
-      spec
-    end
-  end
-
-  def self.reg_resolve!(key)
-    return key unless Utils.ident?(key)
-    spec = reg_resolve(key)
-
-    if spec
-      spec
-    else
-      raise "Unable to resolve spec: #{key}"
-    end
-  end
-
-  def self.deep_resolve(reg, spec)
-    spec = reg[spec] until !Utils.ident?(spec)
-    spec
-  end
-
-  def self.specize(spec)
-    if spec?(spec)
-      spec
-    else
-      case spec
-      when Symbol, Identifier
-        specize(S.reg_resolve!(spec))
-      else
-        spec_impl(spec, false)
-      end
     end
   end
 
@@ -1182,7 +1285,7 @@ module Speculation
   end
 
   def self.accept_nil?(regex)
-    regex = reg_resolve!(regex)
+    regex = _reg_resolve!(regex)
     return unless regex?(regex)
 
     case regex[:op.ns]
@@ -1205,7 +1308,7 @@ module Speculation
   def self.no_ret?(p1, pret)
     return true if pret == :nil.ns
 
-    regex = reg_resolve!(p1)
+    regex = _reg_resolve!(p1)
     op = regex[:op.ns]
 
     [:rep.ns, :pcat.ns].include?(op) && pret.empty? || nil
@@ -1222,7 +1325,7 @@ module Speculation
   end
 
   def self.preturn(regex)
-    regex = reg_resolve!(regex)
+    regex = _reg_resolve!(regex)
     return unless regex?(regex)
 
     p0, *pr = regex[:predicates]
@@ -1269,7 +1372,7 @@ module Speculation
   end
 
   def self.deriv(predicate, value)
-    predicate = reg_resolve!(predicate)
+    predicate = _reg_resolve!(predicate)
     return unless predicate
 
     unless regex?(predicate)
@@ -1354,40 +1457,8 @@ module Speculation
     end
   end
 
-  def self.the_spec(spec_or_key)
-    spec = maybe_spec(spec_or_key)
-    return spec if spec
-
-    if Utils.ident?(spec_or_key)
-      raise "Unable to resolve spec: #{spec_or_key}"
-    end
-  end
-
-  def self.maybe_spec(spec_or_key)
-    spec = (Utils.ident?(spec_or_key) && reg_resolve(spec_or_key)) ||
-      spec?(spec_or_key) ||
-      regex?(spec_or_key) ||
-      nil
-
-    if regex?(spec)
-      with_name(RegexSpec.new(spec), spec_name(spec))
-    else
-      spec
-    end
-  end
-
-  def self.spec_name(spec)
-    if Utils.ident?(spec)
-      spec
-    elsif regex?(spec)
-      spec[:name.ns]
-    elsif spec.respond_to?(:name)
-      spec.name
-    end
-  end
-
   def self.add_ret(regex, r, key)
-    regex = reg_resolve!(regex)
+    regex = _reg_resolve!(regex)
     return r unless regex?(regex)
 
     prop = -> do
@@ -1460,7 +1531,7 @@ module Speculation
   end
 
   def self.op_explain(p, path, via, _in, input)
-    p = reg_resolve!(p)
+    p = _reg_resolve!(p)
     return unless p
 
     insufficient = -> (path) do
@@ -1551,26 +1622,9 @@ module Speculation
     end
   end
 
-  def self.gen(spec, overrides = nil)
-    gensub(spec, overrides, V[], H[:recursion_limit.ns => RECURSION_LIMIT])
-  end
-
-  def self.gensub(spec, overrides, path, rhash)
-    overrides ||= {}
-    spec = specize(spec)
-    gfn = overrides[spec.name || spec] || overrides[path]
-    g = gfn ? gfn : spec.gen(overrides, path, rhash)
-
-    if g
-      Gen.such_that(-> (x) { S.valid?(spec, x) }, g, 100)
-    else
-      raise "unable to construct gen at: #{path.inspect} for: #{spec.inspect}"
-    end
-  end
-
   def self.re_gen(p, overrides, path, rhash)
     origp = p
-    p = reg_resolve!(p)
+    p = _reg_resolve!(p)
 
     id, op, ps, ks, p1, p2, splice, ret, id, gen = p.values_at(
       :id, :op.ns, :predicates, :keys, :p1, :p2, :splice, :return_value, :id, :gen.ns
@@ -1613,7 +1667,7 @@ module Speculation
           -> (rantly) { [ret] }
         end
       when nil
-        g = gensub(p, overrides, path, rhash)
+        g = _gensub(p, overrides, path, rhash)
 
         -> (rantly) { [g.call(rantly)] }
       when :amp.ns
@@ -1652,14 +1706,6 @@ module Speculation
     Gen.sample(gen(spec, overrides), n).map { |value|
       [value, conform(spec, value)]
     }
-  end
-
-  def self.with_gen(spec, &gen)
-    if regex?(spec)
-      spec.put(:gfn.ns, gen)
-    else
-      specize(spec).with_gen(gen)
-    end
   end
 
   def self.def_builtins

@@ -1,15 +1,4 @@
 module Speculation
-  def self.Identifier(x)
-    case x
-    when Method
-      Identifier.new(x.receiver, x.name, false)
-    when UnboundMethod
-      Identifier.new(x.owner, x.name, true)
-    else
-      x
-    end
-  end
-
   class Identifier
     attr_reader :namespace, :name
 

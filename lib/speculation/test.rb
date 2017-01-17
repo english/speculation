@@ -42,7 +42,7 @@ module Speculation
 
     def self.instrument(method_or_methods = instrumentable_methods, opts = {})
       Array(method_or_methods).
-        map { |method| S::Identifier(method) }.
+        map { |method| S.send(:Identifier, method) }.
         uniq.
         map { |ident| instrument1(ident, opts) }.
         compact
@@ -76,7 +76,7 @@ module Speculation
       method_or_methods ||= @instrumented_methods.value.keys
 
       Array(method_or_methods).
-        map { |method| S::Identifier(method) }.
+        map { |method| S.send(:Identifier, method) }.
         map { |ident| unstrument1(ident) }.
         compact
     end
@@ -97,7 +97,7 @@ module Speculation
     end
 
     def self.spec_checking_fn(ident, method, spec)
-      spec = S.maybe_spec(spec) # TODO needed?
+      spec = S.send(:maybe_spec, spec) # it's private...
 
       conform = -> (method, role, spec, data, args) do
         conformed = S.conform(spec, data)
@@ -151,7 +151,7 @@ module Speculation
       method_or_methods ||= checkable_methods
 
       Array(method_or_methods).
-        map { |method| S::Identifier(method) }.
+        map { |method| S.send(:Identifier, method) }.
         select { |ident| checkable_methods(opts).include?(ident) }.
         map { |ident| check1(ident, opts) } # TODO pmap?
     end
