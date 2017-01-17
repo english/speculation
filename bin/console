@@ -34,6 +34,7 @@ require 'minitest'
 include Minitest::Assertions
 def self.assertions; 1; end
 def self.assertions=(x);end
+using Speculation::NamespacedSymbols.refine(self)
 
 reload!
 
