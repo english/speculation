@@ -51,10 +51,5 @@ module Speculation
            args: S.cat(coll: Enumerable),
            ret: S.and(Enumerable, -> (coll) { coll.empty? }),
            fn: -> (x) { x[:args][:coll].class == x[:ret].class })
-
-    S.fdef(U.method(:into),
-           args: S.cat(to: Enumerable, from: Enumerable),
-           ret: Enumerable,
-           fn: -> (x) { x[:args][:to].class == x[:ret].class })
   end
 end
