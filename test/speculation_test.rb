@@ -327,23 +327,33 @@ class SpeculationTest < Minitest::Test
   def test_explain_data
     S.def(:even.ns, -> (x) { x.even? })
 
-    expected = {
-      :"Speculation/problems" => [
-        { path: [], val: 1, via: [:even.ns], in: [], pred: "<proc>" }
-      ]
-    }
-    assert_equal expected, S.explain_data(:even.ns, 1)
+    ed = S.explain_data(:even.ns, 1)
+    problems = ed.fetch(:problems.ns(S))
+
+    assert_equal 1, problems.count
+
+    problem = problems.first
+    assert_equal [], problem[:path]
+    assert_equal 1, problem[:val]
+    assert_equal [:even.ns], problem[:via]
+    assert_equal [], problem[:in]
+    assert_kind_of Proc, problem[:pred]
 
     S.def(:integer.ns, Integer)
     S.def(:even.ns, -> (x) { x.even? })
     S.def(:even_integer.ns, S.and(:integer.ns, :even.ns))
 
-    expected = {
-      :"Speculation/problems" => [
-        { path: [], val: "s", in: [], via: [:even_integer.ns, :integer.ns], pred: Integer }
-      ]
-    }
-    assert_equal expected, S.explain_data(:even_integer.ns, "s")
+    ed = S.explain_data(:even_integer.ns, "s")
+    problems = ed.fetch(:problems.ns(S))
+
+    assert_equal 1, problems.count
+
+    problem = problems.first
+    assert_equal [], problem[:path]
+    assert_equal "s", problem[:val]
+    assert_equal [:even_integer.ns, :integer.ns], problem[:via]
+    assert_equal [], problem[:in]
+    assert_equal Integer, problem[:pred]
   end
 
   def test_explain_data_map
@@ -399,14 +409,17 @@ class SpeculationTest < Minitest::Test
   def test_explain_regex
     S.def(:ingredient.ns, S.cat(quantity: Numeric, unit: Symbol))
 
-    expected = { :"Speculation/problems" =>
-                 [{ path: [:unit],
-                    val: "peaches",
-                    via: [:ingredient.ns],
-                    in: [1],
-                    pred: Symbol }] }
+    ed = S.explain_data(:ingredient.ns, V[11, "peaches"])
+    problems = ed.fetch(:problems.ns(S))
 
-    assert_equal expected, S.explain_data(:ingredient.ns, V[11, "peaches"])
+    assert_equal 1, problems.count
+
+    problem = problems.first
+    assert_equal [:unit], problem[:path]
+    assert_equal "peaches", problem[:val]
+    assert_equal [:ingredient.ns], problem[:via]
+    assert_equal [1], problem[:in]
+    assert_equal Symbol, problem[:pred]
 
     S.def(:nested.ns, S.cat(names_sym: -> (x) { x == :names },
                             names: S.spec(S.zero_or_more(String)),
@@ -414,17 +427,17 @@ class SpeculationTest < Minitest::Test
                             nums: S.spec(S.constrained(S.one_or_more(Numeric),
                                                        -> (nums) { nums.count.even? }))))
 
-    expected = {
-      :"Speculation/problems" => [
-        { :path => [:nums],
-          :val => [1, 2, 3, 4, 5],
-          :in => [3],
-          :via => [:nested.ns],
-          pred: "<proc>" }
-      ]
-    }
+    ed = S.explain_data(:nested.ns, [:names, ["a", "b"], :nums, [1, 2, 3, 4, 5]])
+    problems = ed.fetch(:problems.ns(S))
 
-    assert_equal expected, S.explain_data(:nested.ns, [:names, ["a", "b"], :nums, [1, 2, 3, 4, 5]])
+    assert_equal 1, problems.count
+
+    problem = problems.first
+    assert_equal [:nums], problem[:path]
+    assert_equal [1, 2, 3, 4, 5], problem[:val]
+    assert_equal [3], problem[:in]
+    assert_equal [:nested.ns], problem[:via]
+    assert_kind_of Proc, problem[:pred]
   end
 
   def test_explain_hash_of

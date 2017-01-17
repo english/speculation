@@ -997,12 +997,6 @@ module Speculation
     probs = specize(spec).explain(path, via, _in, value)
 
     if probs&.any?
-      # TODO: deal with procs better...
-      probs = probs.map do |p|
-        pred = p[:pred]
-        p.merge(pred: Proc === pred ? "<proc>" : pred)
-      end
-
       { :problems.ns => probs }
     end
   end
