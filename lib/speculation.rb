@@ -124,8 +124,8 @@ module Speculation
       spec
   end
 
-  # spec-or-k must be a spec, regex or ident, else returns nil. Raises if
-  # unresolvable ident
+  # spec_or_key must be a spec, regex or ident, else returns nil. Raises if
+  # unresolvable ident (Speculation::Utils.ident?)
   private_class_method def self.the_spec(spec_or_key)
     spec = maybe_spec(spec_or_key)
     return spec if spec
@@ -296,7 +296,7 @@ module Speculation
   end
 
   # Given a namespace-qualified symbol or Speculation::Identifier k, and a spec,
-  # spec-name, predicate or regex-op makes an entry in the registry mapping k to
+  # spec name, predicate or regex-op makes an entry in the registry mapping k to
   # the spec
   def self.def(key, spec)
     key = Identifier(key)
@@ -980,6 +980,52 @@ module Speculation
 
     def inspect
       "#{self.class.to_s}(#{@name})"
+    end
+
+    Protocol.Satisfy!(self, :Specize.ns, :Spec.ns)
+  end
+
+  class MergeSpec
+    attr_accessor :name
+
+    def initialize(preds, gen = nil)
+      @preds = preds
+      @gen = gen
+    end
+
+    def conform(x)
+      ms = @preds.map { |pred| S.dt(pred, x) }
+
+      if ms.any?(&S.method(:invalid?))
+        :invalid.ns(S)
+      else
+        ms.reduce(&:merge)
+      end
+    end
+
+    def explain(path, via, _in, x)
+      @preds.
+        flat_map { |pred| S.explain1(pred, path, via, _in, x) }.
+        compact
+    end
+
+    def gen(overrides, path, rhash)
+      return @gen if @gen
+
+      gens = @preds.
+        map { |pred| S._gensub(pred, overrides, path, rhash) }
+
+      -> (r) do
+        gens.map { |gen| gen.call(r) }.reduce(&:merge)
+      end
+    end
+
+    def with_gen(gen)
+      self.class.new(@preds, gen)
+    end
+
+    def specize
+      self
     end
 
     Protocol.Satisfy!(self, :Specize.ns, :Spec.ns)
@@ -1706,6 +1752,10 @@ module Speculation
     Gen.sample(gen(spec, overrides), n).map { |value|
       [value, conform(spec, value)]
     }
+  end
+
+  def self.merge(*preds)
+    MergeSpec.new(preds, nil)
   end
 
   def self.def_builtins

@@ -230,6 +230,26 @@ class SpeculationTest < Minitest::Test
     refute S.valid?(:auth.ns, :x.ns => "foo", :y.ns => "bar")
   end
 
+  def test_merge
+    S.def(:"animal/kind", String)
+    S.def(:"animal/says", String)
+    S.def(:"animal/common", S.keys(req: [:"animal/kind", :"animal/says"]))
+    S.def(:"dog/tail?", :boolean.ns(S))
+    S.def(:"dog/breed", String)
+    S.def(:"animal/dog", S.merge(:"animal/common", S.keys(req: [:"dog/tail?", :"dog/breed"])))
+
+    assert S.valid?(:"animal/dog",
+                    { :"animal/kind" => "dog",
+                      :"animal/says" => "woof",
+                      :"dog/tail?"   => true,
+                      :"dog/breed"   => "retriever" })
+
+    S.explain(:"animal/dog",
+              { :"animal/kind" => "dog",
+                :"dog/tail?"   => "why yes",
+                :"dog/breed"   => "retriever" })
+  end
+
   def test_coll_of
     S.def(:symbol_collection.ns, S.coll_of(Symbol))
 
