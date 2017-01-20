@@ -678,7 +678,7 @@ module Speculation
       @cfns = -> (x) do
         if Utils.array?(x) && (!@conform_into || Utils.array?(@conform_into))
           [Utils.method(:identity),
-           -> (ret, i, v, cv) { v.equal?(cv) ? ret : ret.insert(i, cv) },
+           -> (ret, i, v, cv) { v.equal?(cv) ? ret : ret.tap { |r| r[i] = cv } },
            Utils.method(:identity)]
         elsif Utils.hash?(x) && ((@kind && !@conform_into) || Utils.hash?(@conform_into))
           [@conform_keys ? Utils.method(:empty) : Utils.method(:identity),
