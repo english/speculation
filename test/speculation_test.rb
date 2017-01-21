@@ -508,9 +508,9 @@ class SpeculationTest < Minitest::Test
           S.keys(req_un: [:first_name.ns, :last_name.ns, :email.ns],
                  opt_un: [:phone.ns]))
 
-    # TODO improve explain message for missing keys.
     assert_equal <<~EOS, S.explain(:person.ns(:unq), first_name: "Elon")
-      val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: {:req_un=>[:"SpeculationTest/first_name", :"SpeculationTest/last_name", :"SpeculationTest/email"]}
+val: {:first_name=>\"Elon\"} fails spec: :\"unq/person\" predicate: \":SpeculationTest/last_name\"
+val: {:first_name=>\"Elon\"} fails spec: :\"unq/person\" predicate: \":SpeculationTest/email\"
     EOS
 
     email_regex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,63}$/
@@ -526,9 +526,8 @@ class SpeculationTest < Minitest::Test
           S.keys(req_un: [S.keys_or(S.keys_and(:first_name.ns, :last_name.ns), :email.ns)],
                  opt_un: [:phone.ns]))
 
-    # TODO improve explain message for missing keys
     assert_equal <<~EOS, S.explain(:person.ns(:unq), first_name: "Elon")
-      val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: {:req_un=>[[:or, [:and, :"SpeculationTest/first_name", :"SpeculationTest/last_name"], :"SpeculationTest/email"]]}
+      val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: "(:SpeculationTest/first_name and :SpeculationTest/last_name) or :SpeculationTest/email"
     EOS
   end
 
