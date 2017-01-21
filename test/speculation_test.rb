@@ -218,8 +218,8 @@ class SpeculationTest < Minitest::Test
                                       email: "elon@example.com" })
   end
 
-  def test_keys_and_or
-    spec = S.keys(req: [:x.ns, :y.ns, S.keys_or(:secret.ns, S.keys_and(:user.ns, :pwd.ns))])
+  def test_and_keys_or_keys
+    spec = S.keys(req: [:x.ns, :y.ns, S.or_keys(:secret.ns, S.and_keys(:user.ns, :pwd.ns))])
     S.def(:auth.ns, spec)
 
     assert S.valid?(:auth.ns, :x.ns => "foo", :y.ns => "bar", :secret.ns => "secret")
@@ -521,9 +521,9 @@ val: {:first_name=>\"Elon\"} fails spec: :\"unq/person\" predicate: \":Speculati
     EOS
   end
 
-  def test_explain_keys_and_or
+  def test_explain_and_keys_or_keys
     S.def(:person.ns(:unq),
-          S.keys(req_un: [S.keys_or(S.keys_and(:first_name.ns, :last_name.ns), :email.ns)],
+          S.keys(req_un: [S.or_keys(S.and_keys(:first_name.ns, :last_name.ns), :email.ns)],
                  opt_un: [:phone.ns]))
 
     assert_equal <<~EOS, S.explain(:person.ns(:unq), first_name: "Elon")
