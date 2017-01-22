@@ -12,7 +12,7 @@ module Speculation
     H = Hamster::Hash
     V = Hamster::Vector
 
-    @gen_builtins = H[
+    GEN_BUILTINS = H[
       Integer    => -> (r) { r.integer },
       String     => -> (r) { r.sized(r.range(0, 100)) { string(:alpha) } },
       Float      => -> (r) { rand(Float::MIN..Float::MAX) },
@@ -67,7 +67,7 @@ module Speculation
       if pred.is_a?(Set)
         -> (r) { r.choose(*pred) }
       else
-        @gen_builtins[pred]
+        GEN_BUILTINS[pred]
       end
     end
 
