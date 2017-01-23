@@ -1,5 +1,5 @@
 module Speculation
-  module Specs
+  module UtilsSpecs
     using Speculation::NamespacedSymbols.refine(self)
 
     S = Speculation
@@ -26,14 +26,6 @@ module Speculation
            args: S.cat(x: :any.ns(S)),
            ret: Proc,
            fn: -> (x) { x[:args][:x].equal?(x[:ret].call) })
-
-    # TODO add args checking of blocks
-    # S.fdef(U.method(:complement),
-    #        args: S.cat(x: S.with_gen(Proc) do |r|
-    #          val = S.gen(:any.ns(S)).call(r)
-    #          -> (*args) { val }
-    #        end),
-    #        ret: Proc)
 
     S.fdef(U.method(:distinct?),
            args: S.cat(coll: Enumerable),

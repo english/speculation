@@ -1,31 +1,29 @@
 require 'concurrent/atom'
 require 'concurrent/delay'
-require 'functional'
 require 'hamster/hash'
 require 'hamster/set'
 require 'hamster/vector'
 require 'set'
 require 'securerandom'
 
-require "speculation/identifier"
+require "speculation/version"
 require "speculation/namespaced_symbols"
 require "speculation/conj"
+require "speculation/identifier"
 require "speculation/utils"
-require "speculation/version"
+require "speculation/spec_impl"
 
 module Speculation
-  S = self
   H = Hamster::Hash
   V = Hamster::Vector
-  Protocol = Functional::Protocol
 
-  using NamespacedSymbols.refine(S)
+  using NamespacedSymbols.refine(self)
   using Conj
 
   # TODO: Make these configurable
 
   # A soft limit on how many times a branching spec
-  # (or/alt/*/opt-keys/multi-spec) can be recursed through during generation.
+  # (or/alt/zero_or_more) can be recursed through during generation.
   # After this a non-recursive branch will be chosen.
   RECURSION_LIMIT = 4
 
@@ -39,12 +37,6 @@ module Speculation
   # The number of errors reported by explain in a collection spec'ed with
   # 'every'
   COLL_ERROR_LIMIT = 20
-
-  Functional.SpecifyProtocol(:Spec.ns) do
-    instance_method :conform, 1
-    instance_method :explain, 4
-    instance_method :gen, 3
-  end unless Protocol.Specified?(:Spec.ns)
 
   @registry_ref = Concurrent::Atom.new(H[])
 
@@ -83,8 +75,7 @@ module Speculation
 
   # returns spec if spec is a spec object, else logical false, spec spec spec
   def self.spec?(spec)
-    # TODO remove Protocol dependency, just use inheritance
-    spec if Protocol.Satisfy?(spec, :Spec.ns)
+    spec if spec.is_a?(SpecImpl)
   end
 
   # returns x if x is a (Speculation) regex op, else logical false
@@ -135,38 +126,14 @@ module Speculation
     end
   end
 
-  Functional.SpecifyProtocol(:Specize.ns) do
-    instance_method :specize, 0
-  end unless Protocol.Specified?(:Specize.ns)
-
-  using Module.new do
-    refine Symbol do
-      def specize
-        S._reg_resolve!(self).specize
-      end
-    end
-
-    refine Identifier do
-      def specize
-        S._reg_resolve!(self).specize
-      end
-    end
-
-    refine Object do
-      def specize
-        S.spec_impl(self, false)
-      end
-    end
-  end
-
   # private
-  def self._specize(spec)
+  def self.specize(spec)
     if spec?(spec)
       spec
     else
       case spec
       when Symbol, Identifier
-        _specize(S._reg_resolve!(spec))
+        specize(_reg_resolve!(spec))
       else
         spec_impl(spec, false, nil)
       end
@@ -181,7 +148,7 @@ module Speculation
   # Given a spec and a value, returns :Speculation/invalid if value does not
   # match spec, else the (possibly destructured) value
   def self.conform(spec, value)
-    _specize(spec).conform(value)
+    specize(spec).conform(value)
   end
 
   # TODO unform
@@ -195,13 +162,13 @@ module Speculation
     if regex?(spec)
       spec.put(:gfn.ns, gen)
     else
-      _specize(spec).with_gen(gen)
+      specize(spec).tap { |s| s.gen = gen }
     end
   end
 
   # @private
   def self._explain_data(spec, path, via, _in, value)
-    probs = _specize(spec).explain(path, via, _in, value)
+    probs = specize(spec).explain(path, via, _in, value)
 
     if probs&.any?
       { :problems.ns => probs }
@@ -259,12 +226,12 @@ module Speculation
   # @private
   def self.gensub(spec, overrides, path, rmap)
     overrides ||= {}
-    spec = _specize(spec)
+    spec = specize(spec)
     gfn = overrides[spec.name || spec] || overrides[path]
-    g = gfn ? gfn : spec.gen(overrides, path, rmap)
+    g = gfn || spec.gen(overrides, path, rmap)
 
     if g
-      Gen.such_that(-> (x) { S.valid?(spec, x) }, g, 100)
+      Gen.such_that(-> (x) { valid?(spec, x) }, g, 100)
     else
       raise "unable to construct gen at: #{path.inspect} for: #{spec.inspect}"
     end
@@ -564,7 +531,7 @@ module Speculation
   # Optionally takes :gen generator proc, which must be a proc of one arg
   # (Rantly instance) that generates a valid value.
   def self.fspec(args: nil, ret: nil, fn: nil, gen: nil) # TODO :gen
-    FnSpec.new(argspec: spec(args), retspec: spec(ret), fnspec: spec(fn), gen: gen)
+    FSpec.new(argspec: spec(args), retspec: spec(ret), fnspec: spec(fn), gen: gen)
   end
 
   # Takes :args :ret and (optional) :fn kwargs whose values are preds and
@@ -580,7 +547,7 @@ module Speculation
   # Optionally takes :gen generator proc, which must be a proc of one arg
   # (Rantly instance) that generates a valid value.
   def self.fspec(args: nil, ret: nil, fn: nil, gen: nil)
-    FnSpec.new(argspec: spec(args), retspec: spec(ret), fnspec: spec(fn), gen: gen)
+    FSpec.new(argspec: spec(args), retspec: spec(ret), fnspec: spec(fn), gen: gen)
   end
 
   # Takes one or more preds and returns a spec for a tuple, an array where each
@@ -657,7 +624,7 @@ module Speculation
 
   # Helper function that returns true when x is valid for spec.
   def self.valid?(spec, x)
-    spec = _specize(spec)
+    spec = specize(spec)
 
     !invalid?(spec.conform(x))
   end
@@ -682,244 +649,6 @@ module Speculation
     end
   end
 
-  class HashSpec
-    attr_accessor :name, :id
-
-    def initialize(req, opt, req_un, opt_un, gen = nil)
-      @id = SecureRandom.uuid
-      @req = req
-      @opt = opt
-      @req_un = req_un
-      @opt_un = opt_un
-      @gen = gen
-
-      req_keys     = req.flat_map(&method(:extract_keys))
-      req_un_specs = req_un.flat_map(&method(:extract_keys))
-
-      unless (req_keys + req_un_specs + opt + opt_un).all? { |s| s.is_a?(Symbol) && s.namespace }
-        raise "all keys must be namespaced Symbols"
-      end
-
-      req_specs = req_keys + req_un_specs
-      req_keys  = req_keys + req_un_specs.map(&method(:unqualify_key))
-
-      pred_exprs = [Utils.method(:hash?)]
-      pred_exprs.push(-> (v) { parse_req(req, v, :itself.to_proc) }) if req.any?
-      pred_exprs.push(-> (v) { parse_req(req_un, v, method(:unqualify_key)) }) if req_un.any?
-
-      @req_keys        = req_keys
-      @req_specs       = req_specs
-      @opt_keys        = opt + opt_un.map(&method(:unqualify_key))
-      @opt_specs       = opt + opt_un
-      @keys_pred       = -> (v) { pred_exprs.all? { |p| p.call(v) } }
-      @key_to_spec_map = H[req_keys.concat(@opt_keys).zip(req_specs.concat(@opt_specs))]
-    end
-
-    def conform(value)
-      return :invalid.ns unless @keys_pred.call(value)
-
-      reg = S.registry
-      ret = value
-
-      value.each do |key, v|
-        spec_name = @key_to_spec_map.fetch(key, key)
-        spec = reg[spec_name]
-
-        next unless spec
-
-        conformed_value = S.conform(spec, v)
-
-        if S.invalid?(conformed_value)
-          return :invalid.ns
-        else
-          unless conformed_value.equal?(v)
-            ret = ret.merge(key => conformed_value)
-          end
-        end
-      end
-
-      ret
-    end
-
-    def explain(path, via, _in, value)
-      unless Utils.hash?(value)
-        return [{ path: path, pred: :hash?, val: value, via: via, in: _in }]
-      end
-
-      problems = []
-
-      if @req.any?
-        valid_or_failure = parse_req2(@req, value, :itself.to_proc)
-
-        unless valid_or_failure == true
-          valid_or_failure.each do |failure_sexp|
-            pred = sexp_to_rb(failure_sexp)
-            problems << { path: path, pred: pred, val: value, via: via, in: _in }
-          end
-        end
-      end
-
-      if @req_un.any?
-        valid_or_failure = parse_req2(@req_un, value, method(:unqualify_key))
-
-        unless valid_or_failure == true
-          valid_or_failure.each do |failure_sexp|
-            pred = sexp_to_rb(failure_sexp)
-            problems << { path: path, pred: pred, val: value, via: via, in: _in }
-          end
-        end
-      end
-
-      problems += value.flat_map do |(k, v)|
-        next unless S.registry.key?(@key_to_spec_map[k])
-
-        unless S.pvalid?(@key_to_spec_map.fetch(k), v)
-          S.explain1(@key_to_spec_map.fetch(k), path.conj(k), via, _in.conj(k), v)
-        end
-      end
-
-      problems.compact
-    end
-
-    def specize
-      self
-    end
-
-    # TODO overrrides
-    def gen(overrides, path, rmap)
-      return @gen if @gen
-
-      rmap = S.inck(rmap, @id)
-
-      reqs = @req_keys.zip(@req_specs).
-        reduce({}) { |m, (k, s)|
-          m.merge(k => S.gensub(s, overrides, path.conj(k), rmap))
-        }
-
-      opts = @opt_keys.zip(@opt_specs).
-        reduce({}) { |m, (k, s)|
-          m.merge(k => S.gensub(s, overrides, path.conj(k), rmap))
-        }
-
-      -> (rantly) do
-        count = rantly.range(0, opts.count)
-        opts = opts.to_a.shuffle.take(count).to_h
-
-        reqs.merge(opts).each_with_object({}) { |(k, spec_gen), h|
-          h[k] = spec_gen.call(rantly)
-        }
-      end
-    end
-
-    def with_gen(gen)
-      self.class.new(@req, @opt, @req_un, @opt_un, gen)
-    end
-
-    def inspect
-      "#{self.class.to_s}(#{@name})"
-    end
-
-    Protocol.Satisfy!(self, :Specize.ns, :Spec.ns)
-
-    private
-
-    def sexp_to_rb(sexp, level = 0)
-      if sexp.is_a?(Array)
-        op, *keys = sexp
-        rb_string = ""
-
-        rb_string << "(" unless level == 0
-
-        keys.each_with_index do |key, i|
-          unless i == 0
-            rb_string << " #{op.name} "
-          end
-
-          rb_string << sexp_to_rb(key, level + 1)
-        end
-
-        rb_string << ")" unless level == 0
-
-        rb_string
-      else
-        ":#{sexp}"
-      end
-    end
-
-    def extract_keys(symbol_or_arr)
-      if symbol_or_arr.is_a?(Array)
-        symbol_or_arr[1..-1].flat_map(&method(:extract_keys))
-      else
-        symbol_or_arr
-      end
-    end
-
-    def unqualify_key(x)
-      x.name.to_sym
-    end
-
-    def parse_req2(ks, v, f)
-      k, *ks = ks
-
-      ret = if k.is_a?(Array)
-              op, *kks = k
-              case op
-              when :or.ns
-                if kks.one? { |k| parse_req([k], v, f) == true }
-                  true
-                else
-                  [k]
-                end
-              when :and.ns
-                if kks.all? { |k| parse_req([k], v, f) == true }
-                  true
-                else
-                  [k]
-                end
-              else
-                raise "Expected or, and, got #{op}"
-              end
-            else
-              if v.key?(f.call(k))
-                true
-              else
-                [k]
-              end
-            end
-
-      if ks.any?
-        if ret === true
-          parse_req2(ks, v, f)
-        else
-          ret + parse_req2(ks, v, f)
-        end
-      else
-        ret
-      end
-    end
-
-    def parse_req(ks, v, f)
-      k, *ks = ks
-
-      ret = if k.is_a?(Array)
-              op, *kks = k
-              case op
-              when :or.ns  then kks.one? { |k| parse_req([k], v, f) }
-              when :and.ns then kks.all? { |k| parse_req([k], v, f) }
-              else         raise "Expected or, and, got #{op}"
-              end
-            else
-              v.key?(f.call(k))
-            end
-
-      if ks.any?
-        ret && parse_req(ks, v, f)
-      else
-        ret
-      end
-    end
-  end
-
   # @private
   def self.spec_impl(pred, should_conform, gen)
     if spec?(pred)
@@ -931,203 +660,6 @@ module Speculation
     else
       Spec.new(pred, should_conform, gen)
     end
-  end
-
-  class Spec
-    attr_accessor :name
-
-    def initialize(predicate, should_conform, gen = nil)
-      @predicate = predicate
-      @should_conform = should_conform
-      @gen = gen
-    end
-
-    def conform(value)
-      ret = case @predicate
-            when Set            then @predicate.include?(value)
-            when Regexp, Module then @predicate === value
-            else                     @predicate.call(value)
-            end
-
-      if @should_conform
-        ret
-      else
-        ret ? value : :invalid.ns
-      end
-    end
-
-    def explain(path, via, _in, value)
-      if S.invalid?(S.dt(@predicate, value))
-        [{ path: path, val: value, via: via, in: _in, pred: @predicate }]
-      end
-    end
-
-    def gen(_, _, _)
-      if @gen
-        @gen
-      else
-        Gen.gen_for_pred(@predicate)
-      end
-    end
-
-    def with_gen(gen)
-      self.class.new(@predicate, @should_conform, gen)
-    end
-
-    def specize
-      self
-    end
-
-    def inspect
-      "#{self.class.to_s}(#{@name || @predicate.inspect})"
-    end
-
-    Protocol.Satisfy!(self, :Specize.ns, :Spec.ns)
-  end
-
-  class TupleSpec
-    attr_accessor :name
-
-    def initialize(preds, gen = nil)
-      @preds = preds
-      @gen   = gen
-
-      @delayed_specs = Concurrent::Delay.new do
-        preds.map { |pred| S._specize(pred) }
-      end
-    end
-
-    def conform(collection)
-      specs = @delayed_specs.value
-
-      unless Utils.array?(collection) && collection.count == specs.count
-        return :invalid.ns
-      end
-
-      return_value = collection.class.new
-
-      collection.zip(specs).each do |(value, spec)|
-        conformed_value = spec.conform(value)
-
-        if S.invalid?(conformed_value)
-          return :invalid.ns
-        else
-          return_value += [conformed_value]
-        end
-      end
-
-      return_value
-    end
-
-    def explain(path, via, _in, value)
-      if !Utils.array?(value)
-        [{ path: path, val: value, via: via, in: _in, pred: "array?" }]
-      elsif @preds.count != value.count
-        [{ path: path, val: value, via: via, in: _in, pred: "count == predicates.count" }]
-      else
-        probs = @preds.zip(value).each_with_index.flat_map do |(pred, x), index|
-          unless S.pvalid?(pred, x)
-            S.explain1(pred, path.conj(index), via, _in.conj(index), x)
-          end
-        end
-
-        probs.compact
-      end
-    end
-
-    def gen(overrides, path, rmap)
-      return @gen if @gen
-
-      gens = @preds.each_with_index.
-        map { |p, i| S.gensub(p, overrides, path.conj(i), rmap) }
-
-      -> (rantly) do
-        gens.map { |g| g.call(rantly) }
-      end
-    end
-
-    def with_gen(gen)
-      self.class.new(@preds, gen)
-    end
-
-    def specize
-      self
-    end
-
-    def inspect
-      "#{self.class.to_s}(#{@name})"
-    end
-
-    Protocol.Satisfy!(self, :Specize.ns, :Spec.ns)
-  end
-
-  class OrSpec
-    attr_accessor :name, :id
-
-    def initialize(named_specs, gen = nil)
-      @id = SecureRandom.uuid
-      @named_specs = named_specs
-      @keys = named_specs.keys
-      @preds = preds = named_specs.values
-      @gen = gen
-
-      @delayed_specs = Concurrent::Delay.new do
-        preds.map { |spec| S._specize(spec) }
-      end
-    end
-
-    def conform(value)
-      @delayed_specs.value.each_with_index do |spec, index|
-        conformed = spec.conform(value)
-
-        unless S.invalid?(conformed)
-          return [@keys[index], value]
-        end
-      end
-
-      :invalid.ns
-    end
-
-    def specize
-      self
-    end
-
-    def explain(path, via, _in, value)
-      return unless !S.pvalid?(self, value)
-
-      @keys.zip(@preds).flat_map do |(key, pred)|
-        next if S.pvalid?(pred, value)
-        S.explain1(pred, path.conj(key), via, _in, value)
-      end
-    end
-
-    def gen(overrides, path, rmap)
-      return gen if @gen
-
-      gs = @keys.zip(@preds).
-        map { |(k, p)|
-          rmap = S.inck(rmap, @id)
-
-          unless S.recur_limit?(rmap, @id, path, k)
-            S.gensub(p, overrides, path.conj(k), rmap)
-          end
-        }.
-        compact
-
-      unless gs.empty?
-        -> (rantly) { rantly.branch(*gs) }
-      end
-    end
-
-    def with_gen(gen)
-      self.class.new(@named_specs, gen)
-    end
-
-    def inspect
-      "#{self.class.to_s}(#{@name})"
-    end
-
-    Protocol.Satisfy!(self, :Specize.ns, :Spec.ns)
   end
 
   private_class_method def self.and_preds(x, preds)
@@ -1157,100 +689,6 @@ module Speculation
     nil
   end
 
-  class AndSpec
-    attr_accessor :name
-
-    def initialize(preds, gen = nil)
-      @preds = preds
-      @gen = gen
-      @specs = Concurrent::Delay.new do
-        preds.map { |pred| S._specize(pred) }
-      end
-    end
-
-    def conform(value)
-      @specs.value.each do |spec|
-        value = spec.conform(value)
-
-        return :invalid.ns if S.invalid?(value)
-      end
-
-      value
-    end
-
-    def specize
-      self
-    end
-
-    def explain(path, via, _in, value)
-      S.explain_pred_list(@preds, path, via, _in, value)
-    end
-
-    def gen(overrides, path, rmap)
-      if @gen
-        @gen
-      else
-        S.gensub(@preds.first, overrides, path, rmap)
-      end
-    end
-
-    def with_gen(gen)
-      self.class.new(@preds, gen)
-    end
-
-    def inspect
-      "#{self.class.to_s}(#{@name})"
-    end
-
-    Protocol.Satisfy!(self, :Specize.ns, :Spec.ns)
-  end
-
-  class MergeSpec
-    attr_accessor :name
-
-    def initialize(preds, gen = nil)
-      @preds = preds
-      @gen = gen
-    end
-
-    def conform(x)
-      ms = @preds.map { |pred| S.dt(pred, x) }
-
-      if ms.any?(&S.method(:invalid?))
-        :invalid.ns(S)
-      else
-        ms.reduce(&:merge)
-      end
-    end
-
-    def explain(path, via, _in, x)
-      @preds.
-        flat_map { |pred| S.explain1(pred, path, via, _in, x) }.
-        compact
-    end
-
-    def gen(overrides, path, rmap)
-      return @gen if @gen
-
-      gens = @preds.
-        map { |pred| S.gensub(pred, overrides, path, rmap) }
-
-      -> (r) do
-        gens.map { |gen| gen.call(r) }.reduce(&:merge)
-      end
-    end
-
-    def with_gen(gen)
-      self.class.new(@preds, gen)
-    end
-
-    def specize
-      self
-    end
-
-    Protocol.Satisfy!(self, :Specize.ns, :Spec.ns)
-  end
-
   # TODO move inside EverySpec?
   # @private
   def self.collection_problems(x, kfn, distinct, count, min_count, max_count, path, via, _in)
@@ -1273,168 +711,6 @@ module Speculation
     if distinct && !x.empty? && Utils.distinct?(x)
       [{ path: path, pred: 'distinct?', val: x, via: via, in: _in }]
     end
-  end
-
-  class EverySpec
-    attr_accessor :name
-
-    def initialize(predicate, options, gen)
-      @predicate = predicate
-      @options = options
-      @gen = gen
-
-      collection_predicates = [options.fetch(:kind, Enumerable)]
-
-      if options.key?(:count)
-        collection_predicates.push(-> (coll) { coll.count == options[:count] })
-      elsif options.key?(:min_count) || options.key?(:max_count)
-        collection_predicates.push(-> (coll) do
-          min = options.fetch(:min_count, 0)
-          max = options.fetch(:max_count, Float::INFINITY)
-
-          coll.count.between?(min, max)
-        end)
-      end
-
-      @collection_predicate = -> (coll) { collection_predicates.all? { |f| f === coll } }
-      @delayed_spec = Concurrent::Delay.new { S._specize(predicate) }
-      @kfn = options.fetch(:kfn.ns, -> (i, v) { i })
-      @conform_keys, @conform_all, @kind, @gen_into, @gen_max, @distinct, @count, @min_count, @max_count =
-        options.values_at(:conform_keys, :conform_all.ns, :kind, :into, :gen_max, :distinct, :count, :min_count, :max_count)
-      @gen_max ||= 20
-      @conform_into = @gen_into
-
-      # returns a tuple of [init add complete] fns
-      @cfns = -> (x) do
-        if Utils.array?(x) && (!@conform_into || Utils.array?(@conform_into))
-          [:itself.to_proc,
-           -> (ret, i, v, cv) { v.equal?(cv) ? ret : ret.tap { |r| r[i] = cv } },
-           :itself.to_proc]
-        elsif Utils.hash?(x) && ((@kind && !@conform_into) || Utils.hash?(@conform_into))
-          [@conform_keys ? Utils.method(:empty) : :itself.to_proc,
-           -> (ret, i, v, cv) {
-            if v.equal?(cv) && !@conform_keys
-              ret
-            else
-              ret.merge((@conform_keys ? cv : v).first => cv.last)
-            end
-           },
-           :itself.to_proc]
-        else
-          [-> (x) { Utils.empty(@conform_into || x) },
-           -> (ret, i, v, cv) { ret.conj(cv) },
-           :itself.to_proc]
-        end
-      end
-    end
-
-    def conform(value)
-      return :invalid.ns unless @collection_predicate.call(value)
-
-      spec = @delayed_spec.value
-
-      if @conform_all
-        init, add, complete = @cfns.call(value)
-
-        return_value = init.call(value)
-
-        value.each_with_index do |value, index|
-          conformed_value = spec.conform(value)
-
-          if S.invalid?(conformed_value)
-            return :invalid.ns
-          else
-            return_value = add.call(return_value, index, value, conformed_value)
-          end
-        end
-
-        complete.call(return_value)
-      else
-        # OPTIMIZE: check if value is indexed (array, hash etc.) vs not
-        # indexed (list, custom enumerable)
-        limit = COLL_CHECK_LIMIT
-
-        value.each_with_index do |item, index|
-          return value if index == limit
-          return :invalid.ns unless S.valid?(spec, item)
-        end
-
-        value
-      end
-    end
-
-    def specize
-      self
-    end
-
-    def explain(path, via, _in, value)
-      probs = S.collection_problems(value, @kind, @distinct, @count, @min_count, @max_count, path, via, _in)
-      return probs if probs
-
-      spec = @delayed_spec.value
-
-      probs = value.lazy.each_with_index.flat_map do |v, i|
-        k = @kfn.call(i, v)
-
-        unless S.valid?(spec, v)
-          S.explain1(@predicate, path, via, _in.conj(k), v)
-        end
-      end
-
-      probs = @conform_all ? probs.to_a : probs.take(COLL_ERROR_LIMIT)
-      probs.compact
-    end
-
-    def gen(overrides, path, rmap)
-      return @gen if @gen
-
-      pgen = S.gensub(@predicate, overrides, path, rmap)
-
-      -> (rantly) do
-        init = if @gen_into
-                 Utils.empty(@gen_into)
-               elsif @kind
-                 Utils.empty(S.gensub(@kind, overrides, path, rmap).call(rantly))
-               else
-                 []
-               end
-
-        val = if @distinct
-                if @count
-                  rantly.array(@count, &pgen).tap { |arr| rantly.guard(Utils.distinct?(arr)) }
-                else
-                  min = @min_count || 0
-                  max = @max_count || [@gen_max, 2 * min].max
-                  count = rantly.range(min, max)
-
-                  rantly.array(count, &pgen).tap { |arr| rantly.guard(Utils.distinct?(arr)) }
-                end
-              elsif @count
-                rantly.array(@count, &pgen)
-              elsif @min_count || @max_count
-                min = @min_count || 0
-                max = @max_count || [@gen_max, 2 * min].max
-                count = rantly.range(min, max)
-
-                rantly.array(count, &pgen)
-              else
-                count = rantly.range(0, @gen_max)
-                rantly.array(count, &pgen)
-              end
-
-        Utils.into(init, val)
-      end
-    end
-
-    def with_gen(gen)
-      self.class.new(@predicate, @options, gen)
-    end
-
-    def inspect
-      "#{self.class.to_s}(#{@name})"
-    end
-
-    Protocol.Satisfy!(self, :Specize.ns, :Spec.ns)
   end
 
   ### regex
@@ -1759,9 +1035,9 @@ module Speculation
       :id, :op.ns, :predicates, :keys, :p1, :p2, :splice, :return_value, :id, :gen.ns
     ) if regex?(p)
 
+    id = p.id if spec?(p)
     ks ||= []
 
-    id = p.id if p.respond_to?(:id)
     rmap = inck(rmap, id) if id
 
     ggens = -> (ps, ks) do
@@ -1893,156 +1169,6 @@ module Speculation
     else
       op_explain(p, path, via, _in, nil)
     end
-  end
-
-  class RegexSpec
-    attr_accessor :name
-
-    def initialize(regex, gen = nil)
-      @regex = regex
-      @gen = gen
-    end
-
-    def conform(value)
-      if value.nil? || Utils.collection?(value)
-        S.re_conform(@regex, value)
-      else
-        :invalid.ns
-      end
-    end
-
-    def explain(path, via, _in, value)
-      if value.nil? || Utils.collection?(value)
-        S.re_explain(path, via, _in, @regex, value || [])
-      else
-        [{ path: path, val: value, via: via, in: _in }]
-      end
-    end
-
-    def gen(overrides, path, rmap)
-      return @gen if @gen
-
-      S.re_gen(@regex, overrides, path, rmap)
-    end
-
-    def specize
-      self
-    end
-
-    def with_gen(gen)
-      self.class.new(@regex, gen)
-    end
-
-    def inspect
-      "#{self.class.to_s}(#{@name})"
-    end
-
-    Protocol.Satisfy!(self, :Specize.ns, :Spec.ns)
-  end
-
-  class FnSpec
-    # TODO call_valid?
-    # TODO validate_fn
-
-    attr_reader :argspec, :retspec, :fnspec
-    attr_accessor :name
-
-    def initialize(argspec: nil, retspec: nil, fnspec: nil, gen: nil)
-      @argspec = argspec
-      @retspec = retspec
-      @fnspec = fnspec
-      @gen = gen
-    end
-
-    def conform(value)
-      raise "Can't conform fspec without args spec: #{self.inspect}" unless @argspec
-      # TODO value.is_a?(Method) correct? maybe Identifier?
-      return :invalid.ns unless value.is_a?(Proc) || value.is_a?(Method)
-
-      # TODO: quick-check the function to determine validity
-      #       returning fn here so that fn generation can happen
-      #       (since it will can fspec.conform and check it's not
-      #       :invalid
-      value
-    end
-
-    def explain(path, via, _in, value)
-      # TODO implement me
-      raise NotImplementedError
-    end
-
-    def with_gen(gen)
-      self.class.new(argspec: @argspec, retspec: @retspec, fnspec: @fnspec, gen: @gen)
-    end
-
-    def gen(overrides, path, rmap)
-      return @gen if @gen
-
-      -> (rantly) do
-        -> (*args) do
-          unless S.pvalid?(@argspec, args)
-            raise S.explain(@argspec, args)
-          end
-
-          Gen.generate(S.gen(@retspec, overrides))
-        end
-      end
-    end
-
-    def specize
-      self
-    end
-
-    def inspect
-      "#{self.class.to_s}(#{@name})"
-    end
-
-    Protocol.Satisfy!(self, :Specize.ns, :Spec.ns)
-  end
-
-  class NilableSpec
-    attr_accessor :name
-
-    def initialize(pred, gen = nil)
-      @pred = pred
-      @gen  = gen
-      @delayed_spec = Concurrent::Delay.new { S._specize(pred) }
-    end
-
-    def conform(value)
-      value.nil? ? value : @delayed_spec.value.conform(value)
-    end
-
-    def explain(path, via, _in, value)
-      return if S.pvalid?(@delayed_spec.value, value) || value.nil?
-
-      S.
-        explain1(@pred, path.conj(:pred.ns), via, _in, value).
-        conj({ path: path.conj(:nil.ns), pred: NilClass, val: value, via: via, in: _in })
-    end
-
-    def gen(overrides, path, rmap)
-      return @gen if @gen
-
-      -> (rantly) do
-        rantly.freq([1, Utils.constantly(nil)],
-                    [9, S.gensub(@pred, overrides, path.conj(:pred.ns), rmap)])
-      end
-    end
-
-    def with_gen(gen)
-      self.class.new(@pred, gen)
-    end
-
-    def specize
-      self
-    end
-
-    def inspect
-      "#{self.class.to_s}(#{@name})"
-    end
-
-    Protocol.Satisfy!(self, :Specize.ns, :Spec.ns)
   end
 
   # returns a spec that accepts nil and values satisfying pred

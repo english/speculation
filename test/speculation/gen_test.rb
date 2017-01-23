@@ -6,10 +6,6 @@ class SpeculationGenTest < Minitest::Test
 
   using S::NamespacedSymbols.refine(self)
 
-  def setup
-    S.reset_registry!
-  end
-
   def test_generate
     assert_kind_of Integer, Gen.generate(S.gen(Integer))
 

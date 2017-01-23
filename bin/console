@@ -6,6 +6,8 @@ require_relative '../lib/speculation.rb'
 # You can add fixtures and/or initialization code here to make experimenting
 # with your gem easier. You can also use a different console, if you like.
 def reload!
+  STest.unstrument if Object.const_defined?(:STest)
+
   [:Speculation, :S, :STest, :Gen, :U, :H, :V].each do |const|
     Object.send :remove_const, const if Object.const_defined?(const)
   end
@@ -14,10 +16,16 @@ def reload!
   load './lib/speculation/conj.rb'
   load './lib/speculation/identifier.rb'
   load './lib/speculation/utils.rb'
-  load './lib/speculation/gen.rb'
+  load './lib/speculation/spec_impl.rb'
+
+  Dir["lib/speculation/spec_impl/*.rb"].each do |f|
+    load f
+  end
+
   load './lib/speculation.rb'
+  load './lib/speculation/gen.rb'
   load './lib/speculation/test.rb'
-  load './lib/speculation/specs.rb'
+  load './lib/speculation/utils_specs.rb'
 
   Object.const_set(:S, Speculation)
   Object.const_set(:STest, Speculation::Test)
@@ -33,7 +41,7 @@ end
 require 'minitest'
 include Minitest::Assertions
 def self.assertions; 1; end
-def self.assertions=(x);end
+def self.assertions=(x); end
 using Speculation::NamespacedSymbols.refine(self)
 
 reload!

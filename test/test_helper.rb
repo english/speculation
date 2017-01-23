@@ -8,6 +8,6 @@ require 'speculation/namespaced_symbols'
 require 'speculation/identifier'
 require 'speculation/test'
 require 'speculation/gen'
-require 'speculation/specs'
+require 'speculation/utils_specs'
 
 Speculation::Test.instrument

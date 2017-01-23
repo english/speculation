@@ -11,10 +11,6 @@ class SpeculationTest < Minitest::Test
 
   using S::NamespacedSymbols.refine(self)
 
-  def setup
-    S.reset_registry!
-  end
-
   def test_conform_with_existing_spec
     S.def(:int?.ns, -> (x) { x.is_a?(Integer) })
 
