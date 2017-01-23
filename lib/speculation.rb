@@ -1,7 +1,6 @@
 require 'concurrent/atom'
 require 'concurrent/delay'
 require 'hamster/hash'
-require 'hamster/set'
 require 'hamster/vector'
 require 'set'
 require 'securerandom'
