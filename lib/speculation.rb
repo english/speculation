@@ -1940,12 +1940,10 @@ module Speculation
     Protocol.Satisfy!(self, :Specize.ns, :Spec.ns)
   end
 
-  ## HOFs
-
-  # TODO call_valid?
-  # TODO validate_fn
-
   class FnSpec
+    # TODO call_valid?
+    # TODO validate_fn
+
     attr_reader :argspec, :retspec, :fnspec
     attr_accessor :name
 
@@ -2061,7 +2059,15 @@ module Speculation
     }
   end
 
-  # TODO exercise_fn
+  # Exercises the method by applying it to n (default 10) generated samples of
+  # its args spec. When fspec is supplied its arg spec is used, and
+  # method can be a proc. Returns an arrray of tuples of [args, ret].
+  def self.exercise_fn(method, n: 10, fspec: nil)
+    fspec ||= get_spec(method)
+    raise ArgumentError, "No fspec found for #{method}" unless fspec
+
+    Gen.sample(gen(fspec.argspec), n).map { |args| [args, method.call(*args)] }
+  end
 
   # TODO date_in_range?
   # TODO date_in
