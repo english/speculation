@@ -7,12 +7,11 @@ module Speculation
 
     attr_reader :id
 
-    def initialize(named_specs, gen = nil)
+    def initialize(named_specs)
       @id = SecureRandom.uuid
       @named_specs = named_specs
       @keys = named_specs.keys
       @preds = preds = named_specs.values
-      @gen = gen
 
       @delayed_specs = Concurrent::Delay.new do
         preds.map { |spec| S.specize(spec) }

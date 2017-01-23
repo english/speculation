@@ -10,11 +10,10 @@ module Speculation
 
     attr_reader :argspec, :retspec, :fnspec
 
-    def initialize(argspec: nil, retspec: nil, fnspec: nil, gen: nil)
+    def initialize(argspec: nil, retspec: nil, fnspec: nil)
       @argspec = argspec
       @retspec = retspec
       @fnspec = fnspec
-      @gen = gen
     end
 
     def conform(value)

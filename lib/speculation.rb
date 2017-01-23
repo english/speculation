@@ -135,7 +135,7 @@ module Speculation
       when Symbol, Identifier
         specize(_reg_resolve!(spec))
       else
-        spec_impl(spec, false, nil)
+        spec_impl(spec, false)
       end
     end
   end
@@ -277,7 +277,7 @@ module Speculation
     spec = if spec?(spec) || regex?(spec) || registry[spec]
              spec
            else
-             self.spec_impl(spec, false, nil)
+             self.spec_impl(spec, false)
            end
 
     @registry_ref.swap { |reg| reg.store(key, with_name(spec, key)) }
@@ -315,7 +315,11 @@ module Speculation
 
   # Returns a spec.
   def self.spec(pred, opts = {})
-    spec_impl(pred, false, opts[:gen]) if pred
+    if pred
+      spec_impl(pred, false).tap do
+        spec.gen = opts[:gen] if opts[:gen]
+      end
+    end
   end
 
   # Creates and returns a hash validating spec. :req and :opt are both arrays of
@@ -345,8 +349,10 @@ module Speculation
   #
   # Optionally takes :gen generator function, which must be a proc of one arg
   # (Rantly instance) that generates a valid value.
-  def self.keys(req: [], opt: [], req_un: [], opt_un: [])
-    HashSpec.new(req, opt, req_un, opt_un, nil)
+  def self.keys(req: [], opt: [], req_un: [], opt_un: [], gen: nil)
+    HashSpec.new(req, opt, req_un, opt_un).tap do |spec|
+      spec.gen = gen
+    end
   end
 
   # See Speculation.keys
@@ -368,7 +374,7 @@ module Speculation
   # and 'val' functions can be used to refer generically to the components of
   # the tagged return.
   def self.or(key_preds)
-    # FIXME nested `or`s don't tag nested conforms
+    # TODO FIXME nested `or`s don't tag nested conforms
     OrSpec.new(key_preds)
   end
 
@@ -386,7 +392,7 @@ module Speculation
   # returns a conformed hash satisfying all of the specs. Unlike 'and', merge
   # can generate maps satisfying the union of the predicates.
   def self.merge(*preds)
-    MergeSpec.new(preds, nil)
+    MergeSpec.new(preds)
   end
 
   # Takes a pred and validates collection elements against that pred.
@@ -416,9 +422,12 @@ module Speculation
   # (Rantly instance) that generates a valid value.
   #
   # See also - coll_of, every_kv
-  def self.every(predicate, options = {})
-    gen = options.delete(:gen)
-    EverySpec.new(predicate, options, gen)
+  def self.every(predicate, opts = {})
+    gen = opts.delete(:gen)
+
+    EverySpec.new(predicate, opts).tap do |spec|
+      spec.gen = gen
+    end
   end
 
   # Like 'every' but takes separate key and val preds and works on associative
@@ -515,7 +524,7 @@ module Speculation
   #
   # TODO Optionally takes a second fn that does unform of result of first
   def self.conformer(f)
-    spec_impl(f, true, nil)
+    spec_impl(f, true)
   end
 
   # Takes :args :ret and (optional) :fn kwargs whose values are preds and
@@ -530,24 +539,10 @@ module Speculation
 
   # Optionally takes :gen generator proc, which must be a proc of one arg
   # (Rantly instance) that generates a valid value.
-  def self.fspec(args: nil, ret: nil, fn: nil, gen: nil) # TODO :gen
-    FSpec.new(argspec: spec(args), retspec: spec(ret), fnspec: spec(fn), gen: gen)
-  end
-
-  # Takes :args :ret and (optional) :fn kwargs whose values are preds and
-  # returns a spec whose conform/explain take a method and validates it using
-  # generative testing. The conformed value is always the method itself.
-  #
-  # See 'fdef' for a single operation that creates an fspec and registers it, as
-  # well as a full description of :args, :ret and :fn
-  #
-  # fspecs can generate functions that validate the arguments and fabricate a
-  # return value compliant with the :ret spec, ignoring the :fn spec if present.
-  #
-  # Optionally takes :gen generator proc, which must be a proc of one arg
-  # (Rantly instance) that generates a valid value.
   def self.fspec(args: nil, ret: nil, fn: nil, gen: nil)
-    FSpec.new(argspec: spec(args), retspec: spec(ret), fnspec: spec(fn), gen: gen)
+    FSpec.new(argspec: spec(args), retspec: spec(ret), fnspec: spec(fn)).tap do |spec|
+      spec.gen = gen
+    end
   end
 
   # Takes one or more preds and returns a spec for a tuple, an array where each
@@ -650,15 +645,15 @@ module Speculation
   end
 
   # @private
-  def self.spec_impl(pred, should_conform, gen)
+  def self.spec_impl(pred, should_conform)
     if spec?(pred)
       pred
     elsif regex?(pred)
-      RegexSpec.new(pred, gen)
+      RegexSpec.new(pred)
     elsif Utils.ident?(pred)
       the_spec(pred)
     else
-      Spec.new(pred, should_conform, gen)
+      Spec.new(pred, should_conform)
     end
   end
 

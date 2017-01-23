@@ -4,9 +4,8 @@ module Speculation
   class RegexSpec < SpecImpl
     S = Speculation
 
-    def initialize(regex, gen = nil)
+    def initialize(regex)
       @regex = regex
-      @gen = gen
     end
 
     def conform(value)

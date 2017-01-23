@@ -5,9 +5,8 @@ module Speculation
   class NilableSpec < SpecImpl
     S = Speculation
 
-    def initialize(pred, gen = nil)
+    def initialize(pred)
       @pred = pred
-      @gen  = gen
       @delayed_spec = Concurrent::Delay.new { S.specize(pred) }
     end
 

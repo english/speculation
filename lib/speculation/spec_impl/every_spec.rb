@@ -5,10 +5,9 @@ module Speculation
   class EverySpec < SpecImpl
     S = Speculation
 
-    def initialize(predicate, options, gen)
+    def initialize(predicate, options)
       @predicate = predicate
       @options = options
-      @gen = gen
 
       collection_predicates = [options.fetch(:kind, Enumerable)]
 

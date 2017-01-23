@@ -4,9 +4,8 @@ module Speculation
   class MergeSpec < SpecImpl
     S = Speculation
 
-    def initialize(preds, gen = nil)
+    def initialize(preds)
       @preds = preds
-      @gen = gen
     end
 
     def conform(x)

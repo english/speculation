@@ -4,9 +4,8 @@ module Speculation
   class AndSpec < SpecImpl
     S = Speculation
 
-    def initialize(preds, gen = nil)
+    def initialize(preds)
       @preds = preds
-      @gen = gen
       @specs = Concurrent::Delay.new do
         preds.map { |pred| S.specize(pred) }
       end

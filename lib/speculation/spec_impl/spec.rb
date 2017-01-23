@@ -5,10 +5,9 @@ module Speculation
   class Spec < SpecImpl
     S = Speculation
 
-    def initialize(predicate, should_conform, gen = nil)
+    def initialize(predicate, should_conform)
       @predicate = predicate
       @should_conform = should_conform
-      @gen = gen
     end
 
     def conform(value)
