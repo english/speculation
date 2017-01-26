@@ -262,15 +262,6 @@ module Speculation
       }
     end
 
-    class SpecificiationBasedCheckFailed < StandardError
-      attr_reader :data
-
-      def initialize(data)
-        @data = data
-        super
-      end
-    end
-
     def self.explain_check(args, spec, v, role)
       data = unless S.valid?(spec, v)
                S._explain_data(spec, [role], [], [], v).
