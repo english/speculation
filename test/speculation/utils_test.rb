@@ -10,10 +10,10 @@ class SpeculationUtilsTest < Minitest::Test
 
   methods.each do |meth|
     define_method(:"test_check_#{meth.name}") do
-      result = STest.check(meth, num_tests: 100).first
+      result = STest.check(meth, num_tests: 100)
 
-      if result
-        assert result.dig(:ret.ns("Speculation::Test::Check"), :result), result
+      if result.first
+        assert result.dig(0, :ret.ns(STest), :result), result
       end
     end
   end

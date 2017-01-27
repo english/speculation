@@ -232,6 +232,7 @@ module Speculation
     if g
       Gen.such_that(-> (x) { valid?(spec, x) }, g, 100)
     else
+      # TODO add ex-info to exception with :failure.ns => :no_gen
       raise "unable to construct gen at: #{path.inspect} for: #{spec.inspect}"
     end
   end
@@ -606,10 +607,12 @@ module Speculation
     if spec
       conform(spec, x)
     else
-      if pred.is_a?(Module) || pred.is_a?(Proc) || pred.is_a?(::Regexp)
+      if pred.is_a?(Module) || pred.is_a?(::Regexp)
         pred === x ? x : :invalid.ns
       elsif pred.is_a?(Set)
         pred.include?(x) ? x : :invalid.ns
+      elsif pred.respond_to?(:call)
+        pred.call(x) ? x : :invalid.ns
       else
         raise "#{pred} is not a class, proc, set or regexp"
       end

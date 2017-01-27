@@ -76,7 +76,7 @@ class SpeculationTestTest < Minitest::Test
     assert_equal 1, results.count
 
     result = results.first
-    assert_equal [:"Speculation::Test::Check/ret", :failure, :method, :spec], result.keys.sort
+    assert_equal [:"Speculation::Test/ret", :failure, :method, :spec], result.keys.sort
     assert_equal mod.method(:bad_ranged_rand), result[:method]
   end
 end
