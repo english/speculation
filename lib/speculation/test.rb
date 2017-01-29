@@ -338,17 +338,22 @@ module Speculation
 
         result = block.call(val)
         unless result == true
-          if val.respond_to?(:shrink?)
+          # This is a Rantly Tuple.
+          # TODO find an alternative to Rantly
+          val = ::Tuple.new(val)
+
+          if val.respond_to?(:shrink)
             shrunk = shrink(val, result, block)
+            shrunk[:smallest] = shrunk[:smallest].array
 
             return {
-              fail: val,
+              fail: val.array,
               num_tests: i,
               result: result,
               shrunk: shrunk,
             }
           else
-            return { :fail      => val,
+            return { :fail      => val.array,
                      :num_tests => i,
                      :result    => result }
           end
@@ -366,10 +371,10 @@ module Speculation
       if data.shrinkable?
         while iteration < 1024
           shrunk_data = data.shrink
-          result = block.call(shrunk_data)
+          result = block.call(shrunk_data.array)
 
           unless result == true
-            shrunk = shrink(assertion, shrunk_data, depth + 1, iteration + 1)
+            shrunk = shrink(shrunk_data, result, block, depth + 1, iteration + 1)
 
             branch_smallest, branch_depth, iteration, branch_result =
               shrunk.values_at(:smallest, :depth, :iteration, :result)
@@ -377,7 +382,6 @@ module Speculation
             if branch_depth > max_depth
               smallest = branch_smallest
               max_depth = branch_depth
-              branch_result = result
             end
           end
 
