@@ -1,9 +1,10 @@
 require 'concurrent/atom'
+require 'pp'
 
 module Speculation
-  using NamespacedSymbols.refine(self)
-
   module Test
+    using NamespacedSymbols.refine(self)
+
     class DidNotConformError < StandardError
       attr_reader :explain_data
 
@@ -38,13 +39,13 @@ module Speculation
       conform = -> (method, role, spec, data, args) do
         conformed = S.conform(spec, data)
 
-        if conformed == :invalid.ns
+        if conformed == :invalid.ns(S)
           # TODO stacktrace-relevant-to-instrument
           _caller = caller(4, 1).first
 
           ed = S.
             _explain_data(spec, [role], [], [], data).
-            merge(:args.ns => args, :failure.ns(S) => :instrument, :caller.ns => _caller)
+            merge(:args.ns(S) => args, :failure.ns(S) => :instrument, :caller.ns => _caller)
 
           raise DidNotConformError.new("Call to '#{ident}' did not conform to spec:\n #{S.explain_str(ed)}", ed)
         else
@@ -201,19 +202,20 @@ module Speculation
         data: data }
     end
 
-    # Returns true if call passes specs, otherwise *returns* an exception
-    # with explain_data + :Speculation/failure.
+    # Returns true if call passes specs, otherwise returns a hash with
+    # :backtrace, :cause and :data keys. :data will have a
+    # :"Speculation/failure" key.
     private_class_method def self.check_call(method, spec, args)
       conformed_args = S.conform(spec.argspec, args) if spec.argspec
 
-      if conformed_args == :invalid.ns
+      if conformed_args == :invalid.ns(S)
         return explain_check(args, spec.argspec, args, :args)
       end
 
       ret = method.call(*args)
       conformed_ret = S.conform(spec.retspec, ret) if spec.retspec
 
-      if conformed_ret == :invalid.ns
+      if conformed_ret == :invalid.ns(S)
         return explain_check(args, spec.retspec, ret, :ret)
       end
 
@@ -226,6 +228,8 @@ module Speculation
       end
     end
 
+    # Reimplementation of Rantly's `check` since it does not provide direct
+    # access to results (shrunk data etc.), instead printing them to STDOUT.
     private_class_method def self.quick_check(method, spec, opts)
       gen = opts[:gen]
       num_tests = opts.fetch(:num_tests, 100)
@@ -240,9 +244,9 @@ module Speculation
     end
 
     private_class_method def self.make_check_result(method, spec, check_result)
-      result = { :spec         => spec,
-                 :ret.ns(self) => check_result,
-                 :method       => method }
+      result = { :spec   => spec,
+                 :ret.ns => check_result,
+                 :method => method }
 
       if check_result[:result] && check_result[:result] != true
         result[:failure] = check_result[:result]
@@ -266,8 +270,8 @@ module Speculation
         check_result = quick_check(method, spec, opts)
         make_check_result(method, spec, check_result)
       else
-        failure = { :info      => "No :args spec",
-                    failure.ns => :no_args_spec }
+        failure = { :info         => "No :args spec",
+                    failure.ns(S) => :no_args_spec }
 
         { :failure => failure,
           :method  => method,
@@ -277,10 +281,13 @@ module Speculation
       instrument(ident) if reinstrument
     end
 
-    # Given an opts hash as per check, returns the set of Identifiers that can
+    # TODO check_method (check-fn)
+
+    # Given an opts hash as per `check`, returns the set of Identifiers that can
     # be checked.
     def self.checkable_methods(opts = {})
       # TODO validate opts
+      # TODO convert spec keys to Identifiers
       S.
         registry.
         keys.
@@ -291,7 +298,7 @@ module Speculation
     end
 
     # Run generative tests for spec conformance on method_or_methods. If
-    # sym-or-syms is not specified, check all checkable methods.
+    # method_or_methods is not specified, check all checkable methods.
     # 
     # The opts hash includes the following optional keys:
     # 
@@ -364,7 +371,8 @@ module Speculation
         :result    => true }
     end
 
-    def self.shrink(data, result, block, depth = 0, iteration = 0)
+    # reimplementation of Rantly's shrinking.
+    private_class_method def self.shrink(data, result, block, depth = 0, iteration = 0)
       smallest = data
       max_depth = depth
 
@@ -393,6 +401,66 @@ module Speculation
         :iteration => iteration,
         :result    => result,
         :smallest  => smallest }
+    end
+
+    ### check reporting ###
+
+    private_class_method def self.failure_type(x)
+      # TODO use exceptions rather than hashes for failures
+      return unless x[:data].is_a?(Hash)
+      x[:data][:failure.ns(S)]
+    end
+
+    private_class_method def self.unwrap_failure(x)
+      failure_type(x) ? x[:data] : x
+    end
+
+    # Returns the type of the check result. This can be any of the
+    # :"Speculation/failure" symbols documented in 'check', or:
+    #
+    # :check_passed   all checked method returns conformed
+    # :check_raised   checked fn threw an exception
+    private_class_method def self.result_type(ret)
+      failure = ret[:failure]
+
+      if failure.nil?
+        :check_passed
+      else
+        failure_type(failure) || :check_raised
+      end
+    end
+
+    # Given a check result, returns an abbreviated version suitable for summary
+    # use.
+    def self.abbrev_result(x)
+      if x[:failure]
+        x.reject { |k, v| k == :ret.ns }.
+          # TODO :spec => S.describe(x[:spec])
+          merge(:spec    => x[:spec].inspect,
+                :failure => unwrap_failure(x[:failure]))
+      else
+        x.reject { |k, v| [:spec, :ret.ns].include?(k) }
+      end
+    end
+
+    # Given a collection of check_results, e.g. from `check`, pretty prints the
+    # summary_result (default abbrev_result) of each.
+    #
+    # Returns a hash with :total, the total number of results, plus a key with a
+    # count for each different :type of result.
+    def self.summarize_results(check_results, &summary_result)
+      summary_result ||= method(:abbrev_result)
+
+      check_results.reduce(:total => 0) { |summary, result|
+        pp summary_result.call(result)
+
+        result_key = result_type(result)
+
+        summary.merge(
+          :total     => summary[:total].next,
+          result_key => (summary.fetch(result_key, 0)).next
+        )
+      }
     end
   end
 end
