@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 module Speculation
   using NamespacedSymbols.refine(self)
   using Conj
@@ -30,12 +31,12 @@ module Speculation
       :invalid.ns
     end
 
-    def explain(path, via, _in, value)
-      return unless !S.pvalid?(self, value)
+    def explain(path, via, inn, value)
+      return if S.pvalid?(self, value)
 
       @keys.zip(@preds).flat_map do |(key, pred)|
         next if S.pvalid?(pred, value)
-        S.explain1(pred, path.conj(key), via, _in, value)
+        S.explain1(pred, path.conj(key), via, inn, value)
       end
     end
 
@@ -53,7 +54,7 @@ module Speculation
         compact
 
       unless gs.empty?
-        -> (rantly) { rantly.branch(*gs) }
+        ->(rantly) { rantly.branch(*gs) }
       end
     end
   end

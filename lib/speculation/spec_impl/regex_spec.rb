@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 module Speculation
   using NamespacedSymbols.refine(self)
 
@@ -16,11 +17,11 @@ module Speculation
       end
     end
 
-    def explain(path, via, _in, value)
+    def explain(path, via, inn, value)
       if value.nil? || Utils.collection?(value)
-        S.re_explain(path, via, _in, @regex, value || [])
+        S.re_explain(path, via, inn, @regex, value || [])
       else
-        [{ path: path, val: value, via: via, in: _in }]
+        [{ :path => path, :val => value, :via => via, :in => inn }]
       end
     end
 

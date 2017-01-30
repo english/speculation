@@ -1,4 +1,5 @@
-require 'test_helper'
+# frozen_string_literal: true
+require "test_helper"
 
 class SpeculationTestTest < Minitest::Test
   S = Speculation
@@ -15,14 +16,14 @@ class SpeculationTestTest < Minitest::Test
     end
 
     S.fdef(mod.method(:ranged_rand),
-           args: S.and(S.cat(start: Integer, end: Integer),
-                       -> (args) { args[:start] < args[:end] }))
+           :args => S.and(S.cat(:start => Integer, :end => Integer),
+                          ->(args) { args[:start] < args[:end] }))
 
     STest.instrument(mod.method(:ranged_rand))
 
     e = assert_raises(STest::DidNotConformError) { mod.ranged_rand(8, 5) }
 
-    assert_match /^Call to '.*ranged_rand' did not conform to spec/, e.message
+    assert_match(/^Call to '.*ranged_rand' did not conform to spec/, e.message)
 
     assert_equal :instrument, e.explain_data.fetch(:"Speculation/failure")
     assert_match %r{speculation/test/speculation/test_test\.rb:\d+:in `block in test_fdef_instrument'}, e.explain_data.fetch(:"Speculation::Test/caller")
@@ -44,18 +45,20 @@ class SpeculationTestTest < Minitest::Test
 
   def test_instrument_instance_method
     klass = Class.new do
-      def bar(str)
+      def bar(_str)
         "baz"
       end
     end
 
-    S.fdef(klass.instance_method(:bar), args: S.cat(str: String))
+    S.fdef(klass.instance_method(:bar), :args => S.cat(:str => String))
 
     STest.instrument(klass.instance_method(:bar))
 
     subject = klass.new
-    assert_raises(STest::DidNotConformError) { subject.bar(8) }
-    subject.bar('asd')
+    assert_raises(STest::DidNotConformError) do
+      subject.bar(8)
+    end
+    subject.bar("asd")
   end
 
   def test_check
@@ -66,11 +69,11 @@ class SpeculationTestTest < Minitest::Test
     end
 
     S.fdef(mod.method(:bad_ranged_rand),
-           args: S.and(S.cat(start: Integer, end: Integer),
-                       -> (args) { args[:start] < args[:end] }),
-           ret: Integer,
-           fn: S.and(-> (x) { x[:ret] >= x[:args][:start] },
-                     -> (x) { x[:ret] < x[:args][:end] }))
+           :args => S.and(S.cat(:start => Integer, :end => Integer),
+                          ->(args) { args[:start] < args[:end] }),
+           :ret  => Integer,
+           :fn   => S.and(->(x) { x[:ret] >= x[:args][:start] },
+                          ->(x) { x[:ret] < x[:args][:end] }))
 
     results = STest.check(mod.method(:bad_ranged_rand))
     assert_equal 1, results.count

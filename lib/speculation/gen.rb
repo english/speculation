@@ -1,9 +1,10 @@
-require 'set'
-require 'rantly'
-require 'rantly/property'
-require 'rantly/shrinks'
-require 'hamster/hash'
-require 'hamster/vector'
+# frozen_string_literal: true
+require "set"
+require "rantly"
+require "rantly/property"
+require "rantly/shrinks"
+require "hamster/hash"
+require "hamster/vector"
 
 module Speculation
   using NamespacedSymbols.refine(self)
@@ -13,16 +14,16 @@ module Speculation
     V = Hamster::Vector
 
     GEN_BUILTINS = H[
-      Integer    => -> (r) { r.integer },
-      String     => -> (r) { r.sized(r.range(0, 100)) { string(:alpha) } },
-      Float      => -> (r) { rand(Float::MIN..Float::MAX) },
-      Numeric    => -> (r) { r.branch(Gen.gen_for_pred(Integer), Gen.gen_for_pred(Float)) },
-      Symbol     => -> (r) { r.sized(r.range(0, 100)) { string(:alpha).to_sym } },
-      TrueClass  => -> (r) { true },
-      FalseClass => -> (r) { false },
-      Date       => -> (r) { Gen.gen_for_pred(Time).call(r).to_date },
-      Time       => -> (r) { Time.at(r.range(-569001744000, 569001744000)) }, # 20k BC => 20k AD
-      Array      => -> (r) do
+      Integer    => ->(r) { r.integer },
+      String     => ->(r) { r.sized(r.range(0, 100)) { string(:alpha) } },
+      Float      => ->(_r) { rand(Float::MIN..Float::MAX) },
+      Numeric    => ->(r) { r.branch(Gen.gen_for_pred(Integer), Gen.gen_for_pred(Float)) },
+      Symbol     => ->(r) { r.sized(r.range(0, 100)) { string(:alpha).to_sym } },
+      TrueClass  => ->(_r) { true },
+      FalseClass => ->(_r) { false },
+      Date       => ->(r) { Gen.gen_for_pred(Time).call(r).to_date },
+      Time       => ->(r) { Time.at(r.range(-569001744000, 569001744000)) }, # 20k BC => 20k AD
+      Array      => ->(r) do
         size = r.range(0, 20)
 
         r.array(size) do
@@ -30,11 +31,11 @@ module Speculation
           gen.call(r)
         end
       end,
-      Set        => -> (r) do
+      Set        => ->(r) do
         gen = Gen.gen_for_pred(Array)
         Set.new(gen.call(r))
       end,
-      Hash       => -> (r) do
+      Hash       => ->(r) do
         kgen = Gen.gen_for_pred(r.choose(Integer, String, Float, Symbol, Date, Time))
         vgen = Gen.gen_for_pred(r.choose(Integer, String, Float, Symbol, Date, Time, Set[true, false]))
         size = r.range(0, 20)
@@ -47,16 +48,16 @@ module Speculation
         end
         h
       end,
-      Enumerable => -> (r) do
+      Enumerable => ->(r) do
         klass = r.choose(Array, Hash, Set)
         gen = Gen.gen_for_pred(klass)
         gen.call(r)
       end
     ]
 
-    # TODO honor max tries
-    def self.such_that(pred, gen, max_tries)
-      -> (rantly) do
+    # TODO: honor max tries
+    def self.such_that(pred, gen, _max_tries)
+      ->(rantly) do
         gen.call(rantly).tap do |val|
           rantly.guard(pred.call(val))
         end
@@ -65,7 +66,7 @@ module Speculation
 
     def self.gen_for_pred(pred)
       if pred.is_a?(Set)
-        -> (r) { r.choose(*pred) }
+        ->(r) { r.choose(*pred) }
       else
         GEN_BUILTINS[pred]
       end

@@ -1,7 +1,8 @@
 # coding: utf-8
-lib = File.expand_path('../lib', __FILE__)
+# frozen_string_literal: true
+lib = File.expand_path("../lib", __FILE__)
 $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
-require 'speculation/version'
+require "speculation/version"
 
 Gem::Specification.new do |spec|
   spec.name          = "speculation"
@@ -32,4 +33,5 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "pry-byebug", "~> 3.4"
   spec.add_development_dependency "pry-inline", "~> 1.0"
   spec.add_development_dependency "pry-doc", "~> 0.9"
+  spec.add_development_dependency "rubocop", "~> 0.47"
 end

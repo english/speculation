@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 module Speculation
   using Speculation::NamespacedSymbols.refine(self)
   using Conj
@@ -24,9 +25,9 @@ module Speculation
       end
     end
 
-    def explain(path, via, _in, value)
+    def explain(path, via, inn, value)
       if S.invalid?(S.dt(@predicate, value))
-        [{ path: path, val: value, via: via, in: _in, pred: @predicate }]
+        [{ :path => path, :val => value, :via => via, :in => inn, :pred => @predicate }]
       end
     end
 
@@ -39,7 +40,7 @@ module Speculation
     end
 
     def inspect
-      "#{self.class.to_s}(#{@name || @predicate.inspect})"
+      "#{self.class}(#{@name || @predicate.inspect})"
     end
   end
 end

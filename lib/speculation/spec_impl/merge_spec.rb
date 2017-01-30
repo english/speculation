@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 module Speculation
   using NamespacedSymbols.refine(self)
 
@@ -18,9 +19,9 @@ module Speculation
       end
     end
 
-    def explain(path, via, _in, x)
+    def explain(path, via, inn, x)
       @preds.
-        flat_map { |pred| S.explain1(pred, path, via, _in, x) }.
+        flat_map { |pred| S.explain1(pred, path, via, inn, x) }.
         compact
     end
 
@@ -30,7 +31,7 @@ module Speculation
       gens = @preds.
         map { |pred| S.gensub(pred, overrides, path, rmap) }
 
-      -> (r) do
+      ->(r) do
         gens.map { |gen| gen.call(r) }.reduce(&:merge)
       end
     end

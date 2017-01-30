@@ -1,5 +1,6 @@
-require 'concurrent/atom'
-require 'pp'
+# frozen_string_literal: true
+require "concurrent/atom"
+require "pp"
 
 module Speculation
   module Test
@@ -25,7 +26,7 @@ module Speculation
       @instrument_enabled
     end
 
-    # Disables instrument's checking of calls within a block
+    # Disables instrument's checking of calls within a block
     def self.with_instrument_disabled(&block)
       @instrument_enabled = false
       block.call
@@ -33,19 +34,19 @@ module Speculation
       @instrument_enabled = true
     end
 
-    private_class_method def self.spec_checking_fn(ident, method, spec)
-      spec = S.send(:maybe_spec, spec)
+    private_class_method def self.spec_checking_fn(ident, method, fspec)
+      fspec = S.send(:maybe_spec, fspec)
 
-      conform = -> (method, role, spec, data, args) do
+      conform = ->(role, spec, data, args) do
         conformed = S.conform(spec, data)
 
         if conformed == :invalid.ns(S)
-          # TODO stacktrace-relevant-to-instrument
-          _caller = caller(4, 1).first
+          # TODO: stacktrace-relevant-to-instrument
+          caller = caller(4, 1).first
 
           ed = S.
             _explain_data(spec, [role], [], [], data).
-            merge(:args.ns(S) => args, :failure.ns(S) => :instrument, :caller.ns => _caller)
+            merge(:args.ns(S) => args, :failure.ns(S) => :instrument, :caller.ns => caller)
 
           raise DidNotConformError.new("Call to '#{ident}' did not conform to spec:\n #{S.explain_str(ed)}", ed)
         else
@@ -53,13 +54,13 @@ module Speculation
         end
       end
 
-      # TODO handle method taking a block as an argument
-      -> (*args) do
+      # TODO: handle method taking a block as an argument
+      ->(*args) do
         method = method.bind(self) if method.is_a?(UnboundMethod)
 
         if Test.instrument_enabled?
           Test.with_instrument_disabled do
-            conform.call(method, :args, spec.argspec, args, args) if spec.argspec
+            conform.call(:args, fspec.argspec, args, args) if fspec.argspec
 
             begin
               @instrument_enabled = true
@@ -74,9 +75,10 @@ module Speculation
       end
     end
 
-    # TODO no-spec?
+    # TODO: no-spec?
 
-    private_class_method def self.instrument1(ident, opts)
+    # TODO: use opts
+    private_class_method def self.instrument1(ident, _opts)
       spec = S.get_spec(ident)
 
       raw, wrapped = @instrumented_methods.
@@ -87,7 +89,7 @@ module Speculation
       current = ident.get_method
       to_wrap = wrapped == current ? raw : current
 
-      # TODO handle spec/fn overrides
+      # TODO: handle spec/fn overrides
       checked = spec_checking_fn(ident, current, spec)
 
       ident.redefine_method!(checked)
@@ -95,7 +97,7 @@ module Speculation
       wrapped = ident.get_method
 
       @instrumented_methods.swap do |methods|
-        methods.merge(ident => H[raw: to_wrap, wrapped: wrapped])
+        methods.merge(ident => H[:raw => to_wrap, :wrapped => wrapped])
       end
 
       ident
@@ -106,24 +108,26 @@ module Speculation
       return unless instrumented
 
       raw, wrapped = instrumented.fetch_values(:raw, :wrapped)
-      @instrumented_methods.swap { |h| h.except(ident) }
+
+      @instrumented_methods.swap do |h|
+        h.except(ident)
+      end
 
       current = ident.get_method
 
       # Only redefine to original if it has not been modified since it was
       # instrumented.
       if wrapped == current
-        ident.redefine_method!(raw)
-        ident
+        ident.tap { |i| i.redefine_method!(raw) }
       end
     end
 
-    # TODO stacktrace-relevant-to-instrument
+    # TODO: stacktrace-relevant-to-instrument
 
     # Given an opts hash as per instrument, returns the set of methods that can
     # be instrumented.
     def self.instrumentable_methods(opts = {})
-      # TODO validate opts
+      # TODO: validate opts
       S.registry.keys.select(&method(:fn_spec_name?)).to_set.tap do |set|
         set.merge(opts[:spec].keys)    if opts[:spec]
         set.merge(opts[:stub])         if opts[:stub]
@@ -138,38 +142,38 @@ module Speculation
     # Instruments the methods named by method-or-methods, a method or collection
     # of methods, or all instrumentable methods if method-or-methods is not
     # specified.
-    # 
+    #
     # If a method has an :args fn-spec, replaces the method with a method that
     # checks arg conformance (throwing an exception on failure) before
     # delegating to the original method.
-    # 
+    #
     # The opts hash can be used to override registered specs, and/or to replace
     # method implementations entirely. Opts for methods not included in
     # method-or-methods are ignored. This facilitates sharing a common options
     # hash across many different calls to instrument.
-    # 
+    #
     # The opts map may have the following keys:
-    # 
+    #
     #   :spec     a map from methods to override specs
     #   :stub     a set of methods to be replaced by stubs
     #   :gen      a map from spec names to generator overrides
     #   :replace  a map from methods to replacement procs
-    # 
+    #
     # :spec overrides registered method specs with specs you provide. Use :spec
     # overrides to provide specs for libraries that do not have them, or to
     # constrain your own use of a fn to a subset of its spec'ed contract.
-    # 
+    #
     # :stub replaces a fn with a stub that checks :args, then uses the :ret spec
     # to generate a return value.
-    # 
+    #
     # :gen overrides are used only for :stub generation.
-    # 
+    #
     # :replace replaces a method with a method that checks args conformance,
     # then invokes the method/proc you provide, enabling arbitrary stubbing and
     # mocking.
-    # 
+    #
     # :spec can be used in combination with :stub or :replace.
-    # 
+    #
     # Returns a collection of Identifiers naming the methods instrumented.
     def self.instrument(method_or_methods = instrumentable_methods, opts = {})
       Array(method_or_methods).
@@ -197,9 +201,9 @@ module Speculation
                        :failure.ns(S) => :check_failed)
              end
 
-      { backtrace: caller,
-        cause: "Specification-based check failed",
-        data: data }
+      { :backtrace => caller,
+        :cause     => "Specification-based check failed",
+        :data      => data }
     end
 
     # Returns true if call passes specs, otherwise returns a hash with
@@ -221,10 +225,10 @@ module Speculation
 
       return true unless spec.argspec && spec.retspec && spec.fnspec
 
-      if S.valid?(spec.fnspec, args: conformed_args, ret: conformed_ret)
+      if S.valid?(spec.fnspec, :args => conformed_args, :ret => conformed_ret)
         true
       else
-        explain_check(args, spec.fnspec, { args: conformed_args, ret: conformed_ret }, :fn)
+        explain_check(args, spec.fnspec, { :args => conformed_args, :ret => conformed_ret }, :fn)
       end
     end
 
@@ -237,7 +241,7 @@ module Speculation
       g = begin
             S.gen(spec.argspec, gen)
           rescue => e
-            return { result: e }
+            return { :result => e }
           end
 
       rantly_quick_check(g, num_tests) { |args| check_call(method, spec, args) }
@@ -266,7 +270,7 @@ module Speculation
       reinstrument = unstrument(ident).any?
       method = ident.get_method
 
-      if spec.argspec
+      if specd.argspec
         check_result = quick_check(method, spec, opts)
         make_check_result(method, spec, check_result)
       else
@@ -281,12 +285,12 @@ module Speculation
       instrument(ident) if reinstrument
     end
 
-    # TODO check_method (check-fn)
+    # TODO: check_method (check-fn)
 
     # Given an opts hash as per `check`, returns the set of Identifiers that can
     # be checked.
     def self.checkable_methods(opts = {})
-      # TODO validate opts
+      # TODO: validate opts
       # TODO convert spec keys to Identifiers
       S.
         registry.
@@ -299,26 +303,26 @@ module Speculation
 
     # Run generative tests for spec conformance on method_or_methods. If
     # method_or_methods is not specified, check all checkable methods.
-    # 
+    #
     # The opts hash includes the following optional keys:
-    # 
+    #
     # :num_tests  number of times to generatively test each method
     # :gen        hash map from spec names to generator overrides
-    # 
+    #
     # Generator overrides are passed to Speculation.gen when generating method
     # args.
-    # 
+    #
     # Returns an array of check result hashes with the following keys:
-    # 
+    #
     # :spec       the spec tested
     # :method     optional method tested
     # :failure    optional test failure
     # :result     optional boolean as to whether all generative tests passed
     # :num_tests  optional number of generative tests ran
-    # 
+    #
     # :failure is a hash that will contain a :"Speculation/failure" key with
     #   possible values:
-    # 
+    #
     # :check_failed   at least one checked return did not conform
     # :no_args_spec   no :args spec provided
     # TODO no_fspec
@@ -332,7 +336,7 @@ module Speculation
       Array(method_or_methods).
         map { |method| S.send(:Identifier, method) }.
         select { |ident| checkable_methods(opts).include?(ident) }.
-        map { |ident| check1(ident, opts) } # TODO pmap?
+        map { |ident| check1(ident, opts) } # TODO: pmap?
     end
 
     # Custom quick check implementation since Rantly's prints result to stdout
@@ -344,6 +348,7 @@ module Speculation
         i += 1
 
         result = block.call(val)
+
         unless result == true
           # This is a Rantly Tuple.
           # TODO find an alternative to Rantly
@@ -353,12 +358,10 @@ module Speculation
             shrunk = shrink(val, result, block)
             shrunk[:smallest] = shrunk[:smallest].array
 
-            return {
-              fail: val.array,
-              num_tests: i,
-              result: result,
-              shrunk: shrunk,
-            }
+            return { :fail      => val.array,
+                     :num_tests => i,
+                     :result    => result,
+                     :shrunk    => shrunk }
           else
             return { :fail      => val.array,
                      :num_tests => i,
@@ -384,12 +387,13 @@ module Speculation
           unless result == true
             shrunk = shrink(shrunk_data, result, block, depth + 1, iteration + 1)
 
-            branch_smallest, branch_depth, iteration, branch_result =
-              shrunk.values_at(:smallest, :depth, :iteration, :result)
+            branch_smallest, branch_depth, iteration =
+              shrunk.values_at(:smallest, :depth, :iteration)
 
             if branch_depth > max_depth
               smallest = branch_smallest
               max_depth = branch_depth
+              # TODO: shouldn't we do something with shrunk result???
             end
           end
 
@@ -406,7 +410,7 @@ module Speculation
     ### check reporting ###
 
     private_class_method def self.failure_type(x)
-      # TODO use exceptions rather than hashes for failures
+      # TODO: use exceptions rather than hashes for failures
       return unless x[:data].is_a?(Hash)
       x[:data][:failure.ns(S)]
     end
@@ -434,12 +438,12 @@ module Speculation
     # use.
     def self.abbrev_result(x)
       if x[:failure]
-        x.reject { |k, v| k == :ret.ns }.
-          # TODO :spec => S.describe(x[:spec])
+        x.reject { |k, _| k == :ret.ns }.
+          # TODO: spec => S.describe(x[:spec])
           merge(:spec    => x[:spec].inspect,
                 :failure => unwrap_failure(x[:failure]))
       else
-        x.reject { |k, v| [:spec, :ret.ns].include?(k) }
+        x.reject { |k, _| [:spec, :ret.ns].include?(k) }
       end
     end
 
@@ -458,7 +462,7 @@ module Speculation
 
         summary.merge(
           :total     => summary[:total].next,
-          result_key => (summary.fetch(result_key, 0)).next
+          result_key => summary.fetch(result_key, 0).next
         )
       }
     end

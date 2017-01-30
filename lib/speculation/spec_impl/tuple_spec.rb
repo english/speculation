@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 module Speculation
   using Speculation::NamespacedSymbols.refine(self)
   using Conj
@@ -35,17 +36,17 @@ module Speculation
       return_value
     end
 
-    def explain(path, via, _in, value)
+    def explain(path, via, inn, value)
       if !Utils.array?(value)
-        [{ path: path, val: value, via: via, in: _in, pred: "array?" }]
+        [{ :path => path, :val => value, :via => via, :in => inn, :pred => "array?" }]
       elsif @preds.count != value.count
-        [{ path: path, val: value, via: via, in: _in, pred: "count == predicates.count" }]
+        [{ :path => path, :val => value, :via => via, :in => inn, :pred => "count == predicates.count" }]
       else
-        probs = @preds.zip(value).each_with_index.flat_map do |(pred, x), index|
+        probs = @preds.zip(value).each_with_index.flat_map { |(pred, x), index|
           unless S.pvalid?(pred, x)
-            S.explain1(pred, path.conj(index), via, _in.conj(index), x)
+            S.explain1(pred, path.conj(index), via, inn.conj(index), x)
           end
-        end
+        }
 
         probs.compact
       end
@@ -57,7 +58,7 @@ module Speculation
       gens = @preds.each_with_index.
         map { |p, i| S.gensub(p, overrides, path.conj(i), rmap) }
 
-      -> (rantly) do
+      ->(rantly) do
         gens.map { |g| g.call(rantly) }
       end
     end

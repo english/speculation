@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 module Speculation
   class Identifier
     attr_reader :namespace, :name
@@ -13,9 +14,7 @@ module Speculation
     end
 
     def get_method
-      @instance_method ? 
-        @namespace.instance_method(@name) :
-        @namespace.method(@name)
+      @instance_method ? @namespace.instance_method(@name) : @namespace.method(@name)
     end
 
     def redefine_method!(new_method)
@@ -33,14 +32,14 @@ module Speculation
 
     def ==(other)
       self.class === other &&
-        other.hash == self.hash
+        other.hash == hash
     end
-    alias_method :eql?, :==
+    alias eql? ==
 
     def to_s
       sep = @instance_method ? "#" : "."
       "#{@namespace}#{sep}#{@name}"
     end
-    alias_method :inspect, :to_s
+    alias inspect to_s
   end
 end

@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 module Speculation
   using NamespacedSymbols.refine(self)
 
@@ -21,8 +22,8 @@ module Speculation
       value
     end
 
-    def explain(path, via, _in, value)
-      S.explain_pred_list(@preds, path, via, _in, value)
+    def explain(path, via, inn, value)
+      S.explain_pred_list(@preds, path, via, inn, value)
     end
 
     def gen(overrides, path, rmap)

@@ -1,9 +1,10 @@
-require 'concurrent/atom'
-require 'concurrent/delay'
-require 'hamster/hash'
-require 'hamster/vector'
-require 'set'
-require 'securerandom'
+# frozen_string_literal: true
+require "concurrent/atom"
+require "concurrent/delay"
+require "hamster/hash"
+require "hamster/vector"
+require "set"
+require "securerandom"
 
 require "speculation/version"
 require "speculation/namespaced_symbols"
@@ -19,7 +20,7 @@ module Speculation
   using NamespacedSymbols.refine(self)
   using Conj
 
-  # TODO: Make these configurable
+  # TODO: Make these configurable
 
   # A soft limit on how many times a branching spec
   # (or/alt/zero_or_more) can be recursed through during generation.
@@ -30,17 +31,17 @@ module Speculation
   # (generatively) tested during conform.
   FSPEC_ITERATIONS = 21
 
-  # The number of elements validated in a collection spec'ed with 'every'.
+  # The number of elements validated in a collection spec'ed with 'every'.
   COLL_CHECK_LIMIT = 101
 
-  # The number of errors reported by explain in a collection spec'ed with
+  # The number of errors reported by explain in a collection spec'ed with
   # 'every'
   COLL_ERROR_LIMIT = 20
 
   @registry_ref = Concurrent::Atom.new(H[])
 
   private_class_method def self.deep_resolve(reg, spec)
-    spec = reg[spec] until !Utils.ident?(spec)
+    spec = reg[spec] while Utils.ident?(spec)
     spec
   end
 
@@ -58,9 +59,9 @@ module Speculation
     end
   end
 
-  # returns the spec/regex at end of alias chain starting with k, throws if not
+  # returns the spec/regex at end of alias chain starting with k, throws if not
   # found, k if k not ident
-  # private
+  # private
   def self._reg_resolve!(key)
     return key unless Utils.ident?(key)
     spec = reg_resolve(key)
@@ -72,12 +73,12 @@ module Speculation
     end
   end
 
-  # returns spec if spec is a spec object, else logical false, spec spec spec
+  # returns spec if spec is a spec object, else logical false, spec spec spec
   def self.spec?(spec)
     spec if spec.is_a?(SpecImpl)
   end
 
-  # returns x if x is a (Speculation) regex op, else logical false
+  # returns x if x is a (Speculation) regex op, else logical false
   def self.regex?(x)
     Utils.hash?(x) && x[:op.ns] && x
   end
@@ -102,19 +103,21 @@ module Speculation
     end
   end
 
-  # spec_or_key must be a spec, regex or resolvable ident, else returns nil
+  # spec_or_key must be a spec, regex or resolvable ident, else returns nil
   private_class_method def self.maybe_spec(spec_or_key)
     spec = (Utils.ident?(spec_or_key) && reg_resolve(spec_or_key)) ||
       spec?(spec_or_key) ||
       regex?(spec_or_key) ||
       nil
 
-    regex?(spec) ?
-      with_name(RegexSpec.new(spec), spec_name(spec)) :
+    if regex?(spec)
+      with_name(RegexSpec.new(spec), spec_name(spec))
+    else
       spec
+    end
   end
 
-  # spec_or_key must be a spec, regex or ident, else returns nil. Raises if
+  # spec_or_key must be a spec, regex or ident, else returns nil. Raises if
   # unresolvable ident (Speculation::Utils.ident?)
   private_class_method def self.the_spec(spec_or_key)
     spec = maybe_spec(spec_or_key)
@@ -125,7 +128,7 @@ module Speculation
     end
   end
 
-  # private
+  # private
   def self.specize(spec)
     if spec?(spec)
       spec
@@ -139,23 +142,23 @@ module Speculation
     end
   end
 
-  # tests the validity of a conform return value
+  # tests the validity of a conform return value
   def self.invalid?(value)
     value.equal?(:invalid.ns)
   end
 
-  # Given a spec and a value, returns :Speculation/invalid if value does not
+  # Given a spec and a value, returns :Speculation/invalid if value does not
   # match spec, else the (possibly destructured) value
   def self.conform(spec, value)
     specize(spec).conform(value)
   end
 
-  # TODO unform
-  # TODO form
-  # TODO abbrev
-  # TODO describe
+  # TODO: unform
+  # TODO form
+  # TODO abbrev
+  # TODO describe
 
-  # Takes a spec and a no-arg, generator block and returns a version of that
+  # Takes a spec and a no-arg, generator block and returns a version of that
   # spec that uses that generator
   def self.with_gen(spec, &gen)
     if regex?(spec)
@@ -166,8 +169,8 @@ module Speculation
   end
 
   # @private
-  def self._explain_data(spec, path, via, _in, value)
-    probs = specize(spec).explain(path, via, _in, value)
+  def self._explain_data(spec, path, via, inn, value)
+    probs = specize(spec).explain(path, via, inn, value)
 
     if probs&.any?
       { :problems.ns => probs }
@@ -188,12 +191,12 @@ module Speculation
   def self.explain_str(data)
     return "Success!" unless data
 
-    s = ""
+    s = String.new
 
     data.fetch(:problems.ns).each do |prob|
-      path, pred, val, reason, via, _in = prob.values_at(:path, :pred, :val, :reason, :via, :in)
+      path, pred, val, reason, via, inn = prob.values_at(:path, :pred, :val, :reason, :via, :in)
 
-      s << "In: #{_in.to_a.inspect} " unless _in.empty?
+      s << "In: #{inn.to_a.inspect} " unless inn.empty?
       s << "val: #{val.inspect} fails"
       s << " spec: #{via.last.inspect}" unless via.empty?
       s << " at: #{path.to_a.inspect}" unless path.empty?
@@ -216,13 +219,13 @@ module Speculation
     s
   end
 
-  # Given a spec and a value that fails to conform, returns an explanation as a
+  # Given a spec and a value that fails to conform, returns an explanation as a
   # string
   def self.explain(spec, x)
     explain_str(explain_data(spec, x))
   end
 
-  # @private
+  # @private
   def self.gensub(spec, overrides, path, rmap)
     overrides ||= {}
     spec = specize(spec)
@@ -230,9 +233,9 @@ module Speculation
     g = gfn || spec.gen(overrides, path, rmap)
 
     if g
-      Gen.such_that(-> (x) { valid?(spec, x) }, g, 100)
+      Gen.such_that(->(x) { valid?(spec, x) }, g, 100)
     else
-      # TODO add ex-info to exception with :failure.ns => :no_gen
+      # TODO: add ex-info to exception with :failure.ns => :no_gen
       raise "unable to construct gen at: #{path.inspect} for: #{spec.inspect}"
     end
   end
@@ -251,7 +254,7 @@ module Speculation
     gensub(spec, overrides, [], H[:recursion_limit.ns => RECURSION_LIMIT])
   end
 
-  # returns an identifier if x is a method, otherwise x
+  # rubocop:disable Style/MethodName
   private_class_method def self.Identifier(x)
     case x
     when Method
@@ -262,6 +265,7 @@ module Speculation
       x
     end
   end
+  # rubocop:enable Style/MethodName
 
   # Given a namespace-qualified symbol or Speculation::Identifier k, and a spec,
   # spec name, predicate or regex-op makes an entry in the registry mapping k to
@@ -271,26 +275,28 @@ module Speculation
 
     unless Utils.ident?(key) && key.namespace
       raise ArgumentError,
-        "key must be a namespaced Symbol, e.g. #{:my_spec.ns}, given #{key}, or a Speculation::Identifier"
+            "key must be a namespaced Symbol, e.g. #{:my_spec.ns}, given #{key}, or a Speculation::Identifier"
     end
 
     spec = if spec?(spec) || regex?(spec) || registry[spec]
              spec
            else
-             self.spec_impl(spec, false)
+             spec_impl(spec, false)
            end
 
-    @registry_ref.swap { |reg| reg.store(key, with_name(spec, key)) }
+    @registry_ref.swap do |reg|
+      reg.store(key, with_name(spec, key))
+    end
 
     key
   end
 
-  # returns the registry hash, prefer 'get_spec' to lookup a spec by name
+  # returns the registry hash, prefer 'get_spec' to lookup a spec by name
   def self.registry
     @registry_ref.value
   end
 
-  # Returns spec registered for symbol/method key, or nil.
+  # Returns spec registered for symbol/method key, or nil.
   def self.get_spec(key)
     registry[Identifier(key)]
   end
@@ -355,12 +361,12 @@ module Speculation
     end
   end
 
-  # See Speculation.keys
+  # See Speculation.keys
   def self.or_keys(*ks)
     [:or.ns, *ks]
   end
 
-  # See Speculation.keys
+  # See Speculation.keys
   def self.and_keys(*ks)
     [:and.ns, *ks]
   end
@@ -374,7 +380,7 @@ module Speculation
   # and 'val' functions can be used to refer generically to the components of
   # the tagged return.
   def self.or(key_preds)
-    # TODO FIXME nested `or`s don't tag nested conforms
+    # TODO: FIXME nested `or`s don't tag nested conforms
     OrSpec.new(key_preds)
   end
 
@@ -437,8 +443,8 @@ module Speculation
   #
   # See also - hash_of
   def self.every_kv(kpred, vpred, options)
-    every(tuple(kpred, vpred), :kfn.ns => -> (i, v) { v.first },
-                               into: {},
+    every(tuple(kpred, vpred), :kfn.ns => ->(_i, v) { v.first },
+                               :into   => {},
                                **options)
   end
 
@@ -464,7 +470,7 @@ module Speculation
   #
   # See also - every_kv
   def self.hash_of(kpred, vpred, options = {})
-    every_kv(kpred, vpred, kind: Utils.method(:hash?).to_proc,
+    every_kv(kpred, vpred, :kind           => Utils.method(:hash?).to_proc,
                            :conform_all.ns => true,
                            **options)
   end
@@ -478,7 +484,7 @@ module Speculation
   # Returns a regex op that matches one or more values matching pred. Produces
   # an array of matches
   def self.one_or_more(pred)
-    pcat(H[predicates: [pred, rep(pred, pred, [], true)], return_value: []])
+    pcat(H[:predicates => [pred, rep(pred, pred, [], true)], :return_value => []])
   end
 
   # Returns a regex op that matches zero or one value matching pred. Produces a
@@ -495,7 +501,7 @@ module Speculation
   # first matching pred and the corresponding value. Thus can be destructured
   # to refer generically to the components of the return.
   def self.alt(kv_specs)
-    _alt(kv_specs.values, kv_specs.keys).merge(id: SecureRandom.uuid)
+    _alt(kv_specs.values, kv_specs.keys).merge(:id => SecureRandom.uuid)
   end
 
   # Takes key+pred pairs, e.g.
@@ -508,14 +514,14 @@ module Speculation
     keys = named_specs.keys
     predicates = named_specs.values
 
-    pcat(H[keys: keys, predicates: predicates, return_value: {}])
+    pcat(H[:keys => keys, :predicates => predicates, :return_value => {}])
   end
 
   # Takes a regex op re, and predicates. Returns a regex-op that consumes input
   # as per re but subjects the resulting value to the conjunction of the
   # predicates, and any conforming they might perform.
   def self.constrained(re, *preds)
-    H[:op.ns => :amp.ns, p1: re, predicates: preds]
+    H[:op.ns => :amp.ns, :p1 => re, :predicates => preds]
   end
 
   # Takes a predicate function with the semantics of conform i.e. it should
@@ -540,7 +546,7 @@ module Speculation
   # Optionally takes :gen generator proc, which must be a proc of one arg
   # (Rantly instance) that generates a valid value.
   def self.fspec(args: nil, ret: nil, fn: nil, gen: nil)
-    FSpec.new(argspec: spec(args), retspec: spec(ret), fnspec: spec(fn)).tap do |spec|
+    FSpec.new(:argspec => spec(args), :retspec => spec(ret), :fnspec => spec(fn)).tap do |spec|
       spec.gen = gen
     end
   end
@@ -587,7 +593,7 @@ module Speculation
 
   ### impl ###
 
-  # @private
+  # @private
   def self.recur_limit?(rmap, id, path, k)
     rmap[id] > rmap[:recursion_limit.ns] &&
       path.include?(k)
@@ -598,7 +604,7 @@ module Speculation
     h.merge(k => h.fetch(k, 0).next)
   end
 
-  # @private
+  # @private
   def self.dt(pred, x)
     return x unless pred
 
@@ -606,16 +612,14 @@ module Speculation
 
     if spec
       conform(spec, x)
+    elsif pred.is_a?(Module) || pred.is_a?(::Regexp)
+      pred === x ? x : :invalid.ns
+    elsif pred.is_a?(Set)
+      pred.include?(x) ? x : :invalid.ns
+    elsif pred.respond_to?(:call)
+      pred.call(x) ? x : :invalid.ns
     else
-      if pred.is_a?(Module) || pred.is_a?(::Regexp)
-        pred === x ? x : :invalid.ns
-      elsif pred.is_a?(Set)
-        pred.include?(x) ? x : :invalid.ns
-      elsif pred.respond_to?(:call)
-        pred.call(x) ? x : :invalid.ns
-      else
-        raise "#{pred} is not a class, proc, set or regexp"
-      end
+      raise "#{pred} is not a class, proc, set or regexp"
     end
   end
 
@@ -626,27 +630,27 @@ module Speculation
     !invalid?(spec.conform(x))
   end
 
-  # internal helper function that returns true when x is valid for spec.
-  # @private
+  # internal helper function that returns true when x is valid for spec.
+  # @private
   def self.pvalid?(pred, x)
     !invalid?(dt(pred, x))
   end
 
-  # @private
-  def self.explain1(pred, path, via, _in, value)
+  # @private
+  def self.explain1(pred, path, via, inn, value)
     spec = maybe_spec(pred)
 
     if spec?(spec)
       name = spec_name(spec)
       via = via.conj(name) if name
 
-      spec.explain(path, via, _in, value)
+      spec.explain(path, via, inn, value)
     else
-      [{ path: path, val: value, via: via, in: _in, pred: pred }]
+      [{ :path => path, :val => value, :via => via, :in => inn, :pred => pred }]
     end
   end
 
-  # @private
+  # @private
   def self.spec_impl(pred, should_conform)
     if spec?(pred)
       pred
@@ -669,15 +673,15 @@ module Speculation
     x
   end
 
-  # @private
-  def self.explain_pred_list(preds, path, via, _in, value)
+  # @private
+  def self.explain_pred_list(preds, path, via, inn, value)
     return_value = value
 
     preds.each do |pred|
       nret = dt(pred, return_value)
 
       if invalid?(nret)
-        return explain1(pred, path, via, _in, return_value)
+        return explain1(pred, path, via, inn, return_value)
       else
         return_value = nret
       end
@@ -686,34 +690,34 @@ module Speculation
     nil
   end
 
-  # TODO move inside EverySpec?
-  # @private
-  def self.collection_problems(x, kfn, distinct, count, min_count, max_count, path, via, _in)
+  # TODO: move inside EverySpec?
+  # @private
+  def self.collection_problems(x, kfn, distinct, count, min_count, max_count, path, via, inn)
     pred = kfn || Utils.method(:collection?)
 
-    if !pvalid?(pred, x)
-      return explain1(pred, path, via, _in, x)
+    unless pvalid?(pred, x)
+      return explain1(pred, path, via, inn, x)
     end
 
     if count && count != x.count
-      return [{ path: path, pred: 'count == x.count', val: x, via: via, in: _in }]
+      return [{ :path => path, :pred => "count == x.count", :val => x, :via => via, :in => inn }]
     end
 
     if min_count || max_count
       if x.count.between?(min_count || 0, max_count || Float::Infinity)
-        return [{ path: path, pred: 'count.between?(min_count || 0, max_count || Float::Infinity)', val: x, via: via, in: _in }]
+        return [{ :path => path, :pred => "count.between?(min_count || 0, max_count || Float::Infinity)", :val => x, :via => via, :in => inn }]
       end
     end
 
     if distinct && !x.empty? && Utils.distinct?(x)
-      [{ path: path, pred: 'distinct?', val: x, via: via, in: _in }]
+      [{ :path => path, :pred => "distinct?", :val => x, :via => via, :in => inn }]
     end
   end
 
   ### regex
 
   private_class_method def self.accept(x)
-    H[:op.ns => :accept.ns, return_value: x]
+    H[:op.ns => :accept.ns, :return_value => x]
   end
 
   private_class_method def self.accept?(hash)
@@ -731,19 +735,19 @@ module Speculation
     return unless regex[:predicates].all?
 
     unless accept?(predicate)
-      return H[:op.ns => :pcat.ns,
-               predicates: regex[:predicates],
-               keys: keys,
-               return_value: regex[:return_value]]
+      return H[:op.ns        => :pcat.ns,
+               :predicates   => regex[:predicates],
+               :keys         => keys,
+               :return_value => regex[:return_value]]
     end
 
     val = keys ? { key => predicate[:return_value] } : predicate[:return_value]
     return_value = regex[:return_value].conj(val)
 
     if rest_predicates
-      pcat(H[predicates: rest_predicates,
-             keys: rest_keys,
-             return_value: return_value])
+      pcat(H[:predicates   => rest_predicates,
+             :keys         => rest_keys,
+             :return_value => return_value])
     else
       accept(return_value)
     end
@@ -752,12 +756,12 @@ module Speculation
   private_class_method def self.rep(p1, p2, return_value, splice)
     return unless p1
 
-    regex = H[:op.ns => :rep.ns, p2: p2, splice: splice, id: SecureRandom.uuid]
+    regex = H[:op.ns => :rep.ns, :p2 => p2, :splice => splice, :id => SecureRandom.uuid]
 
     if accept?(p1)
-      regex.merge(p1: p2, return_value: return_value.conj(p1[:return_value]))
+      regex.merge(:p1 => p2, :return_value => return_value.conj(p1[:return_value]))
     else
-      regex.merge(p1: p1, return_value: return_value)
+      regex.merge(:p1 => p1, :return_value => return_value)
     end
   end
 
@@ -770,15 +774,15 @@ module Speculation
     end
   end
 
-  # alt*
+  # alt*
   private_class_method def self._alt(predicates, keys)
     predicates, keys = filter_alt(predicates, keys, &:itself)
     return unless predicates
 
     predicate, *rest_predicates = predicates
-    key, *rest_keys = keys
+    key, *_rest_keys = keys
 
-    return_value = H[:op.ns => :alt.ns, predicates: predicates, keys: keys]
+    return_value = H[:op.ns => :alt.ns, :predicates => predicates, :keys => keys]
     return return_value unless rest_predicates.empty?
 
     return predicate unless key
@@ -829,7 +833,7 @@ module Speculation
     regex = _reg_resolve!(regex)
     return unless regex?(regex)
 
-    p0, *pr = regex[:predicates]
+    p0, *_pr = regex[:predicates]
     k, *ks = regex[:keys]
 
     case regex[:op.ns]
@@ -916,12 +920,12 @@ module Speculation
     case regex[:op.ns]
     when :accept.ns then nil
     when :pcat.ns
-      regex1 = pcat(H[predicates: [deriv(pred, value), *rest_preds], keys: keys, return_value: return_value])
+      regex1 = pcat(H[:predicates => [deriv(pred, value), *rest_preds], :keys => keys, :return_value => return_value])
       regex2 = nil
 
       if accept_nil?(pred)
         regex2 = deriv(
-          pcat(H[predicates: rest_preds, keys: rest_keys, return_value: add_ret(pred, return_value, key)]),
+          pcat(H[:predicates => rest_preds, :keys => rest_keys, :return_value => add_ret(pred, return_value, key)]),
           value
         )
       end
@@ -953,26 +957,26 @@ module Speculation
     end
   end
 
-  private_class_method def self.op_explain(p, path, via, _in, input)
+  private_class_method def self.insufficient(path, via, inn)
+    [{ :path   => path,
+       :reason => "Insufficient input",
+       :val    => [],
+       :via    => via,
+       :in     => inn }]
+  end
+
+  private_class_method def self.op_explain(p, path, via, inn, input)
     p = _reg_resolve!(p)
     return unless p
-
-    insufficient = -> (path) do
-      [{ path: path,
-         reason: "Insufficient input",
-         val: [],
-         via: via,
-         in: _in }]
-    end
 
     input ||= []
     x = input.first
 
     unless regex?(p)
       if input.empty?
-        return insufficient.call(path)
+        return insufficient(path, via, inn)
       else
-        return explain1(p, path, via, _in, x)
+        return explain1(p, path, via, inn, x)
       end
     end
 
@@ -981,17 +985,17 @@ module Speculation
     when :amp.ns
       if input.empty?
         if accept_nil?(p[:p1])
-          explain_pred_list(p[:predicates], path, via, _in, preturn(p[:p1]))
+          explain_pred_list(p[:predicates], path, via, inn, preturn(p[:p1]))
         else
-          insufficient.call(path)
+          insufficient(path, via, inn)
         end
       else
         p1 = deriv(p[:p1], x)
 
         if p1
-          explain_pred_list(p[:predicates], path, via, _in, preturn(p1))
+          explain_pred_list(p[:predicates], path, via, inn, preturn(p1))
         else
-          op_explain(p[:p1], path, via, _in, input)
+          op_explain(p[:p1], path, via, inn, input)
         end
       end
     when :pcat.ns
@@ -999,37 +1003,37 @@ module Speculation
       pred, k = if pks.count == 1
                   pks.first
                 else
-                  pks.lazy.reject { |(p, _)| accept_nil?(p) }.first
+                  pks.lazy.reject { |(predicate, _)| accept_nil?(predicate) }.first
                 end
       path = path.conj(k) if k
 
       if input.empty? && !pred
-        insufficient.call(path)
+        insufficient(path, via, inn)
       else
-        op_explain(pred, path, via, _in, input)
+        op_explain(pred, path, via, inn, input)
       end
     when :alt.ns
-      return insufficient.call(path) if input.empty?
+      return insufficient(path, via, inn) if input.empty?
 
-      probs = p[:predicates].zip(p[:keys]).flat_map do |(p, k)|
-        op_explain(p, k ? path.conj(k) : path, via, _in, input)
-      end
+      probs = p[:predicates].zip(p[:keys]).flat_map { |(predicate, key)|
+        op_explain(predicate, key ? path.conj(key) : path, via, inn, input)
+      }
 
       probs.compact
     when :rep.ns
-      op_explain(p[:p1], path, via, _in, input)
+      op_explain(p[:p1], path, via, inn, input)
     else
       raise "Unexpected #{:op.ns} #{p[:op.ns]}"
     end
   end
 
-  # @private
+  # @private
   def self.re_gen(p, overrides, path, rmap)
     origp = p
     p = _reg_resolve!(p)
 
-    id, op, ps, ks, p1, p2, splice, ret, id, gen = p.values_at(
-      :id, :op.ns, :predicates, :keys, :p1, :p2, :splice, :return_value, :id, :gen.ns
+    id, op, ps, ks, p1, p2, ret, id, gen = p.values_at(
+      :id, :op.ns, :predicates, :keys, :p1, :p2, :return_value, :id, :gen.ns
     ) if regex?(p)
 
     id = p.id if spec?(p)
@@ -1037,11 +1041,11 @@ module Speculation
 
     rmap = inck(rmap, id) if id
 
-    ggens = -> (ps, ks) do
-      ps.zip(ks).map do |p, k|
+    ggens = ->(preds, keys) do
+      preds.zip(keys).map do |pred, k|
         unless rmap && id && k && recur_limit?(rmap, id, path, k)
-          # TODO delay if we have an id?
-          re_gen(p, overrides, k ? path.conj(k) : path, rmap)
+          # TODO: delay if we have an id?
+          re_gen(pred, overrides, k ? path.conj(k) : path, rmap)
         end
       end
     end
@@ -1052,9 +1056,9 @@ module Speculation
 
     if ogen
       if [:accept, nil].include?(op)
-        return -> (rantly) { [*ogen.call(rantly)] }
+        return ->(rantly) { [*ogen.call(rantly)] }
       else
-        return -> (rantly) { ogen.call(rantly) }
+        return ->(rantly) { ogen.call(rantly) }
       end
     end
 
@@ -1064,38 +1068,38 @@ module Speculation
       case op
       when :accept.ns
         if ret == :nil.ns
-          -> (rantly) { [] }
+          ->(_rantly) { [] }
         else
-          -> (rantly) { [ret] }
+          ->(_rantly) { [ret] }
         end
       when nil
         g = gensub(p, overrides, path, rmap)
 
-        -> (rantly) { [g.call(rantly)] }
+        ->(rantly) { [g.call(rantly)] }
       when :amp.ns
         re_gen(p1, overrides, path, rmap)
       when :pcat.ns
         gens = ggens.call(ps, ks)
 
         if gens.all?
-          -> (rantly) do
-            gens.flat_map { |g| g.call(rantly) }
+          ->(rantly) do
+            gens.flat_map { |gg| gg.call(rantly) }
           end
         end
       when :alt.ns
         gens = ggens.call(ps, ks).compact
 
-        -> (rantly) { rantly.branch(*gens) } unless gens.empty?
+        ->(rantly) { rantly.branch(*gens) } unless gens.empty?
       when :rep.ns
         if recur_limit?(rmap, id, [id], id)
-          -> (rantly) { [] }
+          ->(_rantly) { [] }
         else
           g = re_gen(p2, overrides, path, rmap)
 
           if g
-            # TODO wrap in shrinkable?
-            -> (rantly) do
-              # TODO how big?
+            # TODO: wrap in shrinkable?
+            ->(rantly) do
+              # TODO: how big?
               rantly.range(0, 30).times.flat_map { g.call(rantly) }
             end
           end
@@ -1104,7 +1108,7 @@ module Speculation
     end
   end
 
-  # @private
+  # @private
   def self.re_conform(regex, data)
     x, *xs = data
 
@@ -1129,8 +1133,8 @@ module Speculation
     end
   end
 
-  # @private
-  def self.re_explain(path, via, _in, regex, input)
+  # @private
+  def self.re_explain(path, via, inn, regex, input)
     p = regex
 
     input.each_with_index do |value, index|
@@ -1143,32 +1147,32 @@ module Speculation
 
       if accept?(p)
         if p[:op.ns] == :pcat.ns
-          return op_explain(p, path, via, _in.conj(index), input[index..-1])
+          return op_explain(p, path, via, inn.conj(index), input[index..-1])
         else
-          return [{ path: path,
-                    reason: "Extra input",
-                    val: input,
-                    via: via,
-                    in: _in.conj(index) }]
+          return [{ :path   => path,
+                    :reason => "Extra input",
+                    :val    => input,
+                    :via    => via,
+                    :in     => inn.conj(index) }]
         end
       else
-        return op_explain(p, path, via, _in.conj(index), input[index..-1]) ||
-          [{ path: path,
-             reason: "Extra input",
-             val: input,
-             via: via,
-             in: _in.conj(index) }]
+        return op_explain(p, path, via, inn.conj(index), input[index..-1]) ||
+            [{ :path   => path,
+               :reason => "Extra input",
+               :val    => input,
+               :via    => via,
+               :in     => inn.conj(index) }]
       end
     end
 
     if accept_nil?(p)
-      nil # success
+      nil # success
     else
-      op_explain(p, path, via, _in, nil)
+      op_explain(p, path, via, inn, nil)
     end
   end
 
-  # returns a spec that accepts nil and values satisfying pred
+  # returns a spec that accepts nil and values satisfying pred
   def self.nilable(pred)
     NilableSpec.new(pred)
   end
@@ -1192,21 +1196,21 @@ module Speculation
     Gen.sample(gen(fspec.argspec), n).map { |args| [args, method.call(*args)] }
   end
 
-  # TODO date_in_range?
+  # TODO: date_in_range?
   # TODO date_in
   # TODO int_in_range?
   # TODO int_in
   # TODO float_in
 
-  # TODO assert
+  # TODO: assert
 
-  # Resets the spec registry to only builtin specs
+  # Resets the spec registry to only builtin specs
   def self.reset_registry!
     builtins = H[
       :any.ns              => with_gen(Utils.constantly(true)) { |r| r.branch(*Gen::GEN_BUILTINS.values) },
       :boolean.ns          => Set[true, false],
       :positive_integer.ns => with_gen(self.and(Integer, :positive?.to_proc)) { |r| r.range(1) },
-      # Rantly#positive_integer is actually a natural integer
+      # Rantly#positive_integer is actually a natural integer
       :natural_integer.ns  => with_gen(self.and(Integer, Utils.complement(&:negative?)), &:positive_integer),
       :negative_integer.ns => with_gen(self.and(Integer, :negative?.to_proc)) { |r| r.range(nil, -1) }
     ]

@@ -1,5 +1,6 @@
-require 'set'
-require 'speculation/conj'
+# frozen_string_literal: true
+require "set"
+require "speculation/conj"
 
 module Speculation
   using Conj
@@ -22,11 +23,11 @@ module Speculation
     end
 
     def self.constantly(x)
-      -> (*) { x }
+      ->(*) { x }
     end
 
     def self.complement(&f)
-      -> (*args) { !f.call(*args) }
+      ->(*args) { !f.call(*args) }
     end
 
     def self.distinct?(xs)

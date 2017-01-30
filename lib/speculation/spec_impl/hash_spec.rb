@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 module Speculation
   using Speculation::NamespacedSymbols.refine(self)
   using Conj
@@ -23,17 +24,17 @@ module Speculation
       end
 
       req_specs = req_keys + req_un_specs
-      req_keys  = req_keys + req_un_specs.map(&method(:unqualify_key))
+      req_keys += req_un_specs.map(&method(:unqualify_key))
 
       pred_exprs = [Utils.method(:hash?)]
-      pred_exprs.push(-> (v) { parse_req(req, v, :itself.to_proc) }) if req.any?
-      pred_exprs.push(-> (v) { parse_req(req_un, v, method(:unqualify_key)) }) if req_un.any?
+      pred_exprs.push(->(v) { parse_req(req, v, :itself.to_proc) }) if req.any?
+      pred_exprs.push(->(v) { parse_req(req_un, v, method(:unqualify_key)) }) if req_un.any?
 
       @req_keys        = req_keys
       @req_specs       = req_specs
       @opt_keys        = opt + opt_un.map(&method(:unqualify_key))
       @opt_specs       = opt + opt_un
-      @keys_pred       = -> (v) { pred_exprs.all? { |p| p.call(v) } }
+      @keys_pred       = ->(v) { pred_exprs.all? { |p| p.call(v) } }
       @key_to_spec_map = H[req_keys.concat(@opt_keys).zip(req_specs.concat(@opt_specs))]
     end
 
@@ -63,9 +64,9 @@ module Speculation
       ret
     end
 
-    def explain(path, via, _in, value)
+    def explain(path, via, inn, value)
       unless Utils.hash?(value)
-        return [{ path: path, pred: :hash?, val: value, via: via, in: _in }]
+        return [{ :path => path, :pred => :hash?, :val => value, :via => via, :in => inn }]
       end
 
       problems = []
@@ -76,7 +77,7 @@ module Speculation
         unless valid_or_failure == true
           valid_or_failure.each do |failure_sexp|
             pred = sexp_to_rb(failure_sexp)
-            problems << { path: path, pred: pred, val: value, via: via, in: _in }
+            problems << { :path => path, :pred => pred, :val => value, :via => via, :in => inn }
           end
         end
       end
@@ -87,18 +88,18 @@ module Speculation
         unless valid_or_failure == true
           valid_or_failure.each do |failure_sexp|
             pred = sexp_to_rb(failure_sexp)
-            problems << { path: path, pred: pred, val: value, via: via, in: _in }
+            problems << { :path => path, :pred => pred, :val => value, :via => via, :in => inn }
           end
         end
       end
 
-      problems += value.flat_map do |(k, v)|
+      problems += value.flat_map { |(k, v)|
         next unless S.registry.key?(@key_to_spec_map[k])
 
         unless S.pvalid?(@key_to_spec_map.fetch(k), v)
-          S.explain1(@key_to_spec_map.fetch(k), path.conj(k), via, _in.conj(k), v)
+          S.explain1(@key_to_spec_map.fetch(k), path.conj(k), via, inn.conj(k), v)
         end
-      end
+      }
 
       problems.compact
     end
@@ -107,7 +108,7 @@ module Speculation
       self
     end
 
-    # TODO overrrides
+    # TODO: overrrides
     def gen(overrides, path, rmap)
       return @gen if @gen
 
@@ -123,7 +124,7 @@ module Speculation
           m.merge(k => S.gensub(s, overrides, path.conj(k), rmap))
         }
 
-      -> (rantly) do
+      ->(rantly) do
         count = rantly.range(0, opts.count)
         opts = opts.to_a.shuffle.take(count).to_h
 
@@ -138,19 +139,19 @@ module Speculation
     def sexp_to_rb(sexp, level = 0)
       if sexp.is_a?(Array)
         op, *keys = sexp
-        rb_string = ""
+        rb_string = String.new
 
-        rb_string << "(" unless level == 0
+        rb_string << "(" unless level.zero?
 
         keys.each_with_index do |key, i|
-          unless i == 0
+          unless i.zero?
             rb_string << " #{op.name} "
           end
 
           rb_string << sexp_to_rb(key, level + 1)
         end
 
-        rb_string << ")" unless level == 0
+        rb_string << ")" unless level.zero?
 
         rb_string
       else
@@ -171,36 +172,34 @@ module Speculation
     end
 
     def parse_req2(ks, v, f)
-      k, *ks = ks
+      key, *ks = ks
 
-      ret = if k.is_a?(Array)
-              op, *kks = k
+      ret = if key.is_a?(Array)
+              op, *kks = key
               case op
               when :or.ns
                 if kks.one? { |k| parse_req([k], v, f) == true }
                   true
                 else
-                  [k]
+                  [key]
                 end
               when :and.ns
                 if kks.all? { |k| parse_req([k], v, f) == true }
                   true
                 else
-                  [k]
+                  [key]
                 end
               else
                 raise "Expected or, and, got #{op}"
               end
+            elsif v.key?(f.call(key))
+              true
             else
-              if v.key?(f.call(k))
-                true
-              else
-                [k]
-              end
+              [key]
             end
 
       if ks.any?
-        if ret === true
+        if ret == true
           parse_req2(ks, v, f)
         else
           ret + parse_req2(ks, v, f)
@@ -211,17 +210,17 @@ module Speculation
     end
 
     def parse_req(ks, v, f)
-      k, *ks = ks
+      key, *ks = ks
 
-      ret = if k.is_a?(Array)
-              op, *kks = k
+      ret = if key.is_a?(Array)
+              op, *kks = key
               case op
               when :or.ns  then kks.one? { |k| parse_req([k], v, f) }
               when :and.ns then kks.all? { |k| parse_req([k], v, f) }
               else         raise "Expected or, and, got #{op}"
               end
             else
-              v.key?(f.call(k))
+              v.key?(f.call(key))
             end
 
       if ks.any?

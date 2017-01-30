@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 module Speculation
   using NamespacedSymbols.refine(self)
   using Conj
@@ -12,9 +13,9 @@ module Speculation
       collection_predicates = [options.fetch(:kind, Enumerable)]
 
       if options.key?(:count)
-        collection_predicates.push(-> (coll) { coll.count == options[:count] })
+        collection_predicates.push(->(coll) { coll.count == options[:count] })
       elsif options.key?(:min_count) || options.key?(:max_count)
-        collection_predicates.push(-> (coll) do
+        collection_predicates.push(->(coll) do
           min = options.fetch(:min_count, 0)
           max = options.fetch(:max_count, Float::INFINITY)
 
@@ -22,33 +23,33 @@ module Speculation
         end)
       end
 
-      @collection_predicate = -> (coll) { collection_predicates.all? { |f| f === coll } }
+      @collection_predicate = ->(coll) { collection_predicates.all? { |f| f === coll } }
       @delayed_spec = Concurrent::Delay.new { S.specize(predicate) }
-      @kfn = options.fetch(:kfn.ns, -> (i, v) { i })
+      @kfn = options.fetch(:kfn.ns, ->(i, _v) { i })
       @conform_keys, @conform_all, @kind, @gen_into, @gen_max, @distinct, @count, @min_count, @max_count =
         options.values_at(:conform_keys, :conform_all.ns, :kind, :into, :gen_max, :distinct, :count, :min_count, :max_count)
       @gen_max ||= 20
       @conform_into = @gen_into
 
       # returns a tuple of [init add complete] fns
-      @cfns = -> (x) do
+      @cfns = ->(x) do
         if Utils.array?(x) && (!@conform_into || Utils.array?(@conform_into))
           [:itself.to_proc,
-           -> (ret, i, v, cv) { v.equal?(cv) ? ret : ret.tap { |r| r[i] = cv } },
+           ->(ret, i, v, cv) { v.equal?(cv) ? ret : ret.tap { |r| r[i] = cv } },
            :itself.to_proc]
         elsif Utils.hash?(x) && ((@kind && !@conform_into) || Utils.hash?(@conform_into))
           [@conform_keys ? Utils.method(:empty) : :itself.to_proc,
-           -> (ret, i, v, cv) {
-            if v.equal?(cv) && !@conform_keys
-              ret
-            else
-              ret.merge((@conform_keys ? cv : v).first => cv.last)
-            end
+           ->(ret, _i, v, cv) {
+             if v.equal?(cv) && !@conform_keys
+               ret
+             else
+               ret.merge((@conform_keys ? cv : v).first => cv.last)
+             end
            },
            :itself.to_proc]
         else
-          [-> (x) { Utils.empty(@conform_into || x) },
-           -> (ret, i, v, cv) { ret.conj(cv) },
+          [->(init) { Utils.empty(@conform_into || init) },
+           ->(ret, _i, _v, cv) { ret.conj(cv) },
            :itself.to_proc]
         end
       end
@@ -64,19 +65,19 @@ module Speculation
 
         return_value = init.call(value)
 
-        value.each_with_index do |value, index|
-          conformed_value = spec.conform(value)
+        value.each_with_index do |val, index|
+          conformed_value = spec.conform(val)
 
           if S.invalid?(conformed_value)
             return :invalid.ns
           else
-            return_value = add.call(return_value, index, value, conformed_value)
+            return_value = add.call(return_value, index, val, conformed_value)
           end
         end
 
         complete.call(return_value)
       else
-        # OPTIMIZE: check if value is indexed (array, hash etc.) vs not
+        # OPTIMIZE: check if value is indexed (array, hash etc.) vs not
         # indexed (list, custom enumerable)
         limit = COLL_CHECK_LIMIT
 
@@ -89,19 +90,19 @@ module Speculation
       end
     end
 
-    def explain(path, via, _in, value)
-      probs = S.collection_problems(value, @kind, @distinct, @count, @min_count, @max_count, path, via, _in)
+    def explain(path, via, inn, value)
+      probs = S.collection_problems(value, @kind, @distinct, @count, @min_count, @max_count, path, via, inn)
       return probs if probs
 
       spec = @delayed_spec.value
 
-      probs = value.lazy.each_with_index.flat_map do |v, i|
+      probs = value.lazy.each_with_index.flat_map { |v, i|
         k = @kfn.call(i, v)
 
         unless S.valid?(spec, v)
-          S.explain1(@predicate, path, via, _in.conj(k), v)
+          S.explain1(@predicate, path, via, inn.conj(k), v)
         end
-      end
+      }
 
       probs = @conform_all ? probs.to_a : probs.take(COLL_ERROR_LIMIT)
       probs.compact
@@ -112,7 +113,7 @@ module Speculation
 
       pgen = S.gensub(@predicate, overrides, path, rmap)
 
-      -> (rantly) do
+      ->(rantly) do
         init = if @gen_into
                  Utils.empty(@gen_into)
                elsif @kind

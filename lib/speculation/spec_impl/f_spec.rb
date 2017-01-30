@@ -1,10 +1,11 @@
+# frozen_string_literal: true
 module Speculation
   using NamespacedSymbols.refine(self)
 
   class FSpec < SpecImpl
     S = Speculation
 
-    # TODO add block spec
+    # TODO: add block spec
     # TODO call_valid?
     # TODO validate_fn
 
@@ -17,8 +18,8 @@ module Speculation
     end
 
     def conform(value)
-      raise "Can't conform fspec without args spec: #{self.inspect}" unless @argspec
-      # TODO value.is_a?(Method) correct? maybe Identifier?
+      raise "Can't conform fspec without args spec: #{inspect}" unless @argspec
+      # TODO: value.is_a?(Method) correct? maybe Identifier?
       return :invalid.ns unless value.is_a?(Proc) || value.is_a?(Method)
 
       # TODO: quick-check the function to determine validity
@@ -28,16 +29,16 @@ module Speculation
       value
     end
 
-    def explain(path, via, _in, value)
-      # TODO implement me
+    def explain(_path, _via, _inn, _value)
+      # TODO: implement me
       raise NotImplementedError
     end
 
-    def gen(overrides, path, rmap)
+    def gen(overrides, _path, _rmap)
       return @gen if @gen
 
-      -> (rantly) do
-        -> (*args) do
+      ->(_rantly) do
+        ->(*args) do
           unless S.pvalid?(@argspec, args)
             raise S.explain(@argspec, args)
           end
