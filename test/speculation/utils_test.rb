@@ -7,15 +7,14 @@ class SpeculationUtilsTest < Minitest::Test
   STest = Speculation::Test
   U = Speculation::Utils
 
-  methods = U.methods(false).map { |m| U.method(m) }
+  methods = STest.checkable_methods.select { |m| m.namespace == U }
 
   methods.each do |meth|
     define_method(:"test_check_#{meth.name}") do
-      result = STest.check(meth, :num_tests => 100)
+      results = STest.check(meth, :num_tests => 500)
+      result = STest.abbrev_result(results.first)
 
-      if result.first
-        assert result.dig(0, :ret.ns(STest), :result), result
-      end
+      assert_nil result[:failure], PP.pp(result, String.new)
     end
   end
 end
