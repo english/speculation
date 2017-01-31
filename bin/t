@@ -1,0 +1,2 @@
+#!/usr/bin/env bash
+bundle exec ruby -I test -S minitest-queue $(find test -name *_test.rb)
