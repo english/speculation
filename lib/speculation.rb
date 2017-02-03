@@ -236,8 +236,8 @@ module Speculation
     if g
       Gen.such_that(->(x) { valid?(spec, x) }, g)
     else
-      # TODO: add ex-info to exception with :failure.ns => :no_gen
-      raise "unable to construct gen at: #{path.inspect} for: #{spec.inspect}"
+      raise Speculation::Error.new("unable to construct gen at: #{path.inspect} for: #{spec.inspect}",
+                                   :failure.ns => :no_gen, :path.ns => path)
     end
   end
 
