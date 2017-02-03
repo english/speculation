@@ -321,7 +321,7 @@ module Speculation
     # :num_tests  optional number of generative tests ran
     #
     # :failure is a hash that will contain a :"Speculation/failure" key with
-    #   possible values:
+    # possible values:
     #
     # :check_failed   at least one checked return did not conform
     # :no_args_spec   no :args spec provided
@@ -339,15 +339,20 @@ module Speculation
         map { |ident| check1(ident, opts) } # TODO: pmap?
     end
 
-    # Custom quick check implementation since Rantly's prints result to stdout
+    # Custom quick check implementation since Rantly doesn't provide access to
+    # check results
     def self.rantly_quick_check(gen, num_tests, &block)
       i = 0
-      limit = 10
+      limit = 100
 
       Rantly.singleton.generate(num_tests, limit, gen) do |val|
         i += 1
 
-        result = block.call(val)
+        result = begin
+                   block.call(val)
+                 rescue => e
+                   e
+                 end
 
         unless result == true
           # This is a Rantly Tuple.
@@ -382,7 +387,11 @@ module Speculation
       if data.shrinkable?
         while iteration < 1024
           shrunk_data = data.shrink
-          result = block.call(shrunk_data.array)
+          result = begin
+                     block.call(shrunk_data.array)
+                   rescue => e
+                     e
+                   end
 
           unless result == true
             shrunk = shrink(shrunk_data, result, block, depth + 1, iteration + 1)
