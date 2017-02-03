@@ -26,7 +26,7 @@ module Speculation
 
       specs = { :args => @argspec, :ret => @retspec, :fn => @fnspec }
 
-      if f.equal?(FSpec.validate_fn(f, specs, S::FSPEC_ITERATIONS))
+      if f.equal?(FSpec.validate_fn(f, specs, S.fspec_iterations))
         f
       else
         :invalid.ns

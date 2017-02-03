@@ -18,23 +18,28 @@ module Speculation
   using NamespacedSymbols.refine(self)
   using Conj
 
-  # TODO: Make these configurable
+  class << self
+    # A soft limit on how many times a branching spec
+    # (or/alt/zero_or_more) can be recursed through during generation.
+    # After this a non-recursive branch will be chosen.
+    attr_accessor :recursion_limit
 
-  # A soft limit on how many times a branching spec
-  # (or/alt/zero_or_more) can be recursed through during generation.
-  # After this a non-recursive branch will be chosen.
-  RECURSION_LIMIT = 4
+    # The number of times an anonymous fn specified by fspec will be
+    # (generatively) tested during conform.
+    attr_accessor :fspec_iterations
 
-  # The number of times an anonymous fn specified by fspec will be
-  # (generatively) tested during conform.
-  FSPEC_ITERATIONS = 21
+    # The number of elements validated in a collection spec'ed with 'every'.
+    attr_accessor :coll_check_limit
 
-  # The number of elements validated in a collection spec'ed with 'every'.
-  COLL_CHECK_LIMIT = 101
+    # The number of errors reported by explain in a collection spec'ed with
+    # 'every'
+    attr_accessor :coll_error_limit
+  end
 
-  # The number of errors reported by explain in a collection spec'ed with
-  # 'every'
-  COLL_ERROR_LIMIT = 20
+  @recursion_limit  = 4
+  @fspec_iterations = 21
+  @coll_check_limit = 101
+  @coll_error_limit = 20
 
   @registry_ref = Concurrent::Atom.new(H[])
 
@@ -252,7 +257,7 @@ module Speculation
   # either an empty array or an array with one item in it)
   def self.gen(spec, overrides = nil)
     spec = Identifier(spec)
-    gensub(spec, overrides, [], H[:recursion_limit.ns => RECURSION_LIMIT])
+    gensub(spec, overrides, [], H[:recursion_limit.ns => recursion_limit])
   end
 
   # rubocop:disable Style/MethodName

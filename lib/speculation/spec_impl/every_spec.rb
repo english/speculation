@@ -77,9 +77,8 @@ module Speculation
 
         complete.call(return_value)
       else
-        # OPTIMIZE: check if value is indexed (array, hash etc.) vs not
-        # indexed (list, custom enumerable)
-        limit = COLL_CHECK_LIMIT
+        # OPTIMIZE: check if value is indexed (array, hash etc.) vs not indexed (list, custom enumerable)
+        limit = S.coll_check_limit
 
         value.each_with_index do |item, index|
           return value if index == limit
@@ -104,7 +103,7 @@ module Speculation
         end
       }
 
-      probs = @conform_all ? probs.to_a : probs.take(COLL_ERROR_LIMIT)
+      probs = @conform_all ? probs.to_a : probs.take(S.coll_error_limit)
       probs.compact
     end
 
