@@ -11,6 +11,7 @@ require "speculation/conj"
 require "speculation/identifier"
 require "speculation/utils"
 require "speculation/spec_impl"
+require "speculation/error"
 
 module Speculation
   H = Hamster::Hash
@@ -157,12 +158,7 @@ module Speculation
     specize(spec).conform(value)
   end
 
-  # TODO: unform
-  # TODO form
-  # TODO abbrev
-  # TODO describe
-
-  # Takes a spec and a no-arg, generator block and returns a version of that
+  # Takes a spec and a one-arg generator block and returns a version of the
   # spec that uses that generator
   def self.with_gen(spec, &gen)
     if regex?(spec)
@@ -1204,10 +1200,10 @@ module Speculation
   end
 
   # TODO: date_in_range?
-  # TODO date_in
-  # TODO int_in_range?
-  # TODO int_in
-  # TODO float_in
+  # TODO: date_in
+  # TODO: int_in_range?
+  # TODO: int_in
+  # TODO: float_in
 
   # TODO: assert
 

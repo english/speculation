@@ -21,14 +21,14 @@ class SpeculationTestTest < Minitest::Test
 
     STest.instrument(mod.method(:ranged_rand))
 
-    e = assert_raises(STest::DidNotConformError) { mod.ranged_rand(8, 5) }
+    e = assert_raises(S::Error) { mod.ranged_rand(8, 5) }
 
-    assert_match(/^Call to '.*ranged_rand' did not conform to spec/, e.message)
+    assert_match(/^Call to '.*ranged_rand' did not conform to spec/, e.data[:cause])
 
-    assert_equal :instrument, e.explain_data.fetch(:"Speculation/failure")
-    assert_match %r{speculation/test/speculation/test_test\.rb:\d+:in `block in test_fdef_instrument'}, e.explain_data.fetch(:"Speculation::Test/caller")
+    assert_equal :instrument, e.data.fetch(:"Speculation/failure")
+    assert_match %r{speculation/test/speculation/test_test\.rb:\d+:in `block in test_fdef_instrument'}, e.data.fetch(:"Speculation::Test/caller")
 
-    problems = e.explain_data.fetch(:"Speculation/problems")
+    problems = e.data.fetch(:"Speculation/problems")
     assert_equal 1, problems.count
 
     problem = problems.first
@@ -38,7 +38,7 @@ class SpeculationTestTest < Minitest::Test
     assert_equal [], problem[:via]
     assert_kind_of Proc, problem[:pred]
 
-    assert_equal [8, 5], e.explain_data.fetch(:"Speculation/args")
+    assert_equal [8, 5], e.data.fetch(:"Speculation/args")
 
     mod.ranged_rand(5, 8)
   end
@@ -55,7 +55,7 @@ class SpeculationTestTest < Minitest::Test
     STest.instrument(klass.instance_method(:bar))
 
     subject = klass.new
-    assert_raises(STest::DidNotConformError) do
+    assert_raises(S::Error) do
       subject.bar(8)
     end
     subject.bar("asd")

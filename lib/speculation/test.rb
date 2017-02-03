@@ -6,15 +6,6 @@ module Speculation
   module Test
     using NamespacedSymbols.refine(self)
 
-    class DidNotConformError < StandardError
-      attr_reader :explain_data
-
-      def initialize(message, explain_data)
-        super(message)
-        @explain_data = explain_data
-      end
-    end
-
     S = Speculation
     H = Hamster::Hash
 
@@ -48,7 +39,7 @@ module Speculation
             _explain_data(spec, [role], [], [], data).
             merge(:args.ns(S) => args, :failure.ns(S) => :instrument, :caller.ns => caller)
 
-          raise DidNotConformError.new("Call to '#{ident}' did not conform to spec:\n #{S.explain_str(ed)}", ed)
+          raise Speculation::Error.new("Call to '#{ident}' did not conform to spec:\n #{S.explain_str(ed)}", ed)
         else
           conformed
         end

@@ -34,6 +34,12 @@ To install this gem onto your local machine, run `bundle exec rake install`. To 
 
 Bug reports and pull requests are welcome on GitHub at https://github.com/[USERNAME]/speculation.
 
+## TODO
+
+- [unform](https://clojuredocs.org/clojure.spec/unform)
+- [form](https://clojuredocs.org/clojure.spec/form)
+- [abbrev](https://clojuredocs.org/clojure.spec/abbrev)
+- [describe](https://clojuredocs.org/clojure.spec/describe)
 
 ## License
 
