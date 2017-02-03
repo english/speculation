@@ -580,4 +580,18 @@ val: {:first_name=>\"Elon\"} fails spec: :\"unq/person\" predicate: \":Speculati
     val = Gen.generate(S.gen(:suit.ns))
     assert [:club, :diamond, :heart, :spade].include?(val)
   end
+
+  def test_fspec_conform
+    mod = Module.new do
+      def self.foo(x)
+        x + 1
+      end
+    end
+
+    S.fdef(mod.method(:foo),
+           :args => S.cat(:x => Integer),
+           :ret  => Integer)
+
+    assert S.valid?(mod.method(:foo), :next.to_proc)
+  end
 end

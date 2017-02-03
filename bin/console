@@ -2,7 +2,7 @@
 # frozen_string_literal: true
 
 require "bundler/setup"
-require_relative "../lib/speculation.rb"
+# require_relative "../lib/speculation.rb"
 
 # You can add fixtures and/or initialization code here to make experimenting
 # with your gem easier. You can also use a different console, if you like.
@@ -17,6 +17,10 @@ def reload!
   load "./lib/speculation/conj.rb"
   load "./lib/speculation/identifier.rb"
   load "./lib/speculation/utils.rb"
+
+  load "./lib/speculation/gen.rb"
+  load "./lib/speculation/test.rb"
+
   load "./lib/speculation/spec_impl.rb"
 
   Dir["lib/speculation/spec_impl/*.rb"].each do |f|
@@ -24,8 +28,6 @@ def reload!
   end
 
   load "./lib/speculation.rb"
-  load "./lib/speculation/gen.rb"
-  load "./lib/speculation/test.rb"
   load "./lib/speculation/utils_specs.rb"
 
   Object.const_set(:S, Speculation)
@@ -38,14 +40,14 @@ def reload!
   STest.instrument
 end
 
+reload!
+
 # allow running minitest assertions
 require "minitest"
 include Minitest::Assertions
 def self.assertions; 1; end
 def self.assertions=(_x); end
 using Speculation::NamespacedSymbols.refine(self)
-
-reload!
 
 # (If you use this, don't forget to add pry to your Gemfile!)
 require "pry"

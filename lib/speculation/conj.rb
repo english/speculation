@@ -1,4 +1,6 @@
 # frozen_string_literal: true
+require "hamster/hash"
+
 module Speculation
   module Conj
     refine Hamster::Hash do

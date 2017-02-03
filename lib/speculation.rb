@@ -148,6 +148,7 @@ module Speculation
   # Given a spec and a value, returns :Speculation/invalid if value does not
   # match spec, else the (possibly destructured) value
   def self.conform(spec, value)
+    spec = Identifier(spec)
     specize(spec).conform(value)
   end
 
@@ -623,6 +624,7 @@ module Speculation
 
   # Helper function that returns true when x is valid for spec.
   def self.valid?(spec, x)
+    spec = Identifier(spec)
     spec = specize(spec)
 
     !invalid?(spec.conform(x))

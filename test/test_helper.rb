@@ -4,11 +4,11 @@ require "minitest/autorun"
 require "pry"
 require "hamster"
 require "set"
-require "speculation"
 require "speculation/namespaced_symbols"
 require "speculation/identifier"
 require "speculation/test"
 require "speculation/gen"
+require "speculation"
 require "speculation/utils_specs"
 
 Speculation::Test.instrument
