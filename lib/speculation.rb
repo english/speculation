@@ -182,6 +182,7 @@ module Speculation
   # :path :pred and :val keys describing the predicate and the value that failed
   # at that path.
   def self.explain_data(spec, x)
+    spec = Identifier(spec)
     name = spec_name(spec)
     _explain_data(spec, [], [name] || [], [], x)
   end
@@ -250,6 +251,7 @@ module Speculation
   # collection (i.e. a generator for Speculation.zero_or_more should return
   # either an empty array or an array with one item in it)
   def self.gen(spec, overrides = nil)
+    spec = Identifier(spec)
     gensub(spec, overrides, [], H[:recursion_limit.ns => RECURSION_LIMIT])
   end
 
