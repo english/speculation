@@ -48,7 +48,7 @@ module Speculation
           rmap = S.inck(rmap, @id)
 
           unless S.recur_limit?(rmap, @id, path, k)
-            S.gensub(p, overrides, path.conj(k), rmap)
+            Gen.delay { S.gensub(p, overrides, path.conj(k), rmap) }
           end
         }.
         compact

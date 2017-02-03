@@ -27,8 +27,8 @@ module Speculation
       return @gen if @gen
 
       ->(rantly) do
-        rantly.freq([1, Utils.constantly(nil)],
-                    [9, S.gensub(@pred, overrides, path.conj(:pred.ns), rmap)])
+        rantly.freq([1, Gen.delay { Utils.constantly(nil) }],
+                    [9, Gen.delay { S.gensub(@pred, overrides, path.conj(:pred.ns), rmap) }])
       end
     end
   end

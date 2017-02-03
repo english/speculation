@@ -20,9 +20,9 @@ module Speculation
   using Conj
 
   class << self
-    # A soft limit on how many times a branching spec
-    # (or/alt/zero_or_more) can be recursed through during generation.
-    # After this a non-recursive branch will be chosen.
+    # A soft limit on how many times a branching spec (or/alt/zero_or_more) can
+    # be recursed through during generation.  After this a non-recursive branch
+    # will be chosen.
     attr_accessor :recursion_limit
 
     # The number of times an anonymous fn specified by fspec will be
@@ -1020,8 +1020,11 @@ module Speculation
     ggens = ->(preds, keys) do
       preds.zip(keys).map do |pred, k|
         unless rmap && id && k && recur_limit?(rmap, id, path, k)
-          # TODO: delay if we have an id?
-          re_gen(pred, overrides, k ? path.conj(k) : path, rmap)
+          if id
+            Gen.delay { Speculation.re_gen(pred, overrides, k ? path.conj(k) : path, rmap) }
+          else
+            re_gen(pred, overrides, k ? path.conj(k) : path, rmap)
+          end
         end
       end
     end

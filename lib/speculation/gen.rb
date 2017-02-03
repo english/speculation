@@ -3,6 +3,7 @@ require "set"
 require "rantly"
 require "rantly/property"
 require "rantly/shrinks"
+require "concurrent/delay"
 
 module Speculation
   using NamespacedSymbols.refine(self)
@@ -75,6 +76,14 @@ module Speculation
         ->(r) { r.choose(*pred) }
       else
         GEN_BUILTINS[pred]
+      end
+    end
+
+    def self.delay(&block)
+      delayed = Concurrent::Delay.new(&block)
+
+      -> (rantly) do
+        delayed.value.call(rantly)
       end
     end
   end

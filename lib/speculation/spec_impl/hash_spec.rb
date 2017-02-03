@@ -121,7 +121,11 @@ module Speculation
 
       opts = @opt_keys.zip(@opt_specs).
         reduce({}) { |m, (k, s)|
-          m.merge(k => S.gensub(s, overrides, path.conj(k), rmap))
+          if S.recur_limit?(rmap, id, path, k)
+            m
+          else
+            m.merge(k => Gen.delay { S.gensub(s, overrides, path.conj(k), rmap) })
+          end
         }
 
       ->(rantly) do
