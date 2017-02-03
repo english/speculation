@@ -3,17 +3,12 @@ require "set"
 require "rantly"
 require "rantly/property"
 require "rantly/shrinks"
-require "hamster/hash"
-require "hamster/vector"
 
 module Speculation
   using NamespacedSymbols.refine(self)
 
   module Gen
-    H = Hamster::Hash
-    V = Hamster::Vector
-
-    GEN_BUILTINS = H[
+    GEN_BUILTINS = {
       Integer    => ->(r) { r.integer },
       String     => ->(r) { r.sized(r.range(0, 100)) { string(:alpha) } },
       Float      => ->(_r) { rand(Float::MIN..Float::MAX) },
@@ -53,31 +48,34 @@ module Speculation
         gen = Gen.gen_for_pred(klass)
         gen.call(r)
       end
-    ]
+    }.freeze
 
-    # TODO: honor max tries
-    def self.such_that(pred, gen, _max_tries)
+    # Adds `pred` as a Rantly `guard` to generator `gen`.
+    def self.such_that(pred, gen)
       ->(rantly) do
-        gen.call(rantly).tap do |val|
-          rantly.guard(pred.call(val))
-        end
+        gen.call(rantly).tap { |val| rantly.guard(pred.call(val)) }
       end
     end
 
+    # Generate a single value using `gen`.
+    # `limit` specifies how many times `gen` can fail to produce a valid value.
+    def self.generate(gen, limit = 100)
+      Rantly.value(limit, &gen)
+    end
+
+    # Generate `n` values using `gen`
+    # `limit` specifies how many times `gen` can fail to produce a valid value.
+    def self.sample(gen, n, limit = 100)
+      Rantly.map(n, limit, &gen)
+    end
+
+    # Given a predicate, returns a built-in generator if one exists.
     def self.gen_for_pred(pred)
       if pred.is_a?(Set)
         ->(r) { r.choose(*pred) }
       else
         GEN_BUILTINS[pred]
       end
-    end
-
-    def self.generate(gen)
-      Rantly.value(&gen)
-    end
-
-    def self.sample(gen, n)
-      Rantly.map(n, &gen)
     end
   end
 end

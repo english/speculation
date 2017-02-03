@@ -2,7 +2,6 @@
 require "concurrent/atom"
 require "concurrent/delay"
 require "hamster/hash"
-require "hamster/vector"
 require "set"
 require "securerandom"
 
@@ -15,7 +14,6 @@ require "speculation/spec_impl"
 
 module Speculation
   H = Hamster::Hash
-  V = Hamster::Vector
 
   using NamespacedSymbols.refine(self)
   using Conj
@@ -233,7 +231,7 @@ module Speculation
     g = gfn || spec.gen(overrides, path, rmap)
 
     if g
-      Gen.such_that(->(x) { valid?(spec, x) }, g, 100)
+      Gen.such_that(->(x) { valid?(spec, x) }, g)
     else
       # TODO: add ex-info to exception with :failure.ns => :no_gen
       raise "unable to construct gen at: #{path.inspect} for: #{spec.inspect}"
