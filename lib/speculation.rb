@@ -528,8 +528,6 @@ module Speculation
   # Takes a predicate function with the semantics of conform i.e. it should
   # return either a (possibly converted) value or :"Speculation/invalid", and
   # returns a spec that uses it as a predicate/conformer.
-  #
-  # TODO Optionally takes a second fn that does unform of result of first
   def self.conformer(f)
     spec_impl(f, true)
   end
@@ -690,30 +688,6 @@ module Speculation
     end
 
     nil
-  end
-
-  # TODO: move inside EverySpec?
-  # @private
-  def self.collection_problems(x, kfn, distinct, count, min_count, max_count, path, via, inn)
-    pred = kfn || Utils.method(:collection?)
-
-    unless pvalid?(pred, x)
-      return explain1(pred, path, via, inn, x)
-    end
-
-    if count && count != x.count
-      return [{ :path => path, :pred => "count == x.count", :val => x, :via => via, :in => inn }]
-    end
-
-    if min_count || max_count
-      if x.count.between?(min_count || 0, max_count || Float::Infinity)
-        return [{ :path => path, :pred => "count.between?(min_count || 0, max_count || Float::Infinity)", :val => x, :via => via, :in => inn }]
-      end
-    end
-
-    if distinct && !x.empty? && Utils.distinct?(x)
-      [{ :path => path, :pred => "distinct?", :val => x, :via => via, :in => inn }]
-    end
   end
 
   ### regex
