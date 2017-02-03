@@ -581,7 +581,7 @@ val: {:first_name=>\"Elon\"} fails spec: :\"unq/person\" predicate: \":Speculati
     assert [:club, :diamond, :heart, :spade].include?(val)
   end
 
-  def test_fspec_conform
+  def test_fspec
     mod = Module.new do
       def self.foo(x)
         x + 1
@@ -593,5 +593,22 @@ val: {:first_name=>\"Elon\"} fails spec: :\"unq/person\" predicate: \":Speculati
            :ret  => Integer)
 
     assert S.valid?(mod.method(:foo), :next.to_proc)
+    refute S.valid?(mod.method(:foo), :to_s.to_proc)
+    assert S.valid?(mod.method(:foo), mod.method(:foo))
+    refute S.valid?(mod.method(:foo), "not-a-method")
+
+    Gen.generate(S.gen(mod.method(:foo)))
+
+    identifier = S.send(:Identifier, mod.method(:foo))
+    expected = [{ :path => [:ret], :val => "0", :via => [identifier], :in => [], :pred => Integer }]
+
+    ed = S.explain_data(mod.method(:foo), :to_s.to_proc)
+    assert_equal expected, ed.fetch(:problems.ns(S))
+
+    S.def(:foo.ns, S.fspec(:args => S.cat(:x => Integer), :ret => Integer))
+    expected = [{:path => [], :pred => "f.call(*args)", :val => [0], :reason => "undefined method `trigger_no_method_error' for 0:Fixnum", :via => [:foo.ns], :in => []}]
+
+    ed = S.explain_data(:foo.ns, :trigger_no_method_error.to_proc)
+    assert_equal expected, ed.fetch(:problems.ns(S))
   end
 end

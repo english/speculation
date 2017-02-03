@@ -2,6 +2,7 @@
 
 module Speculation
   using NamespacedSymbols.refine(self)
+  using Conj
 
   class FSpec < SpecImpl
     S = Speculation
@@ -9,8 +10,6 @@ module Speculation
     STest = S::Test
 
     # TODO: add block spec
-    # TODO call_valid?
-    # TODO validate_fn
 
     attr_reader :argspec, :retspec, :fnspec
 
@@ -34,9 +33,32 @@ module Speculation
       end
     end
 
-    def explain(_path, _via, _inn, _value)
-      # TODO: implement me
-      raise NotImplementedError
+    def explain(path, via, inn, f)
+      unless f.respond_to?(:call)
+        return [{ :path => path, :pred => 'respond_to?(:call)', :val => f, :via => via, :in => inn }]
+      end
+
+      specs = { :args => @argspec, :ret => @retspec, :fn => @fnspec }
+      args = FSpec.validate_fn(f, specs, 100)
+      return if f.equal?(args)
+
+      ret = begin
+              f.call(*args)
+            rescue => e
+              e
+            end
+
+      if ret.is_a?(Exception)
+        return [{ :path => path, :pred => 'f.call(*args)', :val => args, :reason => ret.message, :via => via, :in => inn }]
+      end
+
+      cret = S.dt(@retspec, ret)
+      return S.explain1(@retspec, path.conj(:ret), via, inn, ret) if S.invalid?(cret)
+
+      if @fnspec
+        cargs = S.conform(@argspec, args)
+        S.explain1(@fnspec, path.conj(:fn), via, inn, :args => cargs, :ret => cret)
+      end
     end
 
     def gen(overrides, _path, _rmap)
@@ -66,7 +88,7 @@ module Speculation
       smallest || f
     end
 
-    def self.call_valid?(f, specs, args)
+    private_class_method def self.call_valid?(f, specs, args)
       cargs = S.conform(specs[:args], args)
       return if S.invalid?(cargs)
 
