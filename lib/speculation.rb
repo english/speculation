@@ -382,7 +382,6 @@ module Speculation
   # and 'val' functions can be used to refer generically to the components of
   # the tagged return.
   def self.or(key_preds)
-    # TODO: FIXME nested `or`s don't tag nested conforms
     OrSpec.new(key_preds)
   end
 

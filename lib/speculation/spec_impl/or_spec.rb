@@ -24,7 +24,7 @@ module Speculation
         conformed = spec.conform(value)
 
         unless S.invalid?(conformed)
-          return [@keys[index], value]
+          return [@keys[index], conformed]
         end
       end
 
