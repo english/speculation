@@ -11,7 +11,7 @@ module Speculation
     end
 
     def to_s
-      PP.pp(@data, "")
+      PP.pp(@data, String.new)
     end
   end
 end
