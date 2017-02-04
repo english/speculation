@@ -6,8 +6,6 @@ module Speculation
 
   class FSpec < SpecImpl
     S = Speculation
-    Gen = S::Gen
-    STest = S::Test
 
     # TODO: add block spec
 
@@ -70,7 +68,7 @@ module Speculation
             raise S.explain(@argspec, args)
           end
 
-          Gen.generate(S.gen(@retspec, overrides))
+          S::Gen.generate(S.gen(@retspec, overrides))
         end
       end
     end
@@ -80,7 +78,7 @@ module Speculation
     def self.validate_fn(f, specs, iterations)
       g = S.gen(specs[:args])
 
-      ret = STest.rantly_quick_check(g, iterations) { |args|
+      ret = S::Test.rantly_quick_check(g, iterations) { |args|
         call_valid?(f, specs, args)
       }
 
