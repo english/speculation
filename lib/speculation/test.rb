@@ -289,8 +289,7 @@ module Speculation
       result
     end
 
-    private_class_method def self.check1(ident, opts)
-      spec = S.get_spec(ident)
+    private_class_method def self.check1(ident, spec, opts)
       specd = S.spec(spec)
 
       reinstrument = unstrument(ident).any?
@@ -311,13 +310,24 @@ module Speculation
       instrument(ident) if reinstrument
     end
 
-    # TODO: check_method (check-fn)
+    private_class_method def self.validate_check_opts(opts)
+      return unless opts[:gen]
 
-    # Given an opts hash as per `check`, returns the set of Identifiers that can
-    # be checked.
+      unless opts[:gen].keys.all? { |k| k.is_a?(Method) }
+        raise ArgumentErorr, "check :gen expects Method keys"
+      end
+    end
+
+    # Runs generative tests for method using spec and opts. See 'check' for options and return
+    def self.check_method(method, spec, opts = {})
+      validate_check_opts(opts)
+      check1(S.Identifier(method), spec, opts)
+    end
+
+    # Given an opts hash as per `check`, returns the set of Identifiers that can be checked.
     def self.checkable_methods(opts = {})
-      # TODO: validate opts
-      # TODO convert spec keys to Identifiers
+      validate_check_opts(opts)
+
       S.
         registry.
         keys.
@@ -351,9 +361,7 @@ module Speculation
     #
     # :check_failed   at least one checked return did not conform
     # :no_args_spec   no :args spec provided
-    # TODO no_fspec
     # :no_fspec       no fspec provided
-    # TODO no_gen
     # :no_gen         unable to generate :args
     # :instrument     invalid args detected by instrument
     def self.check(method_or_methods = nil, opts = {})
@@ -362,11 +370,10 @@ module Speculation
       Array(method_or_methods).
         map { |method| S.send(:Identifier, method) }.
         select { |ident| checkable_methods(opts).include?(ident) }.
-        map { |ident| check1(ident, opts) } # TODO: pmap?
+        map { |ident| check1(ident, S.get_spec(ident), opts) } # TODO: pmap?
     end
 
-    # Custom quick check implementation since Rantly doesn't provide access to
-    # check results
+    # Custom quick check implementation since Rantly doesn't provide access to check results
     def self.rantly_quick_check(gen, num_tests, &block)
       i = 0
       limit = 100
