@@ -20,9 +20,7 @@ def reload!
   load "./lib/speculation/conj.rb"
   load "./lib/speculation/identifier.rb"
   load "./lib/speculation/utils.rb"
-
-  load "./lib/speculation/gen.rb"
-  load "./lib/speculation/test.rb"
+  load "./lib/speculation/error.rb"
 
   load "./lib/speculation/spec_impl.rb"
 
@@ -31,6 +29,8 @@ def reload!
   end
 
   load "./lib/speculation.rb"
+  load "./lib/speculation/gen.rb"
+  load "./lib/speculation/test.rb"
   load "./lib/speculation/utils_specs.rb"
 
   Object.const_set(:S, Speculation)
