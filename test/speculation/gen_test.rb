@@ -122,4 +122,14 @@ class SpeculationGenTest < Minitest::Test
     # fails :args spec
     assert_raises(RuntimeError) { genned.call(2, 1) }
   end
+
+  def test_gen_overrides
+    S.def(:x.ns, String)
+    S.def(:hash.ns, S.keys(:req => [:x.ns]))
+
+    gen = S.gen(:hash.ns, :x.ns => S.gen(Set.new("a".."z")))
+    val = Gen.generate(gen)
+
+    assert Set.new("a".."z").include?(val[:x.ns])
+  end
 end

@@ -108,7 +108,6 @@ module Speculation
       self
     end
 
-    # TODO: overrrides
     def gen(overrides, path, rmap)
       return @gen if @gen
 
