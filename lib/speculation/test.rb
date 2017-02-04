@@ -66,7 +66,11 @@ module Speculation
       end
     end
 
-    # TODO: no-spec?
+    def self.no_fspec(ident, spec)
+      S::Error.new("#{ident} not spec'ed", :method        => ident,
+                                           :spec          => spec,
+                                           :failure.ns(S) => :no_fspec)
+    end
 
     private_class_method def self.instrument1(ident, opts)
       spec = S.get_spec(ident)
