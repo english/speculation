@@ -605,8 +605,9 @@ val: {:first_name=>\"Elon\"} fails spec: :\"unq/person\" predicate: \":Speculati
     ed = S.explain_data(mod.method(:foo), :to_s.to_proc)
     assert_equal expected, ed.fetch(:problems.ns(S))
 
-    S.def(:foo.ns, S.fspec(:args => S.cat(:x => Integer), :ret => Integer))
-    expected = [{:path => [], :pred => "f.call(*args)", :val => [0], :reason => "undefined method `trigger_no_method_error' for 0:Fixnum", :via => [:foo.ns], :in => []}]
+    S.def(:foo.ns, S.fspec(:args => S.cat(:x => String), :ret => Integer))
+    expected = [{ :path => [], :pred => "f.call(*args)", :val => [""], :via => [:foo.ns], :in => [],
+                  :reason => %(undefined method `trigger_no_method_error' for "":String) }]
 
     ed = S.explain_data(:foo.ns, :trigger_no_method_error.to_proc)
     assert_equal expected, ed.fetch(:problems.ns(S))

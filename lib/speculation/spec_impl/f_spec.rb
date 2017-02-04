@@ -33,7 +33,7 @@ module Speculation
 
     def explain(path, via, inn, f)
       unless f.respond_to?(:call)
-        return [{ :path => path, :pred => 'respond_to?(:call)', :val => f, :via => via, :in => inn }]
+        return [{ :path => path, :pred => "respond_to?(:call)", :val => f, :via => via, :in => inn }]
       end
 
       specs = { :args => @argspec, :ret => @retspec, :fn => @fnspec }
@@ -47,7 +47,7 @@ module Speculation
             end
 
       if ret.is_a?(Exception)
-        return [{ :path => path, :pred => 'f.call(*args)', :val => args, :reason => ret.message, :via => via, :in => inn }]
+        return [{ :path => path, :pred => "f.call(*args)", :val => args, :reason => ret.message, :via => via, :in => inn }]
       end
 
       cret = S.dt(@retspec, ret)

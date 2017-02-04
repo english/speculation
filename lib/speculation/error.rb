@@ -1,4 +1,5 @@
-require 'pp'
+# frozen_string_literal: true
+require "pp"
 
 module Speculation
   class Error < StandardError
@@ -10,7 +11,7 @@ module Speculation
     end
 
     def to_s
-      PP.pp(@data, String.new)
+      PP.pp(@data, "")
     end
   end
 end

@@ -82,7 +82,7 @@ module Speculation
     def self.delay(&block)
       delayed = Concurrent::Delay.new(&block)
 
-      -> (rantly) do
+      ->(rantly) do
         delayed.value.call(rantly)
       end
     end
