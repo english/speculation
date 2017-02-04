@@ -1076,10 +1076,8 @@ module Speculation
           g = re_gen(p2, overrides, path, rmap)
 
           if g
-            # TODO: wrap in shrinkable?
             ->(rantly) do
-              # TODO: how big?
-              rantly.range(0, 30).times.flat_map { g.call(rantly) }
+              rantly.range(0, 20).times.flat_map { g.call(rantly) }
             end
           end
         end
