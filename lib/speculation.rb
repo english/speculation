@@ -229,8 +229,10 @@ module Speculation
   # @private
   def self.gensub(spec, overrides, path, rmap)
     overrides ||= {}
+    overrides = overrides.reduce({}) { |h, (k, v)| h.merge(Identifier(k) => v) }
+
     spec = specize(spec)
-    gfn = overrides[spec.name || spec] || overrides[path]
+    gfn = overrides[spec_name(spec) || spec] || overrides[path]
     g = gfn || spec.gen(overrides, path, rmap)
 
     if g
@@ -257,14 +259,12 @@ module Speculation
   end
 
   # rubocop:disable Style/MethodName
-  private_class_method def self.Identifier(x)
+  # @private
+  def self.Identifier(x)
     case x
-    when Method
-      Identifier.new(x.receiver, x.name, false)
-    when UnboundMethod
-      Identifier.new(x.owner, x.name, true)
-    else
-      x
+    when Method        then Identifier.new(x.receiver, x.name, false)
+    when UnboundMethod then Identifier.new(x.owner, x.name, true)
+    else x
     end
   end
   # rubocop:enable Style/MethodName
@@ -950,6 +950,7 @@ module Speculation
 
     unless regex?(p)
       if input.empty?
+        pp :empty => true
         return insufficient(path, via, inn)
       else
         return explain1(p, path, via, inn, x)

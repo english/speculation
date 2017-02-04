@@ -68,8 +68,7 @@ module Speculation
 
     # TODO: no-spec?
 
-    # TODO: use opts
-    private_class_method def self.instrument1(ident, _opts)
+    private_class_method def self.instrument1(ident, opts)
       spec = S.get_spec(ident)
 
       raw, wrapped = @instrumented_methods.
@@ -80,8 +79,12 @@ module Speculation
       current = ident.get_method
       to_wrap = wrapped == current ? raw : current
 
-      # TODO: handle spec/fn overrides
-      checked = spec_checking_fn(ident, current, spec)
+      ospec = instrument_choose_spec(spec, ident, opts[:spec])
+      raise no_fspec(ident, spec) unless ospec
+
+      ofn = instrument_choose_fn(to_wrap, ospec, ident, opts)
+
+      checked = spec_checking_fn(ident, ofn, ospec)
 
       ident.redefine_method!(checked)
 
@@ -92,6 +95,24 @@ module Speculation
       end
 
       ident
+    end
+
+    private_class_method def self.instrument_choose_fn(f, spec, ident, opts)
+      stubs   = (opts[:stub] || []).map(&S.method(:Identifier))
+      over    = opts[:gen] || {}
+      replace = opts[:replace] || {}
+
+      if stubs.include?(ident)
+        Gen.generate(S.gen(spec, over))
+      else
+        replace.fetch(ident.get_method, f)
+      end
+    end
+
+    private_class_method def self.instrument_choose_spec(spec, ident, overrides)
+      (overrides || {}).
+        reduce({}) { |h, (k, v)| h.merge(S.Identifier(k) => v) }.
+        fetch(ident, spec)
     end
 
     private_class_method def self.unstrument1(ident)

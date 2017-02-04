@@ -8,6 +8,8 @@ class SpeculationTestTest < Minitest::Test
   H = Hamster::Hash
   V = Hamster::Vector
 
+  using S::NamespacedSymbols.refine(self)
+
   def test_fdef_instrument
     mod = Module.new do
       def self.ranged_rand(start, eend)
@@ -40,7 +42,7 @@ class SpeculationTestTest < Minitest::Test
 
     assert_equal [8, 5], e.data.fetch(:"Speculation/args")
 
-    mod.ranged_rand(5, 8)
+    mod.ranged_rand(5, 8) # doesn't blow up
   end
 
   def test_instrument_instance_method
@@ -81,5 +83,74 @@ class SpeculationTestTest < Minitest::Test
     result = results.first
     assert_equal [:"Speculation::Test/ret", :failure, :method, :spec], result.keys.sort
     assert_equal mod.method(:bad_ranged_rand), result[:method]
+  end
+
+  def test_instrument_spec_override
+    mod = Module.new do
+      def self.concat(a, b)
+        a + b
+      end
+    end
+
+    S.fdef(mod.method(:concat), :args => S.cat(:a => Integer, :b => Integer))
+
+    alt_concat = S.fspec(:args => S.cat(:a => String, :b => String))
+
+    STest.instrument(mod.method(:concat),
+                     :spec => { mod.method(:concat) => alt_concat })
+
+    assert_raises(S::Error) do mod.concat(1, 2) end
+    mod.concat("a", "b") # doesn't blow up
+  end
+
+  def test_instrument_stub
+    mod = Module.new do
+      def self.concat(_a, _b)
+        raise "I shouldn't have been called"
+      end
+    end
+
+    S.fdef(mod.method(:concat),
+           :args => S.cat(:a => Integer, :b => Integer),
+           :ret  => Integer)
+
+    STest.instrument(mod.method(:concat), :stub => [mod.method(:concat)])
+
+    assert_kind_of Integer, mod.concat(1, 2)
+  end
+
+  def test_instrument_stub_gen_override
+    mod = Module.new do
+      def self.concat(_a, _b)
+        raise "I shouldn't have been called"
+      end
+    end
+
+    S.fdef(mod.method(:concat),
+           :args => S.cat(:a => Integer, :b => Integer),
+           :ret  => Integer)
+
+    STest.instrument(mod.method(:concat),
+                     :stub => [mod.method(:concat)],
+                     :gen  => { mod.method(:concat) => ->(_r) { ->(_a, _b) { 1 } } })
+
+    assert_equal 1, mod.concat(1, 2)
+  end
+
+  def test_instrument_replace
+    mod = Module.new do
+      def self.concat(_a, _b)
+        raise "I shouldn't have been called"
+      end
+    end
+
+    S.fdef(mod.method(:concat),
+           :args => S.cat(:a => Integer, :b => Integer),
+           :ret  => Integer)
+
+    STest.instrument(mod.method(:concat),
+                     :replace => { mod.method(:concat) => ->(_a, _b) { 1 } })
+
+    assert_equal 1, mod.concat(1, 2)
   end
 end
