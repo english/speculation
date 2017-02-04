@@ -229,7 +229,6 @@ module Speculation
   # @private
   def self.gensub(spec, overrides, path, rmap)
     overrides ||= {}
-    overrides = overrides.reduce({}) { |h, (k, v)| h.merge(Identifier(k) => v) }
 
     spec = specize(spec)
     gfn = overrides[spec_name(spec) || spec] || overrides[path]

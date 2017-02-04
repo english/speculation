@@ -143,7 +143,12 @@ module Speculation
     # Given an opts hash as per instrument, returns the set of methods that can
     # be instrumented.
     def self.instrumentable_methods(opts = {})
-      # TODO: validate opts
+      if opts[:gen]
+        unless opts[:gen].keys.all? { |k| k.is_a?(Method) }
+          raise ArgumentError, "instrument :gen expects method keys"
+        end
+      end
+
       S.registry.keys.select(&method(:fn_spec_name?)).to_set.tap do |set|
         set.merge(opts[:spec].keys)    if opts[:spec]
         set.merge(opts[:stub])         if opts[:stub]
@@ -192,8 +197,13 @@ module Speculation
     #
     # Returns a collection of Identifiers naming the methods instrumented.
     def self.instrument(method_or_methods = instrumentable_methods, opts = {})
+      if opts[:gen]
+        gens = opts[:gen].reduce({}) { |h, (k, v)| h.merge(S.Identifier(k) => v) }
+        opts = opts.merge(:gen => gens)
+      end
+
       Array(method_or_methods).
-        map { |method| S.send(:Identifier, method) }.
+        map { |method| S.Identifier(method) }.
         uniq.
         map { |ident| instrument1(ident, opts) }.
         compact
@@ -204,7 +214,7 @@ module Speculation
     # of Identifiers naming the methods unstrumented.
     def self.unstrument(method_or_methods = @instrumented_methods.value.keys)
       Array(method_or_methods).
-        map { |method| S.send(:Identifier, method) }.
+        map { |method| S.Identifier(method) }.
         map { |ident| unstrument1(ident) }.
         compact
     end
