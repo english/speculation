@@ -107,8 +107,9 @@ module Speculation
     end
   end
 
+  # @private
   # spec_or_key must be a spec, regex or resolvable ident, else returns nil
-  private_class_method def self.maybe_spec(spec_or_key)
+  def self.maybe_spec(spec_or_key)
     spec = (Utils.ident?(spec_or_key) && reg_resolve(spec_or_key)) ||
       spec?(spec_or_key) ||
       regex?(spec_or_key) ||

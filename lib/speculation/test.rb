@@ -26,7 +26,7 @@ module Speculation
     end
 
     private_class_method def self.spec_checking_fn(ident, method, fspec)
-      fspec = S.send(:maybe_spec, fspec)
+      fspec = S.maybe_spec(fspec)
 
       conform = ->(role, spec, data, args) do
         conformed = S.conform(spec, data)
