@@ -1173,14 +1173,6 @@ module Speculation
     Gen.sample(gen(fspec.argspec), n).map { |args| [args, method.call(*args)] }
   end
 
-  # TODO: date_in_range?
-  # TODO: date_in
-  # TODO: int_in_range?
-  # TODO: int_in
-  # TODO: float_in
-
-  # TODO: assert
-
   # Resets the spec registry to only builtin specs
   def self.reset_registry!
     builtins = H[

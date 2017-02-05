@@ -291,7 +291,7 @@ module Speculation
       result
     end
 
-    def self.check1(ident, spec, opts)
+    private_class_method def self.check1(ident, spec, opts)
       specd = S.spec(spec)
 
       reinstrument = unstrument(ident).any?
@@ -390,7 +390,6 @@ module Speculation
 
         unless result == true
           # This is a Rantly Tuple.
-          # TODO find an alternative to Rantly
           val = ::Tuple.new(val)
 
           if val.respond_to?(:shrink)
@@ -479,7 +478,6 @@ module Speculation
     def self.abbrev_result(x)
       if x[:failure]
         x.reject { |k, _| k == :ret.ns }.
-          # TODO: spec => S.describe(x[:spec])
           merge(:spec    => x[:spec].inspect,
                 :failure => unwrap_failure(x[:failure]))
       else

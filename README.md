@@ -36,10 +36,27 @@ Bug reports and pull requests are welcome on GitHub at https://github.com/[USERN
 
 ## TODO
 
-- [unform](https://clojuredocs.org/clojure.spec/unform)
-- [form](https://clojuredocs.org/clojure.spec/form)
-- [abbrev](https://clojuredocs.org/clojure.spec/abbrev)
-- [describe](https://clojuredocs.org/clojure.spec/describe)
+- tidy up tests
+- write up comparison with clojure.spec
+- write guide
+
+### clojure.spec features
+
+- [`unform`](https://clojuredocs.org/clojure.spec/unform)
+- [`form`](https://clojuredocs.org/clojure.spec/form)
+- [`abbrev`](https://clojuredocs.org/clojure.spec/abbrev)
+- [`describe`](https://clojuredocs.org/clojure.spec/describe)
+- [`inst-in-range?`](https://clojuredocs.org/clojure.spec/inst-in-range_q)
+- [`inst-in`](https://clojuredocs.org/clojure.spec/inst-in)
+- [`int-in-range?`](https://clojuredocs.org/clojure.spec/int-in-range_q)
+- [`int-in`](https://clojuredocs.org/clojure.spec/int-in)
+- [`float-in`](https://clojuredocs.org/clojure.spec/float-in)
+- [`assert`](https://clojuredocs.org/clojure.spec/assert)
+
+### Improvements
+
+- Add `:block` options for FSpecs
+- Find/build an alternative to Rantly
 
 ## License
 
