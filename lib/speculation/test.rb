@@ -1,5 +1,5 @@
 # frozen_string_literal: true
-require "concurrent/atom"
+require "concurrent"
 require "pp"
 
 module Speculation
@@ -10,19 +10,19 @@ module Speculation
     H = Hamster::Hash
 
     @instrumented_methods = Concurrent::Atom.new(H[])
-    @instrument_enabled = true
+    @instrument_enabled = Concurrent::ThreadLocalVar.new(true)
 
-    # if false, instrumented methods call straight through
-    def self.instrument_enabled?
-      @instrument_enabled
+    class << self
+      # if false, instrumented methods call straight through
+      attr_accessor :instrument_enabled
     end
 
     # Disables instrument's checking of calls within a block
     def self.with_instrument_disabled(&block)
-      @instrument_enabled = false
+      instrument_enabled.value = false
       block.call
     ensure
-      @instrument_enabled = true
+      instrument_enabled.value = true
     end
 
     private_class_method def self.spec_checking_fn(ident, method, fspec)
@@ -49,15 +49,15 @@ module Speculation
       ->(*args) do
         method = method.bind(self) if method.is_a?(UnboundMethod)
 
-        if Test.instrument_enabled?
+        if Test.instrument_enabled.value
           Test.with_instrument_disabled do
             conform.call(:args, fspec.argspec, args, args) if fspec.argspec
 
             begin
-              @instrument_enabled = true
+              Test.instrument_enabled.value = true
               method.call(*args)
             ensure
-              @instrument_enabled = false
+              Test.instrument_enabled.value = false
             end
           end
         else
@@ -104,12 +104,12 @@ module Speculation
     private_class_method def self.instrument_choose_fn(f, spec, ident, opts)
       stubs   = (opts[:stub] || []).map(&S.method(:Identifier))
       over    = opts[:gen] || {}
-      replace = opts[:replace] || {}
+      replace = (opts[:replace] || {}).reduce({}) { |h, (k, v)| h.merge(S.Identifier(k) => v) }
 
       if stubs.include?(ident)
         Gen.generate(S.gen(spec, over))
       else
-        replace.fetch(ident.get_method, f)
+        replace.fetch(ident, f)
       end
     end
 
@@ -212,7 +212,9 @@ module Speculation
     # Undoes instrument on the method_or_methods, specified as in instrument.
     # With no args, unstruments all instrumented methods. Returns a collection
     # of Identifiers naming the methods unstrumented.
-    def self.unstrument(method_or_methods = @instrumented_methods.value.keys)
+    def self.unstrument(method_or_methods = nil)
+      method_or_methods ||= @instrumented_methods.value.keys
+
       Array(method_or_methods).
         map { |method| S.Identifier(method) }.
         map { |ident| unstrument1(ident) }.
@@ -289,7 +291,7 @@ module Speculation
       result
     end
 
-    private_class_method def self.check1(ident, spec, opts)
+    def self.check1(ident, spec, opts)
       specd = S.spec(spec)
 
       reinstrument = unstrument(ident).any?
@@ -366,9 +368,10 @@ module Speculation
       method_or_methods ||= checkable_methods
 
       Array(method_or_methods).
-        map { |method| S.send(:Identifier, method) }.
+        map { |method| S.Identifier(method) }.
         select { |ident| checkable_methods(opts).include?(ident) }.
-        map { |ident| check1(ident, S.get_spec(ident), opts) } # TODO: pmap?
+        map { |ident| Concurrent::Future.execute { check1(ident, S.get_spec(ident), opts) } }.
+        map { |f| f.value ? f.value : f.reason }
     end
 
     # Custom quick check implementation since Rantly doesn't provide access to check results

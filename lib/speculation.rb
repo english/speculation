@@ -950,7 +950,6 @@ module Speculation
 
     unless regex?(p)
       if input.empty?
-        pp :empty => true
         return insufficient(path, via, inn)
       else
         return explain1(p, path, via, inn, x)

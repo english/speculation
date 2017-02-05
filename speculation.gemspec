@@ -31,8 +31,13 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "rake", "~> 10.0"
   spec.add_development_dependency "minitest", "~> 5.0"
   spec.add_development_dependency "pry", "~> 0.10"
-  spec.add_development_dependency "pry-byebug", "~> 3.4"
-  spec.add_development_dependency "pry-inline", "~> 1.0"
+
+  if RUBY_PLATFORM == "java"
+    spec.add_development_dependency "pry-nav", "~> 0.2"
+  else
+    spec.add_development_dependency "pry-byebug", "~> 3.4"
+  end
+
   spec.add_development_dependency "pry-doc", "~> 0.9"
   spec.add_development_dependency "rubocop", "~> 0.47"
 end
