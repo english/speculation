@@ -227,9 +227,9 @@ module Speculation
                        :failure.ns(S) => :check_failed)
              end
 
-      { :backtrace => caller,
-        :cause     => "Specification-based check failed",
-        :data      => data }
+      S::Error.new("Specification-based check failed", data).tap do |e|
+        e.set_backtrace(caller)
+      end
     end
 
     # Returns true if call passes specs, otherwise returns a hash with
@@ -433,7 +433,6 @@ module Speculation
             if branch_depth > max_depth
               smallest = branch_smallest
               max_depth = branch_depth
-              # TODO: shouldn't we do something with shrunk result???
             end
           end
 
@@ -450,13 +449,11 @@ module Speculation
     ### check reporting ###
 
     private_class_method def self.failure_type(x)
-      # TODO: use exceptions rather than hashes for failures
-      return unless x[:data].is_a?(Hash)
-      x[:data][:failure.ns(S)]
+      x.data[:failure.ns(S)] if x.is_a?(S::Error)
     end
 
     private_class_method def self.unwrap_failure(x)
-      failure_type(x) ? x[:data] : x
+      failure_type(x) ? x.data : x
     end
 
     # Returns the type of the check result. This can be any of the
