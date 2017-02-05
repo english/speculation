@@ -345,8 +345,7 @@ module Speculation
     # :num_tests  number of times to generatively test each method
     # :gen        hash map from spec names to generator overrides
     #
-    # Generator overrides are passed to Speculation.gen when generating method
-    # args.
+    # Generator overrides are passed to Speculation.gen when generating method args.
     #
     # Returns an array of check result hashes with the following keys:
     #
@@ -356,8 +355,7 @@ module Speculation
     # :result     optional boolean as to whether all generative tests passed
     # :num_tests  optional number of generative tests ran
     #
-    # :failure is a hash that will contain a :"Speculation/failure" key with
-    # possible values:
+    # :failure is a hash that will contain a :"Speculation/failure" key with possible values:
     #
     # :check_failed   at least one checked return did not conform
     # :no_args_spec   no :args spec provided

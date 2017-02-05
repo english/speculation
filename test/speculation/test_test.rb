@@ -153,4 +153,41 @@ class SpeculationTestTest < Minitest::Test
 
     assert_equal 1, mod.concat(1, 2)
   end
+
+  def test_instrument_stub_and_check
+    mod = Module.new do
+      def self.invoke_service(_service, _request)
+        raise "shouldn't get called"
+      end
+
+      def self.run_query(service, query)
+        response = invoke_service(service, :query.ns => query)
+        result, error = response.values_at(:result.ns, :error.ns)
+        result || error
+      end
+    end
+
+    S.def(:query.ns, String)
+    S.def(:request.ns, S.keys(:req => [:query.ns]))
+    S.def(:result.ns, S.coll_of(String, :gen_max => 3))
+    S.def(:error.ns, Integer)
+    S.def(:response.ns, S.or(:ok  => S.keys(:req => [:result.ns]),
+                             :err => S.keys(:req => [:error.ns])))
+
+    S.fdef(mod.method(:invoke_service),
+           :args => S.cat(:service => :any.ns(S), :request => :request.ns),
+           :ret  => :response.ns)
+
+    S.fdef(mod.method(:run_query),
+           :args => S.cat(:service => :any.ns(S), :query => String),
+           :ret  => S.or(:ok => :result.ns, :err => :error.ns))
+
+    # verify they satisfy spec now instrumented
+    STest.instrument(mod.method(:invoke_service), :stub => [mod.method(:invoke_service)])
+    mod.invoke_service(nil, :query.ns => "test")
+    mod.invoke_service(nil, :query.ns => "test")
+
+    assert_equal({ :total => 1, :check_passed => 1 },
+                 STest.summarize_results(STest.check(mod.method(:run_query))))
+  end
 end
