@@ -173,7 +173,7 @@ module Speculation
   def self._explain_data(spec, path, via, inn, value)
     probs = specize(spec).explain(path, via, inn, value)
 
-    if probs&.any?
+    if probs && probs.any?
       { :problems.ns => probs }
     end
   end
