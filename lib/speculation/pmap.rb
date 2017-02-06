@@ -9,15 +9,14 @@ module Speculation
           Pmap.pmap_jruby(self, &block)
         end
       else
-        alias pmap map
+        alias_method :pmap, :map
       end
     end
 
     def self.pmap_jruby(array, &block)
-      pool = Concurrent::FixedThreadPool.new(
-        [1, Concurrent.processor_count - 1].max,
-        :auto_terminate  => true,
-        :fallback_policy => :abort)
+      thread_count = [1, Concurrent.processor_count - 1].max
+      pool = Concurrent::FixedThreadPool.new(thread_count, :auto_terminate  => true,
+                                                           :fallback_policy => :abort)
 
       array.
         map { |x| Concurrent::Future.execute(:executor => pool) { block.call(x) } }.
