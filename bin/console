@@ -18,6 +18,7 @@ def reload!
 
   load "./lib/speculation/namespaced_symbols.rb"
   load "./lib/speculation/conj.rb"
+  load "./lib/speculation/pmap.rb"
   load "./lib/speculation/identifier.rb"
   load "./lib/speculation/utils.rb"
   load "./lib/speculation/error.rb"

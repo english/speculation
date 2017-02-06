@@ -1,6 +1,5 @@
 # frozen_string_literal: true
-require "concurrent/atom"
-require "concurrent/delay"
+require "concurrent"
 require "hamster/hash"
 require "set"
 require "securerandom"

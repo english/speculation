@@ -1,10 +1,12 @@
 # frozen_string_literal: true
 require "concurrent"
 require "pp"
+require "speculation/pmap"
 
 module Speculation
   module Test
     using NamespacedSymbols.refine(self)
+    using Pmap
 
     S = Speculation
     H = Hamster::Hash
@@ -395,8 +397,7 @@ module Speculation
       Array(method_or_methods).
         map { |method| S.Identifier(method) }.
         select { |ident| checkable_methods(opts).include?(ident) }.
-        map { |ident| Concurrent::Future.execute(:executor => :fast) { check1(ident, S.get_spec(ident), opts) } }.
-        map { |f| f.value ? f.value : f.reason }
+        pmap { |ident| check1(ident, S.get_spec(ident), opts) }
     end
 
     # Reimplementation of Rantly's `check` since it does not provide direct access to results
