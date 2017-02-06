@@ -4,6 +4,7 @@ require "rantly"
 require "rantly/property"
 require "rantly/shrinks"
 require "concurrent/delay"
+require "date"
 
 module Speculation
   using NamespacedSymbols.refine(self)
