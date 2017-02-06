@@ -513,7 +513,7 @@ class SpeculationTest < Minitest::Test
           S.keys(:req_un => [:first_name.ns, :last_name.ns, :email.ns],
                  :opt_un => [:phone.ns]))
 
-    assert_equal <<~EOS, S.explain(:person.ns(:unq), :first_name => "Elon")
+    assert_equal <<-EOS, S.explain(:person.ns(:unq), :first_name => "Elon")
 val: {:first_name=>\"Elon\"} fails spec: :\"unq/person\" predicate: \":SpeculationTest/last_name\"
 val: {:first_name=>\"Elon\"} fails spec: :\"unq/person\" predicate: \":SpeculationTest/email\"
     EOS
@@ -521,8 +521,8 @@ val: {:first_name=>\"Elon\"} fails spec: :\"unq/person\" predicate: \":Speculati
     email_regex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,63}$/
     S.def(:email.ns, S.and(String, email_regex))
 
-    assert_equal <<~EOS, S.explain(:person.ns(:unq), :first_name => "Elon", :last_name => "Musk", :email => "elon")
-      In: [:email] val: "elon" fails spec: :"SpeculationTest/email" at: [:email] predicate: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,63}$/
+    assert_equal <<-EOS, S.explain(:person.ns(:unq), :first_name => "Elon", :last_name => "Musk", :email => "elon")
+In: [:email] val: "elon" fails spec: :"SpeculationTest/email" at: [:email] predicate: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,63}$/
     EOS
   end
 
@@ -531,8 +531,8 @@ val: {:first_name=>\"Elon\"} fails spec: :\"unq/person\" predicate: \":Speculati
           S.keys(:req_un => [S.or_keys(S.and_keys(:first_name.ns, :last_name.ns), :email.ns)],
                  :opt_un => [:phone.ns]))
 
-    assert_equal <<~EOS, S.explain(:person.ns(:unq), :first_name => "Elon")
-      val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: "(:SpeculationTest/first_name and :SpeculationTest/last_name) or :SpeculationTest/email"
+    assert_equal <<-EOS, S.explain(:person.ns(:unq), :first_name => "Elon")
+val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: "(:SpeculationTest/first_name and :SpeculationTest/last_name) or :SpeculationTest/email"
     EOS
   end
 
