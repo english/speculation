@@ -603,7 +603,7 @@ val: {:first_name=>\"Elon\"} fails spec: :\"unq/person\" predicate: \":Speculati
     expected = { :path => [:ret], :via => [identifier], :in => [], :pred => Integer }
 
     ed = S.explain_data(mod.method(:foo), :to_s.to_proc)
-    assert_equal expected, ed.fetch(:problems.ns(S)).first.reject { |k, v| k == :val }
+    assert_equal expected, ed.fetch(:problems.ns(S)).first.reject { |k, _v| k == :val }
     assert_kind_of String, ed.fetch(:problems.ns(S)).first[:val]
 
     S.def(:foo.ns, S.fspec(:args => S.cat(:x => String), :ret => Integer))
@@ -613,7 +613,7 @@ val: {:first_name=>\"Elon\"} fails spec: :\"unq/person\" predicate: \":Speculati
     assert_equal "f.call(*args)", ed[:pred]
     assert_equal [:foo.ns], ed[:via]
     assert_equal [], ed[:in]
-    assert_match /undefined method `trigger_no_method_error' for .*String/, ed[:reason]
+    assert_match(/undefined method `trigger_no_method_error' for .*String/, ed[:reason])
   end
 
   def test_fspec_block
@@ -624,17 +624,17 @@ val: {:first_name=>\"Elon\"} fails spec: :\"unq/person\" predicate: \":Speculati
     end
 
     S.fdef(mod.method(:foo),
-           :args => :empty.ns(S),
+           :args  => :empty.ns(S),
            :block => S.fspec(:args => S.cat(:x => Integer),
-                             :ret => Integer),
-           :ret  => Integer)
+                             :ret  => Integer),
+           :ret   => Integer)
 
     assert S.valid?(mod.method(:foo), mod.method(:foo))
     refute S.valid?(mod.method(:foo), :to_s.to_proc)
     refute S.valid?(mod.method(:foo), "not-a-method")
 
     val = Gen.generate(S.gen(mod.method(:foo)))
-    assert_kind_of Integer, val.call { |x| 1 }
+    assert_kind_of Integer, val.call { |_x| 1 }
 
     identifier = S.Identifier(mod.method(:foo))
     ed = S.explain_data(mod.method(:foo), ->(&b) { b.call("1") })

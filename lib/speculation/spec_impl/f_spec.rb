@@ -83,10 +83,10 @@ module Speculation
       args_gen = S.gen(specs[:args])
 
       block_gen = if specs[:block]
-        S.gen(specs[:block])
-      else
-        Utils.constantly(nil)
-      end
+                    S.gen(specs[:block])
+                  else
+                    Utils.constantly(nil)
+                  end
 
       combined = ->(r) { [args_gen.call(r), block_gen.call(r)] }
 

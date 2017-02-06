@@ -28,7 +28,7 @@ module Speculation
     private_class_method def self.spec_checking_fn(ident, method, fspec)
       fspec = S.maybe_spec(fspec)
 
-      conform = ->(fspec, args, block) do
+      conform = ->(args, block) do
         conformed_args = S.conform(fspec.argspec, args)
         conformed_block = S.conform(fspec.blockspec, block) if fspec.blockspec
 
@@ -59,7 +59,7 @@ module Speculation
 
         if Test.instrument_enabled.value
           Test.with_instrument_disabled do
-            conform.call(fspec, args, block) if fspec.argspec # TODO and blockspec?
+            conform.call(args, block) if fspec.argspec # TODO: and blockspec?
 
             begin
               Test.instrument_enabled.value = true
