@@ -37,7 +37,6 @@ Bug reports and pull requests are welcome on GitHub at https://github.com/[USERN
 ## TODO
 
 - tidy up tests
-- setup CI
 - write up comparison with clojure.spec
 - write guide
 
@@ -57,7 +56,7 @@ Bug reports and pull requests are welcome on GitHub at https://github.com/[USERN
 ### Improvements
 
 - Find/build an alternative to Rantly
-- Performance
+- Profile and optimise
 
 ## License
 
