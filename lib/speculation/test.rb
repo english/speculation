@@ -395,7 +395,7 @@ module Speculation
       Array(method_or_methods).
         map { |method| S.Identifier(method) }.
         select { |ident| checkable_methods(opts).include?(ident) }.
-        map { |ident| Concurrent::Future.execute { check1(ident, S.get_spec(ident), opts) } }.
+        map { |ident| Concurrent::Future.execute(:executor => :fast) { check1(ident, S.get_spec(ident), opts) } }.
         map { |f| f.value ? f.value : f.reason }
     end
 
