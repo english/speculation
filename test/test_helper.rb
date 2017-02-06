@@ -8,5 +8,3 @@ require "speculation"
 require "speculation/test"
 require "speculation/gen"
 require "speculation/utils_specs"
-
-Speculation::Test.instrument
