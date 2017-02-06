@@ -55,13 +55,12 @@ module Speculation
         end
       end
 
-      # TODO: handle method taking a block as an argument
       ->(*args, &block) do
         method = method.bind(self) if method.is_a?(UnboundMethod)
 
         if Test.instrument_enabled.value
           Test.with_instrument_disabled do
-            conform.call(args, block) if fspec.argspec # TODO: and blockspec?
+            conform.call(args, block) if fspec.argspec
 
             begin
               Test.instrument_enabled.value = true
