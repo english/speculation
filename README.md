@@ -37,6 +37,7 @@ Bug reports and pull requests are welcome on GitHub at https://github.com/[USERN
 ## TODO
 
 - tidy up tests
+- setup CI
 - write up comparison with clojure.spec
 - write guide
 
@@ -55,8 +56,8 @@ Bug reports and pull requests are welcome on GitHub at https://github.com/[USERN
 
 ### Improvements
 
-- Add `:block` options for FSpecs
 - Find/build an alternative to Rantly
+- Performance
 
 ## License
 

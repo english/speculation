@@ -7,14 +7,13 @@ module Speculation
   class FSpec < SpecImpl
     S = Speculation
 
-    # TODO: add block spec
+    attr_reader :argspec, :retspec, :fnspec, :blockspec
 
-    attr_reader :argspec, :retspec, :fnspec
-
-    def initialize(argspec: nil, retspec: nil, fnspec: nil)
+    def initialize(argspec: nil, retspec: nil, fnspec: nil, blockspec: nil)
       @argspec = argspec
       @retspec = retspec
       @fnspec = fnspec
+      @blockspec = blockspec
     end
 
     def conform(f)
@@ -22,7 +21,7 @@ module Speculation
 
       return :invalid.ns unless f.is_a?(Proc) || f.is_a?(Method)
 
-      specs = { :args => @argspec, :ret => @retspec, :fn => @fnspec }
+      specs = { :args => @argspec, :ret => @retspec, :fn => @fnspec, :block => @blockspec }
 
       if f.equal?(FSpec.validate_fn(f, specs, S.fspec_iterations))
         f
@@ -36,18 +35,19 @@ module Speculation
         return [{ :path => path, :pred => "respond_to?(:call)", :val => f, :via => via, :in => inn }]
       end
 
-      specs = { :args => @argspec, :ret => @retspec, :fn => @fnspec }
-      args = FSpec.validate_fn(f, specs, 100)
+      specs = { :args => @argspec, :ret => @retspec, :fn => @fnspec, :block => @blockspec }
+      args, block = FSpec.validate_fn(f, specs, 100)
       return if f.equal?(args)
 
       ret = begin
-              f.call(*args)
+              f.call(*args, &block)
             rescue => e
               e
             end
 
       if ret.is_a?(Exception)
-        return [{ :path => path, :pred => "f.call(*args)", :val => args, :reason => ret.message, :via => via, :in => inn }]
+        val = block ? [args, block] : args
+        return [{ :path => path, :pred => "f.call(*args)", :val => val, :reason => ret.message, :via => via, :in => inn }]
       end
 
       cret = S.dt(@retspec, ret)
@@ -63,9 +63,13 @@ module Speculation
       return @gen if @gen
 
       ->(_rantly) do
-        ->(*args) do
+        ->(*args, &block) do
           unless S.pvalid?(@argspec, args)
             raise S.explain(@argspec, args)
+          end
+
+          if @blockspec && !S.pvalid?(@blockspec, block)
+            raise S.explain(@blockspec, block)
           end
 
           S::Gen.generate(S.gen(@retspec, overrides))
@@ -76,28 +80,41 @@ module Speculation
     # @private
     # returns f if valid, else smallest
     def self.validate_fn(f, specs, iterations)
-      g = S.gen(specs[:args])
+      args_gen = S.gen(specs[:args])
 
-      ret = S::Test.rantly_quick_check(g, iterations) { |args|
-        call_valid?(f, specs, args)
+      block_gen = if specs[:block]
+        S.gen(specs[:block])
+      else
+        Utils.constantly(nil)
+      end
+
+      combined = ->(r) { [args_gen.call(r), block_gen.call(r)] }
+
+      ret = S::Test.rantly_quick_check(combined, iterations) { |(args, block)|
+        call_valid?(f, specs, args, block)
       }
 
       smallest = ret.dig(:shrunk, :smallest)
       smallest || f
     end
 
-    private_class_method def self.call_valid?(f, specs, args)
+    private_class_method def self.call_valid?(f, specs, args, block)
       cargs = S.conform(specs[:args], args)
       return if S.invalid?(cargs)
 
-      ret = f.call(*args)
+      if specs[:block]
+        cblock = S.conform(specs[:block], block)
+        return if S.invalid?(cblock)
+      end
+
+      ret = f.call(*args, &block)
 
       cret = S.conform(specs[:ret], ret)
       return if S.invalid?(cret)
 
       return true unless specs[:fn]
 
-      S.pvalid?(specs[:fn], :args => cargs, :ret => cret)
+      S.pvalid?(specs[:fn], :args => cargs, :block => block, :ret => cret)
     end
   end
 end

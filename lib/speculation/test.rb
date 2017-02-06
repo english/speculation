@@ -28,40 +28,48 @@ module Speculation
     private_class_method def self.spec_checking_fn(ident, method, fspec)
       fspec = S.maybe_spec(fspec)
 
-      conform = ->(role, spec, data, args) do
-        conformed = S.conform(spec, data)
+      conform = ->(fspec, args, block) do
+        conformed_args = S.conform(fspec.argspec, args)
+        conformed_block = S.conform(fspec.blockspec, block) if fspec.blockspec
 
-        if conformed == :invalid.ns(S)
+        if conformed_args == :invalid.ns(S)
           # TODO: stacktrace-relevant-to-instrument
           caller = caller(4, 1).first
 
           ed = S.
-            _explain_data(spec, [role], [], [], data).
+            _explain_data(fspec.argspec, [:args], [], [], args).
             merge(:args.ns(S) => args, :failure.ns(S) => :instrument, :caller.ns => caller)
 
           raise Speculation::Error.new("Call to '#{ident}' did not conform to spec:\n #{S.explain_str(ed)}", ed)
-        else
-          conformed
+        elsif conformed_block == :invalid.ns(S)
+          # TODO: stacktrace-relevant-to-instrument
+          caller = caller(4, 1).first
+
+          ed = S.
+            _explain_data(fspec.blockspec, [:block], [], [], block).
+            merge(:block.ns(S) => block, :failure.ns(S) => :instrument, :caller.ns => caller)
+
+          raise Speculation::Error.new("Call to '#{ident}' did not conform to spec:\n #{S.explain_str(ed)}", ed)
         end
       end
 
       # TODO: handle method taking a block as an argument
-      ->(*args) do
+      ->(*args, &block) do
         method = method.bind(self) if method.is_a?(UnboundMethod)
 
         if Test.instrument_enabled.value
           Test.with_instrument_disabled do
-            conform.call(:args, fspec.argspec, args, args) if fspec.argspec
+            conform.call(fspec, args, block) if fspec.argspec # TODO and blockspec?
 
             begin
               Test.instrument_enabled.value = true
-              method.call(*args)
+              method.call(*args, &block)
             ensure
               Test.instrument_enabled.value = false
             end
           end
         else
-          method.call(*args)
+          method.call(*args, &block)
         end
       end
     end
@@ -144,8 +152,8 @@ module Speculation
     # be instrumented.
     def self.instrumentable_methods(opts = {})
       if opts[:gen]
-        unless opts[:gen].keys.all? { |k| k.is_a?(Method) }
-          raise ArgumentError, "instrument :gen expects method keys"
+        unless opts[:gen].keys.all? { |k| k.is_a?(Method) || k.is_a?(Symbol) }
+          raise ArgumentError, "instrument :gen expects Method or Symbol keys"
         end
       end
 
@@ -237,14 +245,21 @@ module Speculation
     # Returns true if call passes specs, otherwise returns a hash with
     # :backtrace, :cause and :data keys. :data will have a
     # :"Speculation/failure" key.
-    private_class_method def self.check_call(method, spec, args)
+    private_class_method def self.check_call(method, spec, args, block)
       conformed_args = S.conform(spec.argspec, args) if spec.argspec
 
       if conformed_args == :invalid.ns(S)
         return explain_check(args, spec.argspec, args, :args)
       end
 
-      ret = method.call(*args)
+      conformed_block = S.conform(spec.blockspec, block) if spec.blockspec
+
+      if conformed_block == :invalid.ns(S)
+        return explain_check(block, spec.block, block, :block)
+      end
+
+      ret = method.call(*args, &block)
+
       conformed_ret = S.conform(spec.retspec, ret) if spec.retspec
 
       if conformed_ret == :invalid.ns(S)
@@ -253,26 +268,36 @@ module Speculation
 
       return true unless spec.argspec && spec.retspec && spec.fnspec
 
-      if S.valid?(spec.fnspec, :args => conformed_args, :ret => conformed_ret)
+      if S.valid?(spec.fnspec, :args => conformed_args, :block => conformed_block, :ret => conformed_ret)
         true
       else
-        explain_check(args, spec.fnspec, { :args => conformed_args, :ret => conformed_ret }, :fn)
+        explain_check(args, spec.fnspec, { :args => conformed_args, :block => conformed_block, :ret => conformed_ret }, :fn)
       end
     end
 
-    # Reimplementation of Rantly's `check` since it does not provide direct
-    # access to results (shrunk data etc.), instead printing them to STDOUT.
     private_class_method def self.quick_check(method, spec, opts)
       gen = opts[:gen]
       num_tests = opts.fetch(:num_tests, 100)
 
-      g = begin
-            S.gen(spec.argspec, gen)
-          rescue => e
-            return { :result => e }
-          end
+      args_gen = begin
+                   S.gen(spec.argspec, gen)
+                 rescue => e
+                   return { :result => e }
+                 end
 
-      rantly_quick_check(g, num_tests) { |args| check_call(method, spec, args) }
+      block_gen = if spec.blockspec
+                    begin
+                      S.gen(spec.blockspec, gen)
+                    rescue => e
+                      return { :result => e }
+                    end
+                  else
+                    Utils.constantly(nil)
+                  end
+
+      combined_gen = ->(r) { [args_gen.call(r), block_gen.call(r)] }
+
+      rantly_quick_check(combined_gen, num_tests) { |(args, block)| check_call(method, spec, args, block) }
     end
 
     private_class_method def self.make_check_result(method, spec, check_result)
@@ -297,7 +322,7 @@ module Speculation
       reinstrument = unstrument(ident).any?
       method = ident.get_method
 
-      if specd.argspec
+      if specd.argspec # or blockspec?
         check_result = quick_check(method, spec, opts)
         make_check_result(method, spec, check_result)
       else
@@ -315,8 +340,8 @@ module Speculation
     private_class_method def self.validate_check_opts(opts)
       return unless opts[:gen]
 
-      unless opts[:gen].keys.all? { |k| k.is_a?(Method) }
-        raise ArgumentErorr, "check :gen expects Method keys"
+      unless opts[:gen].keys.all? { |k| k.is_a?(Method) || k.is_a?(Symbol) }
+        raise ArgumentErorr, "check :gen expects Method or Symbol keys"
       end
     end
 
@@ -374,34 +399,39 @@ module Speculation
         map { |f| f.value ? f.value : f.reason }
     end
 
-    # Custom quick check implementation since Rantly doesn't provide access to check results
+    # Reimplementation of Rantly's `check` since it does not provide direct access to results
+    # (shrunk data etc.), instead printing them to STDOUT.
     def self.rantly_quick_check(gen, num_tests, &block)
       i = 0
       limit = 100
 
       Rantly.singleton.generate(num_tests, limit, gen) do |val|
+        args, blk = val
         i += 1
 
         result = begin
-                   block.call(val)
+                   block.call([args, blk])
                  rescue => e
                    e
                  end
 
         unless result == true
           # This is a Rantly Tuple.
-          val = ::Tuple.new(val)
+          args = ::Tuple.new(args)
 
-          if val.respond_to?(:shrink)
-            shrunk = shrink(val, result, block)
-            shrunk[:smallest] = shrunk[:smallest].array
+          if args.respond_to?(:shrink)
+            shrunk = shrink(args, result, ->(v) { block.call([v, blk]) })
 
-            return { :fail      => val.array,
+            shrunk[:smallest] = [shrunk[:smallest].array, blk]
+
+            return { :fail      => args.array,
+                     :block     => blk,
                      :num_tests => i,
                      :result    => result,
                      :shrunk    => shrunk }
           else
-            return { :fail      => val.array,
+            return { :fail      => args.array,
+                     :block     => blk,
                      :num_tests => i,
                      :result    => result }
           end

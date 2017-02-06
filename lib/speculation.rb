@@ -544,8 +544,8 @@ module Speculation
 
   # Optionally takes :gen generator proc, which must be a proc of one arg
   # (Rantly instance) that generates a valid value.
-  def self.fspec(args: nil, ret: nil, fn: nil, gen: nil)
-    FSpec.new(:argspec => spec(args), :retspec => spec(ret), :fnspec => spec(fn)).tap do |spec|
+  def self.fspec(args: nil, ret: nil, fn: nil, block: nil, gen: nil)
+    FSpec.new(:argspec => spec(args), :retspec => spec(ret), :fnspec => spec(fn), :blockspec => spec(block)).tap do |spec|
       spec.gen = gen
     end
   end
@@ -1181,7 +1181,8 @@ module Speculation
       :positive_integer.ns => with_gen(self.and(Integer, :positive?.to_proc)) { |r| r.range(1) },
       # Rantly#positive_integer is actually a natural integer
       :natural_integer.ns  => with_gen(self.and(Integer, Utils.complement(&:negative?)), &:positive_integer),
-      :negative_integer.ns => with_gen(self.and(Integer, :negative?.to_proc)) { |r| r.range(nil, -1) }
+      :negative_integer.ns => with_gen(self.and(Integer, :negative?.to_proc)) { |r| r.range(nil, -1) },
+      :empty.ns            => with_gen(:empty?.to_proc) { |_| [] }
     ]
 
     @registry_ref.reset(builtins)

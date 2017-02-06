@@ -190,4 +190,42 @@ class SpeculationTestTest < Minitest::Test
     assert_equal({ :total => 1, :check_passed => 1 },
                  STest.summarize_results(STest.check(mod.method(:run_query))))
   end
+
+  def test_fdef_block_instrument
+    mod = Module.new do
+      def self.ranged_rand(start, eend, &block)
+        start + block.call(eend - start)
+      end
+    end
+
+    S.fdef(mod.method(:ranged_rand),
+           :args  => S.and(S.cat(:start => Integer, :end => Integer),
+                           ->(args) { args[:start] < args[:end] }),
+           :block => S.fspec(:args => S.cat(:max => Integer),
+                             :ret  => :positive_integer.ns(S),
+                             :fn   => ->(x) { x[:ret] < x[:args][:max].abs }))
+
+    STest.instrument(mod.method(:ranged_rand))
+
+    e = assert_raises(S::Error) { mod.ranged_rand(8, 5) }
+
+    assert_match(/^Call to '.*ranged_rand' did not conform to spec/, e.data[:cause])
+
+    assert_equal :instrument, e.data.fetch(:"Speculation/failure")
+    assert_match %r{speculation/test/speculation/test_test\.rb:\d+:in `block in test_fdef_block_instrument'}, e.data.fetch(:"Speculation::Test/caller")
+
+    problems = e.data.fetch(:"Speculation/problems")
+    assert_equal 1, problems.count
+
+    problem = problems.first
+    assert_equal [:args], problem[:path]
+    assert_equal Hash[:start => 8, :end => 5], problem[:val]
+    assert_equal [], problem[:in]
+    assert_equal [], problem[:via]
+    assert_kind_of Proc, problem[:pred]
+
+    assert_equal [8, 5], e.data.fetch(:"Speculation/args")
+
+    mod.ranged_rand(5, 8, &method(:rand)) # doesn't blow up
+  end
 end

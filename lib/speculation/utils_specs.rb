@@ -23,6 +23,13 @@ module Speculation
            :ret  => :any.ns(S),
            :fn   => ->(x) { x[:args][:x].equal?(x[:ret]) })
 
+    S.fdef(U.method(:complement),
+           :args  => :empty.ns(S),
+           :block => S.fspec(:args => S.zero_or_more(:any.ns(S)),
+                             :ret  => :any.ns(S)),
+           :ret   => S.fspec(:args => S.zero_or_more(:any.ns(S)),
+                             :ret  => :boolean.ns(S)))
+
     S.fdef(U.method(:constantly),
            :args => S.cat(:x => :any.ns(S)),
            :ret  => Proc,
