@@ -277,7 +277,7 @@ module Speculation
 
     private_class_method def self.quick_check(method, spec, opts)
       gen = opts[:gen]
-      num_tests = opts.fetch(:num_tests, 100)
+      num_tests = opts.fetch(:num_tests, 1000)
 
       args_gen = begin
                    S.gen(spec.argspec, gen)
@@ -369,7 +369,7 @@ module Speculation
     #
     # The opts hash includes the following optional keys:
     #
-    # :num_tests  number of times to generatively test each method
+    # :num_tests  number of times to generatively test each method (default: 1000)
     # :gen        hash map from spec names to generator overrides
     #
     # Generator overrides are passed to Speculation.gen when generating method args.
