@@ -6,9 +6,6 @@ class SpeculationTest < Minitest::Test
   STest = S::Test
   Gen = S::Gen
   Utils = S::Utils
-  H = Hamster::Hash
-  V = Hamster::Vector
-  HSet = Hamster::Set
 
   using S::NamespacedSymbols.refine(self)
 
@@ -67,12 +64,12 @@ class SpeculationTest < Minitest::Test
     S.def(:boolean.ns, ->(x) { [true, false].include?(x) })
     S.def(:ingredient.ns, S.cat(:quantity => Numeric, :unit => Symbol))
 
-    expected = H[:quantity => 2, :unit => :teaspoon]
+    expected = { :quantity => 2, :unit => :teaspoon }
     assert_equal expected, S.conform(:ingredient.ns, [2, :teaspoon])
 
     S.def(:config.ns, S.cat(:prop => String, :val => S.alt(:s => String, :b => :boolean.ns)))
 
-    assert_equal({ :prop => "-server", :val => [:s, "foo"] }, S.conform(:config.ns, V["-server", "foo"]))
+    assert_equal({ :prop => "-server", :val => [:s, "foo"] }, S.conform(:config.ns, ["-server", "foo"]))
   end
 
   def test_nested_cat_sequence
@@ -105,8 +102,8 @@ class SpeculationTest < Minitest::Test
 
     conformed = S.conform(:nested.ns, [:names, ["a", "b"], :nums, [1, 2]])
 
-    expected = { :names_sym => :names, :names => V["a", "b"],
-                 :nums_sym => :nums, :nums => V[1, 2] }
+    expected = { :names_sym => :names, :names => ["a", "b"],
+                 :nums_sym => :nums, :nums => [1, 2] }
 
     assert_equal expected, conformed
   end
@@ -117,8 +114,8 @@ class SpeculationTest < Minitest::Test
                               :nums_sym  => ->(x) { x == :nums },
                               :nums      => S.zero_or_more(Numeric)))
 
-    expected = { :names_sym => :names, :names => V["a", "b"],
-                 :nums_sym => :nums, :nums => V[1, 2, 3] }
+    expected = { :names_sym => :names, :names => ["a", "b"],
+                 :nums_sym => :nums, :nums => [1, 2, 3] }
 
     assert_equal expected, S.conform(:unnested.ns, [:names, "a", "b", :nums, 1, 2, 3])
   end
@@ -151,7 +148,7 @@ class SpeculationTest < Minitest::Test
     S.def(:odds_then_maybe_even.ns, S.cat(:odds => S.one_or_more(:odd.ns),
                                           :even => S.zero_or_one(:even.ns)))
 
-    expected = { :odds => V[1, 3, 5], :even => 100 }
+    expected = { :odds => [1, 3, 5], :even => 100 }
     assert_equal expected, S.conform(:odds_then_maybe_even.ns, [1, 3, 5, 100])
   end
 
@@ -161,7 +158,7 @@ class SpeculationTest < Minitest::Test
                                :val  => S.alt(:s => String,
                                               :b => ->(x) { [true, false].include?(x) }))))
 
-    conformed = S.conform(:config.ns, V["-server", "foo", "-verbose", true, "-user", "joe"])
+    conformed = S.conform(:config.ns, ["-server", "foo", "-verbose", true, "-user", "joe"])
     expected = [{ :prop => "-server",  :val => [:s, "foo"] },
                 { :prop => "-verbose", :val => [:b, true] },
                 { :prop => "-user",    :val => [:s, "joe"] }]
@@ -256,9 +253,6 @@ class SpeculationTest < Minitest::Test
   def test_coll_of
     S.def(:symbol_collection.ns, S.coll_of(Symbol))
 
-    assert_equal V[:a, :b, :c], S.conform(:symbol_collection.ns, V[:a, :b, :c])
-    assert_equal HSet[5, 10, 2], S.conform(S.coll_of(Numeric), HSet[5, 10, 2])
-
     assert_equal [:a, :b, :c], S.conform(:symbol_collection.ns, [:a, :b, :c])
     assert_equal Set[5, 10, 2], S.conform(S.coll_of(Numeric), Set[5, 10, 2])
 
@@ -268,7 +262,6 @@ class SpeculationTest < Minitest::Test
     assert S.valid?(S.coll_of(Integer), [1, 2, 3])
     assert S.valid?(S.coll_of(Integer, :kind => ->(coll) { coll.is_a?(Array) }), [1, 2, 3])
     refute S.valid?(S.coll_of(Integer), ["a", "b", "c"])
-    refute S.valid?(S.coll_of(Integer, :kind => ->(coll) { coll.is_a?(V) }), [1, 2, 3])
 
     assert S.valid?(S.coll_of(Integer, :count => 3), [1, 2, 3])
     refute S.valid?(S.coll_of(Integer, :count => 2), [1, 2, 3])
@@ -311,7 +304,7 @@ class SpeculationTest < Minitest::Test
       ]
     }
 
-    assert_equal expected, S.explain_data(:point.ns, V[1, 2, 3.0])
+    assert_equal expected, S.explain_data(:point.ns, [1, 2, 3.0])
 
     assert Gen.generate(S.gen(:point.ns)).all? { |x| x.is_a?(Integer) }
   end
@@ -322,10 +315,6 @@ class SpeculationTest < Minitest::Test
     expected = { "Sally" => 1000, "Joe" => 500 }
     assert_equal expected, S.conform(:scores.ns, "Sally" => 1000, "Joe" => 500)
 
-    expected = H["Sally" => 1000, "Joe" => 500]
-    assert_equal expected, S.conform(:scores.ns, H["Sally" => 1000, "Joe" => 500])
-
-    refute S.valid?(:scores.ns, H["Sally" => 1000, :Joe => 500])
     refute S.valid?(:scores.ns, "Sally" => true, "Joe" => 500)
 
     hash = Gen.generate(S.gen(:scores.ns))
@@ -424,8 +413,8 @@ class SpeculationTest < Minitest::Test
 
     expected = {
       :"Speculation/problems" => [
-        { :path => V[:name], :val => :foo, :in => V[], :via => V[:name_or_id.ns], :pred => String },
-        { :path => V[:id], :val => :foo, :in => V[], :via => V[:name_or_id.ns], :pred => Integer }
+        { :path => [:name], :val => :foo, :in => [], :via => [:name_or_id.ns], :pred => String },
+        { :path => [:id], :val => :foo, :in => [], :via => [:name_or_id.ns], :pred => Integer }
       ]
     }
 
@@ -436,7 +425,7 @@ class SpeculationTest < Minitest::Test
   def test_explain_regex
     S.def(:ingredient.ns, S.cat(:quantity => Numeric, :unit => Symbol))
 
-    ed = S.explain_data(:ingredient.ns, V[11, "peaches"])
+    ed = S.explain_data(:ingredient.ns, [11, "peaches"])
     problems = ed.fetch(:problems.ns(S))
 
     assert_equal 1, problems.count
@@ -476,7 +465,7 @@ class SpeculationTest < Minitest::Test
                                                :in   => ["Joe", 1],
                                                :pred => Integer }] }
 
-    assert_equal expected, S.explain_data(:scores.ns, H["Sally" => 1000, "Joe" => "300"])
+    assert_equal expected, S.explain_data(:scores.ns, "Sally" => 1000, "Joe" => "300")
   end
 
   def test_explain_alt
@@ -489,17 +478,17 @@ class SpeculationTest < Minitest::Test
     expected = {
       :"Speculation/problems" => [
         {
-          :path => V[:nums, :ints],
+          :path => [:nums, :ints],
           :val  => "1",
-          :in   => V[3, 0],
-          :via  => V[:nested.ns],
+          :in   => [3, 0],
+          :via  => [:nested.ns],
           :pred => Integer
         },
         {
-          :path => V[:nums, :floats],
+          :path => [:nums, :floats],
           :val  => "1",
-          :in   => V[3, 0],
-          :via  => V[:nested.ns],
+          :in   => [3, 0],
+          :via  => [:nested.ns],
           :pred => Float
         }
       ]

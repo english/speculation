@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 require "concurrent"
-require "hamster/hash"
 require "set"
 require "securerandom"
 
@@ -13,8 +12,6 @@ require "speculation/spec_impl"
 require "speculation/error"
 
 module Speculation
-  H = Hamster::Hash
-
   using NamespacedSymbols.refine(self)
   using Conj
 
@@ -41,15 +38,14 @@ module Speculation
   @coll_check_limit = 101
   @coll_error_limit = 20
 
-  @registry_ref = Concurrent::Atom.new(H[])
+  @registry_ref = Concurrent::Atom.new({})
 
   private_class_method def self.deep_resolve(reg, spec)
     spec = reg[spec] while Utils.ident?(spec)
     spec
   end
 
-  # returns the spec/regex at end of alias chain starting with k, nil if not
-  # found, k if k not ident
+  # returns the spec/regex at end of alias chain starting with k, nil if not found, k if k not ident
   private_class_method def self.reg_resolve(key)
     return key unless Utils.ident?(key)
 
@@ -90,7 +86,7 @@ module Speculation
     if Utils.ident?(spec)
       spec
     elsif regex?(spec)
-      spec.put(:name.ns, name)
+      spec.merge(:name.ns => name)
     else
       spec.tap { |s| s.name = name }
     end
@@ -162,7 +158,7 @@ module Speculation
   # spec that uses that generator
   def self.with_gen(spec, &gen)
     if regex?(spec)
-      spec.put(:gfn.ns, gen)
+      spec.merge(:gfn.ns => gen)
     else
       specize(spec).tap { |s| s.gen = gen }
     end
@@ -254,7 +250,7 @@ module Speculation
   # either an empty array or an array with one item in it)
   def self.gen(spec, overrides = nil)
     spec = Identifier(spec)
-    gensub(spec, overrides, [], H[:recursion_limit.ns => recursion_limit])
+    gensub(spec, overrides, [], :recursion_limit.ns => recursion_limit)
   end
 
   # rubocop:disable Style/MethodName
@@ -286,7 +282,7 @@ module Speculation
            end
 
     @registry_ref.swap do |reg|
-      reg.store(key, with_name(spec, key))
+      reg.merge(key => with_name(spec, key))
     end
 
     key
@@ -478,7 +474,7 @@ module Speculation
   # Returns a regex op that matches one or more values matching pred. Produces
   # an array of matches
   def self.one_or_more(pred)
-    pcat(H[:predicates => [pred, rep(pred, pred, [], true)], :return_value => []])
+    pcat(:predicates => [pred, rep(pred, pred, [], true)], :return_value => [])
   end
 
   # Returns a regex op that matches zero or one value matching pred. Produces a
@@ -508,14 +504,14 @@ module Speculation
     keys = named_specs.keys
     predicates = named_specs.values
 
-    pcat(H[:keys => keys, :predicates => predicates, :return_value => {}])
+    pcat(:keys => keys, :predicates => predicates, :return_value => {})
   end
 
   # Takes a regex op re, and predicates. Returns a regex-op that consumes input
   # as per re but subjects the resulting value to the conjunction of the
   # predicates, and any conforming they might perform.
   def self.constrained(re, *preds)
-    H[:op.ns => :amp.ns, :p1 => re, :predicates => preds]
+    { :op.ns => :amp.ns, :p1 => re, :predicates => preds }
   end
 
   # Takes a predicate function with the semantics of conform i.e. it should
@@ -685,11 +681,11 @@ module Speculation
   ### regex
 
   private_class_method def self.accept(x)
-    H[:op.ns => :accept.ns, :return_value => x]
+    { :op.ns => :accept.ns, :return_value => x }
   end
 
   private_class_method def self.accept?(hash)
-    if hash.is_a?(H)
+    if hash.is_a?(Hash)
       hash[:op.ns] == :accept.ns
     end
   end
@@ -703,19 +699,19 @@ module Speculation
     return unless regex[:predicates].all?
 
     unless accept?(predicate)
-      return H[:op.ns        => :pcat.ns,
+      return { :op.ns        => :pcat.ns,
                :predicates   => regex[:predicates],
                :keys         => keys,
-               :return_value => regex[:return_value]]
+               :return_value => regex[:return_value] }
     end
 
     val = keys ? { key => predicate[:return_value] } : predicate[:return_value]
     return_value = regex[:return_value].conj(val)
 
     if rest_predicates
-      pcat(H[:predicates   => rest_predicates,
-             :keys         => rest_keys,
-             :return_value => return_value])
+      pcat(:predicates   => rest_predicates,
+           :keys         => rest_keys,
+           :return_value => return_value)
     else
       accept(return_value)
     end
@@ -724,7 +720,7 @@ module Speculation
   private_class_method def self.rep(p1, p2, return_value, splice)
     return unless p1
 
-    regex = H[:op.ns => :rep.ns, :p2 => p2, :splice => splice, :id => SecureRandom.uuid]
+    regex = { :op.ns => :rep.ns, :p2 => p2, :splice => splice, :id => SecureRandom.uuid }
 
     if accept?(p1)
       regex.merge(:p1 => p2, :return_value => return_value.conj(p1[:return_value]))
@@ -750,7 +746,7 @@ module Speculation
     predicate, *rest_predicates = predicates
     key, *_rest_keys = keys
 
-    return_value = H[:op.ns => :alt.ns, :predicates => predicates, :keys => keys]
+    return_value = { :op.ns => :alt.ns, :predicates => predicates, :keys => keys }
     return return_value unless rest_predicates.empty?
 
     return predicate unless key
@@ -888,12 +884,12 @@ module Speculation
     case regex[:op.ns]
     when :accept.ns then nil
     when :pcat.ns
-      regex1 = pcat(H[:predicates => [deriv(pred, value), *rest_preds], :keys => keys, :return_value => return_value])
+      regex1 = pcat(:predicates => [deriv(pred, value), *rest_preds], :keys => keys, :return_value => return_value)
       regex2 = nil
 
       if accept_nil?(pred)
         regex2 = deriv(
-          pcat(H[:predicates => rest_preds, :keys => rest_keys, :return_value => add_ret(pred, return_value, key)]),
+          pcat(:predicates => rest_preds, :keys => rest_keys, :return_value => add_ret(pred, return_value, key)),
           value
         )
       end
@@ -1167,7 +1163,7 @@ module Speculation
 
   # Resets the spec registry to only builtin specs
   def self.reset_registry!
-    builtins = H[
+    builtins = {
       :any.ns              => with_gen(Utils.constantly(true)) { |r| r.branch(*Gen::GEN_BUILTINS.values) },
       :boolean.ns          => Set[true, false],
       :positive_integer.ns => with_gen(self.and(Integer, :positive?.to_proc)) { |r| r.range(1) },
@@ -1175,7 +1171,7 @@ module Speculation
       :natural_integer.ns  => with_gen(self.and(Integer, Utils.complement(&:negative?)), &:positive_integer),
       :negative_integer.ns => with_gen(self.and(Integer, :negative?.to_proc)) { |r| r.range(nil, -1) },
       :empty.ns            => with_gen(:empty?.to_proc) { |_| [] }
-    ]
+    }
 
     @registry_ref.reset(builtins)
   end

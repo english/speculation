@@ -5,7 +5,6 @@ module Speculation
 
   class HashSpec < SpecImpl
     S = Speculation
-    H = Hamster::Hash
 
     attr_reader :id
 
@@ -27,15 +26,15 @@ module Speculation
       req_keys += req_un_specs.map(&method(:unqualify_key))
 
       pred_exprs = [Utils.method(:hash?)]
-      pred_exprs.push(->(v) { parse_req(req, v, :itself.to_proc) }) if req.any?
-      pred_exprs.push(->(v) { parse_req(req_un, v, method(:unqualify_key)) }) if req_un.any?
+      pred_exprs.push(->(v) { parse_req(req, v, :itself.to_proc) == true }) if req.any?
+      pred_exprs.push(->(v) { parse_req(req_un, v, method(:unqualify_key)) == true }) if req_un.any?
 
       @req_keys        = req_keys
       @req_specs       = req_specs
       @opt_keys        = opt + opt_un.map(&method(:unqualify_key))
       @opt_specs       = opt + opt_un
       @keys_pred       = ->(v) { pred_exprs.all? { |p| p.call(v) } }
-      @key_to_spec_map = H[req_keys.concat(@opt_keys).zip(req_specs.concat(@opt_specs))]
+      @key_to_spec_map = Hash[req_keys.concat(@opt_keys).zip(req_specs.concat(@opt_specs))]
     end
 
     def conform(value)
@@ -72,7 +71,7 @@ module Speculation
       problems = []
 
       if @req.any?
-        valid_or_failure = parse_req2(@req, value, :itself.to_proc)
+        valid_or_failure = parse_req(@req, value, :itself.to_proc)
 
         unless valid_or_failure == true
           valid_or_failure.each do |failure_sexp|
@@ -83,7 +82,7 @@ module Speculation
       end
 
       if @req_un.any?
-        valid_or_failure = parse_req2(@req_un, value, method(:unqualify_key))
+        valid_or_failure = parse_req(@req_un, value, method(:unqualify_key))
 
         unless valid_or_failure == true
           valid_or_failure.each do |failure_sexp|
@@ -174,7 +173,7 @@ module Speculation
       x.name.to_sym
     end
 
-    def parse_req2(ks, v, f)
+    def parse_req(ks, v, f)
       key, *ks = ks
 
       ret = if key.is_a?(Array)
@@ -203,31 +202,10 @@ module Speculation
 
       if ks.any?
         if ret == true
-          parse_req2(ks, v, f)
+          parse_req(ks, v, f)
         else
-          ret + parse_req2(ks, v, f)
+          ret + parse_req(ks, v, f)
         end
-      else
-        ret
-      end
-    end
-
-    def parse_req(ks, v, f)
-      key, *ks = ks
-
-      ret = if key.is_a?(Array)
-              op, *kks = key
-              case op
-              when :or.ns  then kks.one? { |k| parse_req([k], v, f) }
-              when :and.ns then kks.all? { |k| parse_req([k], v, f) }
-              else         raise "Expected or, and, got #{op}"
-              end
-            else
-              v.key?(f.call(key))
-            end
-
-      if ks.any?
-        ret && parse_req(ks, v, f)
       else
         ret
       end

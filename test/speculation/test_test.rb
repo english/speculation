@@ -5,8 +5,6 @@ class SpeculationTestTest < Minitest::Test
   S = Speculation
   STest = Speculation::Test
   Utils = Speculation::Utils
-  H = Hamster::Hash
-  V = Hamster::Vector
 
   using S::NamespacedSymbols.refine(self)
 

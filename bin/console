@@ -38,8 +38,6 @@ def reload!
   Object.const_set(:STest, Speculation::Test)
   Object.const_set(:Gen, Speculation::Gen)
   Object.const_set(:U, Speculation::Utils)
-  Object.const_set(:H, Hamster::Hash)
-  Object.const_set(:V, Hamster::Vector)
 
   STest.instrument
 end

@@ -9,9 +9,8 @@ module Speculation
     using Pmap
 
     S = Speculation
-    H = Hamster::Hash
 
-    @instrumented_methods = Concurrent::Atom.new(H[])
+    @instrumented_methods = Concurrent::Atom.new({})
     @instrument_enabled = Concurrent::ThreadLocalVar.new(true)
 
     class << self
@@ -86,7 +85,7 @@ module Speculation
 
       raw, wrapped = @instrumented_methods.
         value.
-        fetch(ident, H[]).
+        fetch(ident, {}).
         values_at(:raw, :wrapped)
 
       current = ident.get_method
@@ -104,7 +103,7 @@ module Speculation
       wrapped = ident.get_method
 
       @instrumented_methods.swap do |methods|
-        methods.merge(ident => H[:raw => to_wrap, :wrapped => wrapped])
+        methods.merge(ident => { :raw => to_wrap, :wrapped => wrapped })
       end
 
       ident
