@@ -34,21 +34,19 @@ module Speculation
         conformed_block = S.conform(fspec.blockspec, block) if fspec.blockspec
 
         if conformed_args == :invalid.ns(S)
-          # TODO: stacktrace-relevant-to-instrument
-          caller = caller(4, 1).first
+          backtrace = backtrace_relevant_to_instrument(caller)
 
           ed = S.
             _explain_data(fspec.argspec, [:args], [], [], args).
-            merge(:args.ns(S) => args, :failure.ns(S) => :instrument, :caller.ns => caller)
+            merge(:args.ns(S) => args, :failure.ns(S) => :instrument, :caller.ns => backtrace)
 
           raise Speculation::Error.new("Call to '#{ident}' did not conform to spec:\n #{S.explain_str(ed)}", ed)
         elsif conformed_block == :invalid.ns(S)
-          # TODO: stacktrace-relevant-to-instrument
-          caller = caller(4, 1).first
+          backtrace = backtrace_relevant_to_instrument(caller)
 
           ed = S.
             _explain_data(fspec.blockspec, [:block], [], [], block).
-            merge(:block.ns(S) => block, :failure.ns(S) => :instrument, :caller.ns => caller)
+            merge(:block.ns(S) => block, :failure.ns(S) => :instrument, :caller.ns => backtrace)
 
           raise Speculation::Error.new("Call to '#{ident}' did not conform to spec:\n #{S.explain_str(ed)}", ed)
         end
@@ -146,7 +144,9 @@ module Speculation
       end
     end
 
-    # TODO: stacktrace-relevant-to-instrument
+    def self.backtrace_relevant_to_instrument(backtrace)
+      backtrace.drop_while { |line| line.include?(__FILE__) }
+    end
 
     # Given an opts hash as per instrument, returns the set of methods that can
     # be instrumented.
