@@ -76,7 +76,7 @@ module Speculation
              :fn   => S.and(->(x) { x[:ret] >= x[:args][:start] },
                             ->(x) { x[:ret] < x[:args][:end] }))
 
-      results = STest.check(mod.method(:bad_ranged_rand))
+      results = STest.check(mod.method(:bad_ranged_rand), :num_tests => 50)
       assert_equal 1, results.count
 
       result = results.first
@@ -184,10 +184,9 @@ module Speculation
       # verify they satisfy spec now instrumented
       STest.instrument(mod.method(:invoke_service), :stub => [mod.method(:invoke_service)])
       mod.invoke_service(nil, :query.ns => "test")
-      mod.invoke_service(nil, :query.ns => "test")
 
-      assert_equal({ :total => 1, :check_passed => 1 },
-                   STest.summarize_results(STest.check(mod.method(:run_query))))
+      results = STest.check(mod.method(:run_query), :num_tests => 50)
+      assert_nil results.first[:failure.ns(STest)]
     end
 
     def test_fdef_block_instrument
