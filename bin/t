@@ -1,2 +1,0 @@
-#!/usr/bin/env bash
-TEST_QUEUE_SPLIT_GROUPS=1 bundle exec ruby -I test -S minitest-queue $(find test -name *_test.rb)

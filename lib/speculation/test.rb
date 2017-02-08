@@ -132,7 +132,7 @@ module Speculation
       raw, wrapped = instrumented.fetch_values(:raw, :wrapped)
 
       @instrumented_methods.swap do |h|
-        h.reject { |k, v| k == ident }
+        h.reject { |k, _v| k == ident }
       end
 
       current = ident.get_method

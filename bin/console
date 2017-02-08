@@ -1,5 +1,6 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
+$LOAD_PATH.unshift File.expand_path("../../test", __FILE__)
 
 require "bundler/setup"
 require "speculation"
@@ -7,9 +8,8 @@ require "speculation/test"
 require "speculation/gen"
 require "speculation/utils_specs"
 
-# You can add fixtures and/or initialization code here to make experimenting
-# with your gem easier. You can also use a different console, if you like.
 def reload!
+  Minitest::Test.reset
   STest.unstrument if Object.const_defined?(:STest)
 
   [:Speculation, :S, :STest, :Gen, :U, :H, :V].each do |const|
@@ -34,15 +34,21 @@ def reload!
   load "./lib/speculation/test.rb"
   load "./lib/speculation/utils_specs.rb"
 
+  Dir["test/**/*.rb"].each do |f|
+    load f
+  end
+
   Object.const_set(:S, Speculation)
   Object.const_set(:STest, Speculation::Test)
   Object.const_set(:Gen, Speculation::Gen)
   Object.const_set(:U, Speculation::Utils)
 
-  STest.instrument
+  # STest.instrument
 end
 
-reload!
+def t
+  Minitest.run
+end
 
 # allow running minitest assertions
 require "minitest"
@@ -50,6 +56,8 @@ include Minitest::Assertions
 def self.assertions; 1; end
 def self.assertions=(_x); end
 using Speculation::NamespacedSymbols.refine(self)
+
+reload!
 
 # (If you use this, don't forget to add pry to your Gemfile!)
 require "pry"
