@@ -94,7 +94,7 @@ module Speculation
         call_valid?(f, specs, args, block)
       }
 
-      smallest = ret.dig(:shrunk, :smallest)
+      smallest = ret[:shrunk] && ret[:shrunk][:smallest]
       smallest || f
     end
 
