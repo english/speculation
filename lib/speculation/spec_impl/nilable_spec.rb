@@ -8,7 +8,7 @@ module Speculation
 
     def initialize(pred)
       @pred = pred
-      @delayed_spec = Concurrent::Delay.new { S.specize(pred) }
+      @delayed_spec = Concurrent::Delay.new { S.send(:specize, pred) }
     end
 
     def conform(value)

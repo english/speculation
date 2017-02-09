@@ -24,7 +24,7 @@ module Speculation
       end
 
       @collection_predicate = ->(coll) { collection_predicates.all? { |f| f === coll } }
-      @delayed_spec = Concurrent::Delay.new { S.specize(predicate) }
+      @delayed_spec = Concurrent::Delay.new { S.send(:specize, predicate) }
       @kfn = options.fetch(:kfn.ns, ->(i, _v) { i })
       @conform_keys, @conform_all, @kind, @gen_into, @gen_max, @distinct, @count, @min_count, @max_count =
         options.values_at(:conform_keys, :conform_all.ns, :kind, :into, :gen_max, :distinct, :count, :min_count, :max_count)

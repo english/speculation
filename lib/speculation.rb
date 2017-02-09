@@ -40,106 +40,14 @@ module Speculation
 
   @registry_ref = Concurrent::Atom.new({})
 
-  private_class_method def self.deep_resolve(reg, spec)
-    spec = reg[spec] while Utils.ident?(spec)
-    spec
-  end
-
-  # returns the spec/regex at end of alias chain starting with k, nil if not found, k if k not ident
-  private_class_method def self.reg_resolve(key)
-    return key unless Utils.ident?(key)
-
-    spec = @registry_ref.value[key]
-
-    if Utils.ident?(spec)
-      deep_resolve(registry, spec)
-    else
-      spec
-    end
-  end
-
-  # returns the spec/regex at end of alias chain starting with k, throws if not
-  # found, k if k not ident
-  # private
-  def self._reg_resolve!(key)
-    return key unless Utils.ident?(key)
-    spec = reg_resolve(key)
-
-    if spec
-      spec
-    else
-      raise "Unable to resolve spec: #{key}"
-    end
-  end
-
-  # returns spec if spec is a spec object, else logical false, spec spec spec
-  def self.spec?(spec)
-    spec if spec.is_a?(SpecImpl)
+  # returns x if x is a spec object, else logical false
+  def self.spec?(x)
+    x if x.is_a?(SpecImpl)
   end
 
   # returns x if x is a (Speculation) regex op, else logical false
   def self.regex?(x)
     Utils.hash?(x) && x[:op.ns] && x
-  end
-
-  private_class_method def self.with_name(spec, name)
-    if Utils.ident?(spec)
-      spec
-    elsif regex?(spec)
-      spec.merge(:name.ns => name)
-    else
-      spec.tap { |s| s.name = name }
-    end
-  end
-
-  private_class_method def self.spec_name(spec)
-    if Utils.ident?(spec)
-      spec
-    elsif regex?(spec)
-      spec[:name.ns]
-    elsif spec.respond_to?(:name)
-      spec.name
-    end
-  end
-
-  # @private
-  # spec_or_key must be a spec, regex or resolvable ident, else returns nil
-  def self.maybe_spec(spec_or_key)
-    spec = (Utils.ident?(spec_or_key) && reg_resolve(spec_or_key)) ||
-      spec?(spec_or_key) ||
-      regex?(spec_or_key) ||
-      nil
-
-    if regex?(spec)
-      with_name(RegexSpec.new(spec), spec_name(spec))
-    else
-      spec
-    end
-  end
-
-  # spec_or_key must be a spec, regex or ident, else returns nil. Raises if
-  # unresolvable ident (Speculation::Utils.ident?)
-  private_class_method def self.the_spec(spec_or_key)
-    spec = maybe_spec(spec_or_key)
-    return spec if spec
-
-    if Utils.ident?(spec_or_key)
-      raise "Unable to resolve spec: #{spec_or_key}"
-    end
-  end
-
-  # private
-  def self.specize(spec)
-    if spec?(spec)
-      spec
-    else
-      case spec
-      when Symbol, Identifier
-        specize(_reg_resolve!(spec))
-      else
-        spec_impl(spec, false)
-      end
-    end
   end
 
   # tests the validity of a conform return value
@@ -181,7 +89,7 @@ module Speculation
   def self.explain_data(spec, x)
     spec = Identifier(spec)
     name = spec_name(spec)
-    _explain_data(spec, [], [name] || [], [], x)
+    _explain_data(spec, [], Array(name), [], x)
   end
 
   # returns explanation data (per 'explain_data') as a human readable string
@@ -651,16 +559,6 @@ module Speculation
     end
   end
 
-  private_class_method def self.and_preds(x, preds)
-    preds.each do |pred|
-      x = dt(pred, x)
-
-      return :invalid.ns if invalid?(x)
-    end
-
-    x
-  end
-
   # @private
   def self.explain_pred_list(preds, path, via, inn, value)
     return_value = value
@@ -680,321 +578,10 @@ module Speculation
 
   ### regex
 
-  private_class_method def self.accept(x)
-    { :op.ns => :accept.ns, :return_value => x }
-  end
-
-  private_class_method def self.accept?(hash)
-    if hash.is_a?(Hash)
-      hash[:op.ns] == :accept.ns
-    end
-  end
-
-  private_class_method def self.pcat(regex)
-    predicate, *rest_predicates = regex[:predicates]
-
-    keys = regex[:keys]
-    key, *rest_keys = keys
-
-    return unless regex[:predicates].all?
-
-    unless accept?(predicate)
-      return { :op.ns        => :pcat.ns,
-               :predicates   => regex[:predicates],
-               :keys         => keys,
-               :return_value => regex[:return_value] }
-    end
-
-    val = keys ? { key => predicate[:return_value] } : predicate[:return_value]
-    return_value = regex[:return_value].conj(val)
-
-    if rest_predicates
-      pcat(:predicates   => rest_predicates,
-           :keys         => rest_keys,
-           :return_value => return_value)
-    else
-      accept(return_value)
-    end
-  end
-
-  private_class_method def self.rep(p1, p2, return_value, splice)
-    return unless p1
-
-    regex = { :op.ns => :rep.ns, :p2 => p2, :splice => splice, :id => SecureRandom.uuid }
-
-    if accept?(p1)
-      regex.merge(:p1 => p2, :return_value => return_value.conj(p1[:return_value]))
-    else
-      regex.merge(:p1 => p1, :return_value => return_value)
-    end
-  end
-
-  private_class_method def self.filter_alt(ps, ks, &block)
-    if ks
-      pks = ps.zip(ks).select { |xs| block.call(xs.first) }
-      [pks.map(&:first), pks.map(&:last)]
-    else
-      [ps.select(&block), ks]
-    end
-  end
-
-  # alt*
-  private_class_method def self._alt(predicates, keys)
-    predicates, keys = filter_alt(predicates, keys, &:itself)
-    return unless predicates
-
-    predicate, *rest_predicates = predicates
-    key, *_rest_keys = keys
-
-    return_value = { :op.ns => :alt.ns, :predicates => predicates, :keys => keys }
-    return return_value unless rest_predicates.empty?
-
-    return predicate unless key
-    return return_value unless accept?(predicate)
-
-    accept([key, predicate[:return_value]])
-  end
-
-  private_class_method def self.alt2(p1, p2)
-    if p1 && p2
-      _alt([p1, p2], nil)
-    else
-      p1 || p2
-    end
-  end
-
-  private_class_method def self.no_ret?(p1, pret)
-    return true if pret == :nil.ns
-
-    regex = _reg_resolve!(p1)
-    op = regex[:op.ns]
-
-    [:rep.ns, :pcat.ns].include?(op) && pret.empty? || nil
-  end
-
-  private_class_method def self.accept_nil?(regex)
-    regex = _reg_resolve!(regex)
-    return unless regex?(regex)
-
-    case regex[:op.ns]
-    when :accept.ns then true
-    when :pcat.ns   then regex[:predicates].all?(&method(:accept_nil?))
-    when :alt.ns    then regex[:predicates].any?(&method(:accept_nil?))
-    when :rep.ns    then (regex[:p1] == regex[:p2]) || accept_nil?(regex[:p1])
-    when :amp.ns
-      p1 = regex[:p1]
-
-      return false unless accept_nil?(p1)
-
-      no_ret?(p1, preturn(p1)) ||
-        !invalid?(and_preds(preturn(p1), regex[:predicates]))
-    else
-      raise "Unexpected #{:op.ns} #{regex[:op.ns]}"
-    end
-  end
-
-  private_class_method def self.preturn(regex)
-    regex = _reg_resolve!(regex)
-    return unless regex?(regex)
-
-    p0, *_pr = regex[:predicates]
-    k, *ks = regex[:keys]
-
-    case regex[:op.ns]
-    when :accept.ns then regex[:return_value]
-    when :pcat.ns   then add_ret(p0, regex[:return_value], k)
-    when :rep.ns    then add_ret(regex[:p1], regex[:return_value], k)
-    when :amp.ns
-      pret = preturn(regex[:p1])
-
-      if no_ret?(regex[:p1], pret)
-        :nil.ns
-      else
-        and_preds(pret, regex[:predicates])
-      end
-    when :alt.ns
-      ps, ks = filter_alt(regex[:predicates], regex[:keys], &method(:accept_nil?))
-
-      r = if ps.first.nil?
-            :nil.ns
-          else
-            preturn(ps.first)
-          end
-
-      if ks && ks.first
-        [ks.first, r]
-      else
-        r
-      end
-    else
-      raise "Unexpected #{:op.ns} #{regex[:op.ns]}"
-    end
-  end
-
-  private_class_method def self.add_ret(regex, r, key)
-    regex = _reg_resolve!(regex)
-    return r unless regex?(regex)
-
-    prop = -> do
-      return_value = preturn(regex)
-
-      if return_value.empty?
-        r
-      else
-        val = key ? { key => return_value } : return_value
-
-        regex[:splice] ? Utils.into(r, val) : r.conj(val)
-      end
-    end
-
-    case regex[:op.ns]
-    when :accept.ns, :alt.ns, :amp.ns
-      return_value = preturn(regex)
-
-      if return_value == :nil.ns
-        r
-      else
-        r.conj(key ? { key => return_value } : return_value)
-      end
-    when :pcat.ns, :rep.ns then prop.call
-    else
-      raise "Unexpected #{:op.ns} #{regex[:op.ns]}"
-    end
-  end
-
-  private_class_method def self.deriv(predicate, value)
-    predicate = _reg_resolve!(predicate)
-    return unless predicate
-
-    unless regex?(predicate)
-      return_value = dt(predicate, value)
-
-      return if invalid?(return_value)
-      return accept(return_value)
-    end
-
-    regex = predicate
-
-    predicates, p1, p2, keys, return_value, splice =
-      regex.values_at(:predicates, :p1, :p2, :keys, :return_value, :splice)
-
-    pred, *rest_preds = predicates
-    key, *rest_keys = keys
-
-    case regex[:op.ns]
-    when :accept.ns then nil
-    when :pcat.ns
-      regex1 = pcat(:predicates => [deriv(pred, value), *rest_preds], :keys => keys, :return_value => return_value)
-      regex2 = nil
-
-      if accept_nil?(pred)
-        regex2 = deriv(
-          pcat(:predicates => rest_preds, :keys => rest_keys, :return_value => add_ret(pred, return_value, key)),
-          value
-        )
-      end
-
-      alt2(regex1, regex2)
-    when :alt.ns
-      _alt(predicates.map { |p| deriv(p, value) }, keys)
-    when :rep.ns
-      regex1 = rep(deriv(p1, value), p2, return_value, splice)
-      regex2 = nil
-
-      if accept_nil?(p1)
-        regex2 = deriv(rep(p2, p2, add_ret(p1, return_value, nil), splice), value)
-      end
-
-      alt2(regex1, regex2)
-    when :amp.ns
-      p1 = deriv(p1, value)
-      return unless p1
-
-      if p1[:op.ns] == :accept.ns
-        ret = and_preds(preturn(p1), predicates)
-        accept(ret) unless invalid?(ret)
-      else
-        constrained(p1, *predicates)
-      end
-    else
-      raise "Unexpected #{:op.ns} #{regex[:op.ns]}"
-    end
-  end
-
-  private_class_method def self.insufficient(path, via, inn)
-    [{ :path   => path,
-       :reason => "Insufficient input",
-       :val    => [],
-       :via    => via,
-       :in     => inn }]
-  end
-
-  private_class_method def self.op_explain(p, path, via, inn, input)
-    p = _reg_resolve!(p)
-    return unless p
-
-    input ||= []
-    x = input.first
-
-    unless regex?(p)
-      if input.empty?
-        return insufficient(path, via, inn)
-      else
-        return explain1(p, path, via, inn, x)
-      end
-    end
-
-    case p[:op.ns]
-    when :accept.ns then nil
-    when :amp.ns
-      if input.empty?
-        if accept_nil?(p[:p1])
-          explain_pred_list(p[:predicates], path, via, inn, preturn(p[:p1]))
-        else
-          insufficient(path, via, inn)
-        end
-      else
-        p1 = deriv(p[:p1], x)
-
-        if p1
-          explain_pred_list(p[:predicates], path, via, inn, preturn(p1))
-        else
-          op_explain(p[:p1], path, via, inn, input)
-        end
-      end
-    when :pcat.ns
-      pks = p[:predicates].zip(p[:keys] || [])
-      pred, k = if pks.count == 1
-                  pks.first
-                else
-                  pks.lazy.reject { |(predicate, _)| accept_nil?(predicate) }.first
-                end
-      path = path.conj(k) if k
-
-      if input.empty? && !pred
-        insufficient(path, via, inn)
-      else
-        op_explain(pred, path, via, inn, input)
-      end
-    when :alt.ns
-      return insufficient(path, via, inn) if input.empty?
-
-      probs = p[:predicates].zip(p[:keys]).flat_map { |(predicate, key)|
-        op_explain(predicate, key ? path.conj(key) : path, via, inn, input)
-      }
-
-      probs.compact
-    when :rep.ns
-      op_explain(p[:p1], path, via, inn, input)
-    else
-      raise "Unexpected #{:op.ns} #{p[:op.ns]}"
-    end
-  end
-
   # @private
   def self.re_gen(p, overrides, path, rmap)
     origp = p
-    p = _reg_resolve!(p)
+    p = reg_resolve!(p)
 
     id, op, ps, ks, p1, p2, ret, id, gen = p.values_at(
       :id, :op.ns, :predicates, :keys, :p1, :p2, :return_value, :id, :gen.ns
@@ -1161,19 +748,437 @@ module Speculation
     Gen.sample(gen(fspec.argspec), n).map { |args| [args, method.call(*args)] }
   end
 
-  # Resets the spec registry to only builtin specs
-  def self.reset_registry!
-    builtins = {
-      :any.ns              => with_gen(Utils.constantly(true)) { |r| r.branch(*Gen::GEN_BUILTINS.values) },
-      :boolean.ns          => Set[true, false],
-      :positive_integer.ns => with_gen(self.and(Integer, :positive?.to_proc)) { |r| r.range(1) },
-      # Rantly#positive_integer is actually a natural integer
-      :natural_integer.ns  => with_gen(self.and(Integer, Utils.complement(&:negative?)), &:positive_integer),
-      :negative_integer.ns => with_gen(self.and(Integer, :negative?.to_proc)) { |r| r.range(nil, -1) },
-      :empty.ns            => with_gen(:empty?.to_proc) { |_| [] }
-    }
+  class << self
+    private
 
-    @registry_ref.reset(builtins)
+    # returns the spec/regex at end of alias chain starting with k, throws if not found, k if k not ident
+    def reg_resolve!(key)
+      return key unless Utils.ident?(key)
+      spec = reg_resolve(key)
+
+      if spec
+        spec
+      else
+        raise "Unable to resolve spec: #{key}"
+      end
+    end
+
+    def deep_resolve(reg, spec)
+      spec = reg[spec] while Utils.ident?(spec)
+      spec
+    end
+
+    # returns the spec/regex at end of alias chain starting with k, nil if not found, k if k not ident
+    def reg_resolve(key)
+      return key unless Utils.ident?(key)
+
+      spec = @registry_ref.value[key]
+
+      if Utils.ident?(spec)
+        deep_resolve(registry, spec)
+      else
+        spec
+      end
+    end
+
+    def with_name(spec, name)
+      if Utils.ident?(spec)
+        spec
+      elsif regex?(spec)
+        spec.merge(:name.ns => name)
+      else
+        spec.tap { |s| s.name = name }
+      end
+    end
+
+    def spec_name(spec)
+      if Utils.ident?(spec)
+        spec
+      elsif regex?(spec)
+        spec[:name.ns]
+      elsif spec.respond_to?(:name)
+        spec.name
+      end
+    end
+
+    # spec_or_key must be a spec, regex or ident, else returns nil. Raises if
+    # unresolvable ident (Speculation::Utils.ident?)
+    def the_spec(spec_or_key)
+      spec = maybe_spec(spec_or_key)
+      return spec if spec
+
+      if Utils.ident?(spec_or_key)
+        raise "Unable to resolve spec: #{spec_or_key}"
+      end
+    end
+
+    # spec_or_key must be a spec, regex or resolvable ident, else returns nil
+    def maybe_spec(spec_or_key)
+      spec = (Utils.ident?(spec_or_key) && reg_resolve(spec_or_key)) ||
+        spec?(spec_or_key) ||
+        regex?(spec_or_key) ||
+        nil
+
+      if regex?(spec)
+        with_name(RegexSpec.new(spec), spec_name(spec))
+      else
+        spec
+      end
+    end
+
+    def and_preds(x, preds)
+      pred, *preds = preds
+
+      x = dt(pred, x)
+
+      if invalid?(x)
+        :invalid.ns
+      elsif preds.empty?
+        x
+      else
+        and_preds(x, preds)
+      end
+    end
+
+    def specize(spec)
+      if spec?(spec)
+        spec
+      else
+        case spec
+        when Symbol, Identifier
+          specize(reg_resolve!(spec))
+        else
+          spec_impl(spec, false)
+        end
+      end
+    end
+
+    ### regex ###
+
+    def accept(x)
+      { :op.ns => :accept.ns, :return_value => x }
+    end
+
+    def accept?(hash)
+      if hash.is_a?(Hash)
+        hash[:op.ns] == :accept.ns
+      end
+    end
+
+    def pcat(regex)
+      predicate, *rest_predicates = regex[:predicates]
+
+      keys = regex[:keys]
+      key, *rest_keys = keys
+
+      return unless regex[:predicates].all?
+
+      unless accept?(predicate)
+        return { :op.ns        => :pcat.ns,
+                 :predicates   => regex[:predicates],
+                 :keys         => keys,
+                 :return_value => regex[:return_value] }
+      end
+
+      val = keys ? { key => predicate[:return_value] } : predicate[:return_value]
+      return_value = regex[:return_value].conj(val)
+
+      if rest_predicates
+        pcat(:predicates   => rest_predicates,
+             :keys         => rest_keys,
+             :return_value => return_value)
+      else
+        accept(return_value)
+      end
+    end
+
+    def rep(p1, p2, return_value, splice)
+      return unless p1
+
+      regex = { :op.ns => :rep.ns, :p2 => p2, :splice => splice, :id => SecureRandom.uuid }
+
+      if accept?(p1)
+        regex.merge(:p1 => p2, :return_value => return_value.conj(p1[:return_value]))
+      else
+        regex.merge(:p1 => p1, :return_value => return_value)
+      end
+    end
+
+    def filter_alt(ps, ks, &block)
+      if ks
+        pks = ps.zip(ks).select { |xs| yield(xs.first) }
+        [pks.map(&:first), pks.map(&:last)]
+      else
+        [ps.select(&block), ks]
+      end
+    end
+
+    def _alt(predicates, keys)
+      predicates, keys = filter_alt(predicates, keys, &:itself)
+      return unless predicates
+
+      predicate, *rest_predicates = predicates
+      key, *_rest_keys = keys
+
+      return_value = { :op.ns => :alt.ns, :predicates => predicates, :keys => keys }
+      return return_value unless rest_predicates.empty?
+
+      return predicate unless key
+      return return_value unless accept?(predicate)
+
+      accept([key, predicate[:return_value]])
+    end
+
+    def alt2(p1, p2)
+      if p1 && p2
+        _alt([p1, p2], nil)
+      else
+        p1 || p2
+      end
+    end
+
+    def no_ret?(p1, pret)
+      return true if pret == :nil.ns
+
+      regex = reg_resolve!(p1)
+      op = regex[:op.ns]
+
+      [:rep.ns, :pcat.ns].include?(op) && pret.empty? || nil
+    end
+
+    def accept_nil?(regex)
+      regex = reg_resolve!(regex)
+      return unless regex?(regex)
+
+      case regex[:op.ns]
+      when :accept.ns then true
+      when :pcat.ns   then regex[:predicates].all?(&method(:accept_nil?))
+      when :alt.ns    then regex[:predicates].any?(&method(:accept_nil?))
+      when :rep.ns    then (regex[:p1] == regex[:p2]) || accept_nil?(regex[:p1])
+      when :amp.ns
+        p1 = regex[:p1]
+
+        return false unless accept_nil?(p1)
+
+        no_ret?(p1, preturn(p1)) ||
+          !invalid?(and_preds(preturn(p1), regex[:predicates]))
+      else
+        raise "Unexpected #{:op.ns} #{regex[:op.ns]}"
+      end
+    end
+
+    def preturn(regex)
+      regex = reg_resolve!(regex)
+      return unless regex?(regex)
+
+      p0, *_pr = regex[:predicates]
+      k, *ks = regex[:keys]
+
+      case regex[:op.ns]
+      when :accept.ns then regex[:return_value]
+      when :pcat.ns   then add_ret(p0, regex[:return_value], k)
+      when :rep.ns    then add_ret(regex[:p1], regex[:return_value], k)
+      when :amp.ns
+        pret = preturn(regex[:p1])
+
+        if no_ret?(regex[:p1], pret)
+          :nil.ns
+        else
+          and_preds(pret, regex[:predicates])
+        end
+      when :alt.ns
+        ps, ks = filter_alt(regex[:predicates], regex[:keys], &method(:accept_nil?))
+
+        r = if ps.first.nil?
+              :nil.ns
+            else
+              preturn(ps.first)
+            end
+
+        if ks && ks.first
+          [ks.first, r]
+        else
+          r
+        end
+      else
+        raise "Unexpected #{:op.ns} #{regex[:op.ns]}"
+      end
+    end
+
+    def add_ret(regex, r, key)
+      regex = reg_resolve!(regex)
+      return r unless regex?(regex)
+
+      prop = -> do
+        return_value = preturn(regex)
+
+        if return_value.empty?
+          r
+        else
+          val = key ? { key => return_value } : return_value
+
+          regex[:splice] ? Utils.into(r, val) : r.conj(val)
+        end
+      end
+
+      case regex[:op.ns]
+      when :accept.ns, :alt.ns, :amp.ns
+        return_value = preturn(regex)
+
+        if return_value == :nil.ns
+          r
+        else
+          r.conj(key ? { key => return_value } : return_value)
+        end
+      when :pcat.ns, :rep.ns then prop.call
+      else
+        raise "Unexpected #{:op.ns} #{regex[:op.ns]}"
+      end
+    end
+
+    def deriv(predicate, value)
+      predicate = reg_resolve!(predicate)
+      return unless predicate
+
+      unless regex?(predicate)
+        return_value = dt(predicate, value)
+
+        return if invalid?(return_value)
+        return accept(return_value)
+      end
+
+      regex = predicate
+
+      predicates, p1, p2, keys, return_value, splice =
+        regex.values_at(:predicates, :p1, :p2, :keys, :return_value, :splice)
+
+      pred, *rest_preds = predicates
+      key, *rest_keys = keys
+
+      case regex[:op.ns]
+      when :accept.ns then nil
+      when :pcat.ns
+        regex1 = pcat(:predicates => [deriv(pred, value), *rest_preds], :keys => keys, :return_value => return_value)
+        regex2 = nil
+
+        if accept_nil?(pred)
+          regex2 = deriv(
+            pcat(:predicates => rest_preds, :keys => rest_keys, :return_value => add_ret(pred, return_value, key)),
+            value
+          )
+        end
+
+        alt2(regex1, regex2)
+      when :alt.ns
+        _alt(predicates.map { |p| deriv(p, value) }, keys)
+      when :rep.ns
+        regex1 = rep(deriv(p1, value), p2, return_value, splice)
+        regex2 = nil
+
+        if accept_nil?(p1)
+          regex2 = deriv(rep(p2, p2, add_ret(p1, return_value, nil), splice), value)
+        end
+
+        alt2(regex1, regex2)
+      when :amp.ns
+        p1 = deriv(p1, value)
+        return unless p1
+
+        if p1[:op.ns] == :accept.ns
+          ret = and_preds(preturn(p1), predicates)
+          accept(ret) unless invalid?(ret)
+        else
+          constrained(p1, *predicates)
+        end
+      else
+        raise "Unexpected #{:op.ns} #{regex[:op.ns]}"
+      end
+    end
+
+    def insufficient(path, via, inn)
+      [{ :path   => path,
+         :reason => "Insufficient input",
+         :val    => [],
+         :via    => via,
+         :in     => inn }]
+    end
+
+    def op_explain(p, path, via, inn, input)
+      p = reg_resolve!(p)
+      return unless p
+
+      input ||= []
+      x = input.first
+
+      unless regex?(p)
+        if input.empty?
+          return insufficient(path, via, inn)
+        else
+          return explain1(p, path, via, inn, x)
+        end
+      end
+
+      case p[:op.ns]
+      when :accept.ns then nil
+      when :amp.ns
+        if input.empty?
+          if accept_nil?(p[:p1])
+            explain_pred_list(p[:predicates], path, via, inn, preturn(p[:p1]))
+          else
+            insufficient(path, via, inn)
+          end
+        else
+          p1 = deriv(p[:p1], x)
+
+          if p1
+            explain_pred_list(p[:predicates], path, via, inn, preturn(p1))
+          else
+            op_explain(p[:p1], path, via, inn, input)
+          end
+        end
+      when :pcat.ns
+        pks = p[:predicates].zip(p[:keys] || [])
+        pred, k = if pks.count == 1
+                    pks.first
+                  else
+                    pks.lazy.reject { |(predicate, _)| accept_nil?(predicate) }.first
+                  end
+        path = path.conj(k) if k
+
+        if input.empty? && !pred
+          insufficient(path, via, inn)
+        else
+          op_explain(pred, path, via, inn, input)
+        end
+      when :alt.ns
+        return insufficient(path, via, inn) if input.empty?
+
+        probs = p[:predicates].zip(p[:keys]).flat_map { |(predicate, key)|
+          op_explain(predicate, key ? path.conj(key) : path, via, inn, input)
+        }
+
+        probs.compact
+      when :rep.ns
+        op_explain(p[:p1], path, via, inn, input)
+      else
+        raise "Unexpected #{:op.ns} #{p[:op.ns]}"
+      end
+    end
+
+    # Resets the spec registry to only builtin specs
+    def reset_registry!
+      builtins = {
+        :any.ns              => with_gen(Utils.constantly(true)) { |r| r.branch(*Gen::GEN_BUILTINS.values) },
+        :boolean.ns          => Set[true, false],
+        :positive_integer.ns => with_gen(self.and(Integer, :positive?.to_proc)) { |r| r.range(1) },
+        # Rantly#positive_integer is actually a natural integer
+        :natural_integer.ns  => with_gen(self.and(Integer, Utils.complement(&:negative?)), &:positive_integer),
+        :negative_integer.ns => with_gen(self.and(Integer, :negative?.to_proc)) { |r| r.range(nil, -1) },
+        :empty.ns            => with_gen(:empty?.to_proc) { |_| [] }
+      }
+
+      @registry_ref.reset(builtins)
+    end
   end
 
   reset_registry!

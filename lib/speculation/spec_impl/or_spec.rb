@@ -15,7 +15,7 @@ module Speculation
       @preds = preds = named_specs.values
 
       @delayed_specs = Concurrent::Delay.new do
-        preds.map { |spec| S.specize(spec) }
+        preds.map { |spec| S.send(:specize, spec) }
       end
     end
 

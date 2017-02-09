@@ -8,7 +8,7 @@ module Speculation
     def initialize(preds)
       @preds = preds
       @specs = Concurrent::Delay.new do
-        preds.map { |pred| S.specize(pred) }
+        preds.map { |pred| S.send(:specize, pred) }
       end
     end
 
