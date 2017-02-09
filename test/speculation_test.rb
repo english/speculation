@@ -634,7 +634,7 @@ val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: "(:Speculation::
       assert_equal "f.call(*args)", ed[:pred]
       assert_equal [], ed[:val].first
       assert_kind_of Proc, ed[:val].last
-      assert_equal "In: [0] val: \"1\" fails at: [:x] predicate: Integer\n", ed[:reason]
+      assert_equal "In: [0] val: \"1\" fails at: [:x] predicate: Integer", ed[:reason]
       assert_equal [identifier], ed[:via]
       assert_equal [], ed[:in]
     end

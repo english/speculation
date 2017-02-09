@@ -47,7 +47,7 @@ module Speculation
 
       if ret.is_a?(Exception)
         val = block ? [args, block] : args
-        return [{ :path => path, :pred => "f.call(*args)", :val => val, :reason => ret.message, :via => via, :in => inn }]
+        return [{ :path => path, :pred => "f.call(*args)", :val => val, :reason => ret.message.chomp, :via => via, :in => inn }]
       end
 
       cret = S.dt(@retspec, ret)
