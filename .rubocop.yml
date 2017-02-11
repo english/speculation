@@ -81,3 +81,6 @@ Style/AccessorMethodName:
 
 Style/NumericLiterals:
   Enabled: false
+
+Style/NumericPredicate:
+  Enabled: false
