@@ -19,9 +19,9 @@ module Speculation
       assert_kind_of Integer, val
       assert val.even?
 
-      S.def(:foo.ns, S.or(:neg_int => S.and(Integer, ->(x) { x.negative? }), :str => String))
+      S.def(:foo.ns, S.or(:neg_int => S.and(Integer, ->(x) { x < 0 }), :str => String))
       val = Gen.generate(S.gen(:foo.ns))
-      assert((val.is_a?(Integer) && val.negative?) || val.is_a?(String))
+      assert((val.is_a?(Integer) && val < 0) || val.is_a?(String))
 
       S.def(:x.ns, String)
       S.def(:y.ns, Integer)

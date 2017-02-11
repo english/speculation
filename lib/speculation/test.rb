@@ -129,7 +129,7 @@ module Speculation
       instrumented = @instrumented_methods.value[ident]
       return unless instrumented
 
-      raw, wrapped = instrumented.fetch_values(:raw, :wrapped)
+      raw, wrapped = instrumented.values_at(:raw, :wrapped)
 
       @instrumented_methods.swap do |h|
         h.reject { |k, _v| k == ident }

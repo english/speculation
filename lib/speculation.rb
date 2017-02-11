@@ -1170,10 +1170,10 @@ module Speculation
       builtins = {
         :any.ns              => with_gen(Utils.constantly(true)) { |r| r.branch(*Gen::GEN_BUILTINS.values) },
         :boolean.ns          => Set[true, false],
-        :positive_integer.ns => with_gen(self.and(Integer, :positive?.to_proc)) { |r| r.range(1) },
+        :positive_integer.ns => with_gen(self.and(Integer, ->(x) { x > 0 })) { |r| r.range(1) },
         # Rantly#positive_integer is actually a natural integer
-        :natural_integer.ns  => with_gen(self.and(Integer, Utils.complement(&:negative?)), &:positive_integer),
-        :negative_integer.ns => with_gen(self.and(Integer, :negative?.to_proc)) { |r| r.range(nil, -1) },
+        :natural_integer.ns  => with_gen(self.and(Integer, ->(x) { x >= 0 }), &:positive_integer),
+        :negative_integer.ns => with_gen(self.and(Integer, ->(x) { x < 0 })) { |r| r.range(nil, -1) },
         :empty.ns            => with_gen(:empty?.to_proc) { |_| [] }
       }
 
