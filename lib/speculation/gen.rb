@@ -80,6 +80,7 @@ module Speculation
       end
     end
 
+    # @private
     def self.delay(&block)
       delayed = Concurrent::Delay.new(&block)
 

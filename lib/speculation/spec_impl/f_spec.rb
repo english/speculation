@@ -90,7 +90,7 @@ module Speculation
 
       combined = ->(r) { [args_gen.call(r), block_gen.call(r)] }
 
-      ret = S::Test.rantly_quick_check(combined, iterations) { |(args, block)|
+      ret = S::Test.send(:rantly_quick_check, combined, iterations) { |(args, block)|
         call_valid?(f, specs, args, block)
       }
 
@@ -98,7 +98,7 @@ module Speculation
       smallest || f
     end
 
-    private_class_method def self.call_valid?(f, specs, args, block)
+    def self.call_valid?(f, specs, args, block)
       cargs = S.conform(specs[:args], args)
       return if S.invalid?(cargs)
 

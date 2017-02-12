@@ -26,136 +26,6 @@ module Speculation
       instrument_enabled.value = true
     end
 
-    private_class_method def self.spec_checking_fn(ident, method, fspec)
-      fspec = S.send(:maybe_spec, fspec)
-
-      conform = ->(args, block) do
-        conformed_args = S.conform(fspec.argspec, args)
-        conformed_block = S.conform(fspec.blockspec, block) if fspec.blockspec
-
-        if conformed_args == :invalid.ns(S)
-          backtrace = backtrace_relevant_to_instrument(caller)
-
-          ed = S.
-            _explain_data(fspec.argspec, [:args], [], [], args).
-            merge(:args.ns(S) => args, :failure.ns(S) => :instrument, :caller.ns => backtrace)
-
-          io = StringIO.new
-          S.explain_out(ed, io)
-          msg = io.string
-
-          raise Speculation::Error.new("Call to '#{ident}' did not conform to spec:\n #{msg}", ed)
-        elsif conformed_block == :invalid.ns(S)
-          backtrace = backtrace_relevant_to_instrument(caller)
-
-          ed = S.
-            _explain_data(fspec.blockspec, [:block], [], [], block).
-            merge(:block.ns(S) => block, :failure.ns(S) => :instrument, :caller.ns => backtrace)
-
-          io = StringIO.new
-          S.explain_out(ed, io)
-          msg = io.string
-
-          raise Speculation::Error.new("Call to '#{ident}' did not conform to spec:\n #{msg}", ed)
-        end
-      end
-
-      ->(*args, &block) do
-        method = method.bind(self) if method.is_a?(UnboundMethod)
-
-        if Test.instrument_enabled.value
-          Test.with_instrument_disabled do
-            conform.call(args, block) if fspec.argspec
-
-            begin
-              Test.instrument_enabled.value = true
-              method.call(*args, &block)
-            ensure
-              Test.instrument_enabled.value = false
-            end
-          end
-        else
-          method.call(*args, &block)
-        end
-      end
-    end
-
-    def self.no_fspec(ident, spec)
-      S::Error.new("#{ident} not spec'ed", :method        => ident,
-                                           :spec          => spec,
-                                           :failure.ns(S) => :no_fspec)
-    end
-
-    private_class_method def self.instrument1(ident, opts)
-      spec = S.get_spec(ident)
-
-      raw, wrapped = @instrumented_methods.
-        value.
-        fetch(ident, {}).
-        values_at(:raw, :wrapped)
-
-      current = ident.get_method
-      to_wrap = wrapped == current ? raw : current
-
-      ospec = instrument_choose_spec(spec, ident, opts[:spec])
-      raise no_fspec(ident, spec) unless ospec
-
-      ofn = instrument_choose_fn(to_wrap, ospec, ident, opts)
-
-      checked = spec_checking_fn(ident, ofn, ospec)
-
-      ident.redefine_method!(checked)
-
-      wrapped = ident.get_method
-
-      @instrumented_methods.swap do |methods|
-        methods.merge(ident => { :raw => to_wrap, :wrapped => wrapped })
-      end
-
-      ident
-    end
-
-    private_class_method def self.instrument_choose_fn(f, spec, ident, opts)
-      stubs   = (opts[:stub] || []).map(&S.method(:Identifier))
-      over    = opts[:gen] || {}
-      replace = (opts[:replace] || {}).reduce({}) { |h, (k, v)| h.merge(S.Identifier(k) => v) }
-
-      if stubs.include?(ident)
-        Gen.generate(S.gen(spec, over))
-      else
-        replace.fetch(ident, f)
-      end
-    end
-
-    private_class_method def self.instrument_choose_spec(spec, ident, overrides)
-      (overrides || {}).
-        reduce({}) { |h, (k, v)| h.merge(S.Identifier(k) => v) }.
-        fetch(ident, spec)
-    end
-
-    private_class_method def self.unstrument1(ident)
-      instrumented = @instrumented_methods.value[ident]
-      return unless instrumented
-
-      raw, wrapped = instrumented.values_at(:raw, :wrapped)
-
-      @instrumented_methods.swap do |h|
-        h.reject { |k, _v| k == ident }
-      end
-
-      current = ident.get_method
-
-      # Only redefine to original if it has not been modified since it was
-      # instrumented.
-      if wrapped == current
-        ident.tap { |i| i.redefine_method!(raw) }
-      end
-    end
-
-    def self.backtrace_relevant_to_instrument(backtrace)
-      backtrace.drop_while { |line| line.include?(__FILE__) }
-    end
-
     # Given an opts hash as per instrument, returns the set of methods that can
     # be instrumented.
     def self.instrumentable_methods(opts = {})
@@ -170,10 +40,6 @@ module Speculation
         set.merge(opts[:stub])         if opts[:stub]
         set.merge(opts[:replace].keys) if opts[:replace]
       end
-    end
-
-    private_class_method def self.fn_spec_name?(spec_name)
-      spec_name.is_a?(S::Identifier)
     end
 
     # Instruments the methods named by method-or-methods, a method or collection
@@ -237,122 +103,6 @@ module Speculation
         compact
     end
 
-    private_class_method def self.explain_check(args, spec, v, role)
-      data = unless S.valid?(spec, v)
-               S._explain_data(spec, [role], [], [], v).
-                 merge(:args.ns       => args,
-                       :val.ns        => v,
-                       :failure.ns(S) => :check_failed)
-             end
-
-      S::Error.new("Specification-based check failed", data).tap do |e|
-        e.set_backtrace(caller)
-      end
-    end
-
-    # Returns true if call passes specs, otherwise returns a hash with
-    # :backtrace, :cause and :data keys. :data will have a
-    # :"Speculation/failure" key.
-    private_class_method def self.check_call(method, spec, args, block)
-      conformed_args = S.conform(spec.argspec, args) if spec.argspec
-
-      if conformed_args == :invalid.ns(S)
-        return explain_check(args, spec.argspec, args, :args)
-      end
-
-      conformed_block = S.conform(spec.blockspec, block) if spec.blockspec
-
-      if conformed_block == :invalid.ns(S)
-        return explain_check(block, spec.block, block, :block)
-      end
-
-      ret = method.call(*args, &block)
-
-      conformed_ret = S.conform(spec.retspec, ret) if spec.retspec
-
-      if conformed_ret == :invalid.ns(S)
-        return explain_check(args, spec.retspec, ret, :ret)
-      end
-
-      return true unless spec.argspec && spec.retspec && spec.fnspec
-
-      if S.valid?(spec.fnspec, :args => conformed_args, :block => conformed_block, :ret => conformed_ret)
-        true
-      else
-        explain_check(args, spec.fnspec, { :args => conformed_args, :block => conformed_block, :ret => conformed_ret }, :fn)
-      end
-    end
-
-    private_class_method def self.quick_check(method, spec, opts)
-      gen = opts[:gen]
-      num_tests = opts.fetch(:num_tests, 1000)
-
-      args_gen = begin
-                   S.gen(spec.argspec, gen)
-                 rescue => e
-                   return { :result => e }
-                 end
-
-      block_gen = if spec.blockspec
-                    begin
-                      S.gen(spec.blockspec, gen)
-                    rescue => e
-                      return { :result => e }
-                    end
-                  else
-                    Utils.constantly(nil)
-                  end
-
-      combined_gen = ->(r) { [args_gen.call(r), block_gen.call(r)] }
-
-      rantly_quick_check(combined_gen, num_tests) { |(args, block)| check_call(method, spec, args, block) }
-    end
-
-    private_class_method def self.make_check_result(method, spec, check_result)
-      result = { :spec   => spec,
-                 :ret.ns => check_result,
-                 :method => method }
-
-      if check_result[:result] && check_result[:result] != true
-        result[:failure] = check_result[:result]
-      end
-
-      if check_result[:shrunk]
-        result[:failure] = check_result[:shrunk][:result]
-      end
-
-      result
-    end
-
-    private_class_method def self.check1(ident, spec, opts)
-      specd = S.spec(spec)
-
-      reinstrument = unstrument(ident).any?
-      method = ident.get_method
-
-      if specd.argspec # or blockspec?
-        check_result = quick_check(method, spec, opts)
-        make_check_result(method, spec, check_result)
-      else
-        failure = { :info         => "No :args spec",
-                    failure.ns(S) => :no_args_spec }
-
-        { :failure => failure,
-          :method  => method,
-          :spec    => spec }
-      end
-    ensure
-      instrument(ident) if reinstrument
-    end
-
-    private_class_method def self.validate_check_opts(opts)
-      return unless opts[:gen]
-
-      unless opts[:gen].keys.all? { |k| k.is_a?(Method) || k.is_a?(Symbol) }
-        raise ArgumentErorr, "check :gen expects Method or Symbol keys"
-      end
-    end
-
     # Runs generative tests for method using spec and opts. See 'check' for options and return
     def self.check_method(method, spec, opts = {})
       validate_check_opts(opts)
@@ -406,110 +156,6 @@ module Speculation
         pmap { |ident| check1(ident, S.get_spec(ident), opts) }
     end
 
-    # Reimplementation of Rantly's `check` since it does not provide direct access to results
-    # (shrunk data etc.), instead printing them to STDOUT.
-    def self.rantly_quick_check(gen, num_tests, &block)
-      i = 0
-      limit = 100
-
-      Rantly.singleton.generate(num_tests, limit, gen) do |val|
-        args, blk = val
-        i += 1
-
-        result = begin
-                   block.call([args, blk])
-                 rescue => e
-                   e
-                 end
-
-        unless result == true
-          # This is a Rantly Tuple.
-          args = ::Tuple.new(args)
-
-          if args.respond_to?(:shrink)
-            shrunk = shrink(args, result, ->(v) { block.call([v, blk]) })
-
-            shrunk[:smallest] = [shrunk[:smallest].array, blk]
-
-            return { :fail      => args.array,
-                     :block     => blk,
-                     :num_tests => i,
-                     :result    => result,
-                     :shrunk    => shrunk }
-          else
-            return { :fail      => args.array,
-                     :block     => blk,
-                     :num_tests => i,
-                     :result    => result }
-          end
-        end
-      end
-
-      { :num_tests => i,
-        :result    => true }
-    end
-
-    # reimplementation of Rantly's shrinking.
-    private_class_method def self.shrink(data, result, block, depth = 0, iteration = 0)
-      smallest = data
-      max_depth = depth
-
-      if data.shrinkable?
-        while iteration < 1024
-          shrunk_data = data.shrink
-          result = begin
-                     block.call(shrunk_data.array)
-                   rescue => e
-                     e
-                   end
-
-          unless result == true
-            shrunk = shrink(shrunk_data, result, block, depth + 1, iteration + 1)
-
-            branch_smallest, branch_depth, iteration =
-              shrunk.values_at(:smallest, :depth, :iteration)
-
-            if branch_depth > max_depth
-              smallest = branch_smallest
-              max_depth = branch_depth
-            end
-          end
-
-          break unless data.retry?
-        end
-      end
-
-      { :depth     => max_depth,
-        :iteration => iteration,
-        :result    => result,
-        :smallest  => smallest }
-    end
-
-    ### check reporting ###
-
-    private_class_method def self.failure_type(x)
-      x.data[:failure.ns(S)] if x.is_a?(S::Error)
-    end
-
-    private_class_method def self.unwrap_failure(x)
-      failure_type(x) ? x.data : x
-    end
-
-    # Returns the type of the check result. This can be any of the
-    # :"Speculation/failure" symbols documented in 'check', or:
-    #
-    # :check_passed   all checked method returns conformed
-    # :check_raised   checked fn threw an exception
-    private_class_method def self.result_type(ret)
-      failure = ret[:failure]
-
-      if failure.nil?
-        :check_passed
-      else
-        failure_type(failure) || :check_raised
-      end
-    end
-
     # Given a check result, returns an abbreviated version suitable for summary
     # use.
     def self.abbrev_result(x)
@@ -540,6 +186,362 @@ module Speculation
           result_key => summary.fetch(result_key, 0).next
         )
       }
+    end
+
+    class << self
+      private
+
+      def spec_checking_fn(ident, method, fspec)
+        fspec = S.send(:maybe_spec, fspec)
+
+        conform = ->(args, block) do
+          conformed_args = S.conform(fspec.argspec, args)
+          conformed_block = S.conform(fspec.blockspec, block) if fspec.blockspec
+
+          if conformed_args == :invalid.ns(S)
+            backtrace = backtrace_relevant_to_instrument(caller)
+
+            ed = S.
+              _explain_data(fspec.argspec, [:args], [], [], args).
+              merge(:args.ns(S) => args, :failure.ns(S) => :instrument, :caller.ns => backtrace)
+
+            io = StringIO.new
+            S.explain_out(ed, io)
+            msg = io.string
+
+            raise Speculation::Error.new("Call to '#{ident}' did not conform to spec:\n #{msg}", ed)
+          elsif conformed_block == :invalid.ns(S)
+            backtrace = backtrace_relevant_to_instrument(caller)
+
+            ed = S.
+              _explain_data(fspec.blockspec, [:block], [], [], block).
+              merge(:block.ns(S) => block, :failure.ns(S) => :instrument, :caller.ns => backtrace)
+
+            io = StringIO.new
+            S.explain_out(ed, io)
+            msg = io.string
+
+            raise Speculation::Error.new("Call to '#{ident}' did not conform to spec:\n #{msg}", ed)
+          end
+        end
+
+        ->(*args, &block) do
+          method = method.bind(self) if method.is_a?(UnboundMethod)
+
+          if Test.instrument_enabled.value
+            Test.with_instrument_disabled do
+              conform.call(args, block) if fspec.argspec
+
+              begin
+                Test.instrument_enabled.value = true
+                method.call(*args, &block)
+              ensure
+                Test.instrument_enabled.value = false
+              end
+            end
+          else
+            method.call(*args, &block)
+          end
+        end
+      end
+
+      def no_fspec(ident, spec)
+        S::Error.new("#{ident} not spec'ed", :method => ident, :spec => spec, :failure.ns(S) => :no_fspec)
+      end
+
+      def instrument1(ident, opts)
+        spec = S.get_spec(ident)
+
+        raw, wrapped = @instrumented_methods.
+          value.
+          fetch(ident, {}).
+          values_at(:raw, :wrapped)
+
+        current = ident.get_method
+        to_wrap = wrapped == current ? raw : current
+
+        ospec = instrument_choose_spec(spec, ident, opts[:spec])
+        raise no_fspec(ident, spec) unless ospec
+
+        ofn = instrument_choose_fn(to_wrap, ospec, ident, opts)
+
+        checked = spec_checking_fn(ident, ofn, ospec)
+
+        ident.redefine_method!(checked)
+
+        wrapped = ident.get_method
+
+        @instrumented_methods.swap do |methods|
+          methods.merge(ident => { :raw => to_wrap, :wrapped => wrapped })
+        end
+
+        ident
+      end
+
+      def instrument_choose_fn(f, spec, ident, opts)
+        stubs   = (opts[:stub] || []).map(&S.method(:Identifier))
+        over    = opts[:gen] || {}
+        replace = (opts[:replace] || {}).reduce({}) { |h, (k, v)| h.merge(S.Identifier(k) => v) }
+
+        if stubs.include?(ident)
+          Gen.generate(S.gen(spec, over))
+        else
+          replace.fetch(ident, f)
+        end
+      end
+
+      def instrument_choose_spec(spec, ident, overrides)
+        (overrides || {}).
+          reduce({}) { |h, (k, v)| h.merge(S.Identifier(k) => v) }.
+          fetch(ident, spec)
+      end
+
+      def unstrument1(ident)
+        instrumented = @instrumented_methods.value[ident]
+        return unless instrumented
+
+        raw, wrapped = instrumented.values_at(:raw, :wrapped)
+
+        @instrumented_methods.swap do |h|
+          h.reject { |k, _v| k == ident }
+        end
+
+        current = ident.get_method
+
+        # Only redefine to original if it has not been modified since it was
+        # instrumented.
+        if wrapped == current
+          ident.tap { |i| i.redefine_method!(raw) }
+        end
+      end
+
+      def explain_check(args, spec, v, role)
+        data = unless S.valid?(spec, v)
+                 S._explain_data(spec, [role], [], [], v).
+                   merge(:args.ns       => args,
+                         :val.ns        => v,
+                         :failure.ns(S) => :check_failed)
+               end
+
+        S::Error.new("Specification-based check failed", data).tap do |e|
+          e.set_backtrace(caller)
+        end
+      end
+
+      # Returns true if call passes specs, otherwise returns a hash with
+      # :backtrace, :cause and :data keys. :data will have a
+      # :"Speculation/failure" key.
+      def check_call(method, spec, args, block)
+        conformed_args = S.conform(spec.argspec, args) if spec.argspec
+
+        if conformed_args == :invalid.ns(S)
+          return explain_check(args, spec.argspec, args, :args)
+        end
+
+        conformed_block = S.conform(spec.blockspec, block) if spec.blockspec
+
+        if conformed_block == :invalid.ns(S)
+          return explain_check(block, spec.block, block, :block)
+        end
+
+        ret = method.call(*args, &block)
+
+        conformed_ret = S.conform(spec.retspec, ret) if spec.retspec
+
+        if conformed_ret == :invalid.ns(S)
+          return explain_check(args, spec.retspec, ret, :ret)
+        end
+
+        return true unless spec.argspec && spec.retspec && spec.fnspec
+
+        if S.valid?(spec.fnspec, :args => conformed_args, :block => conformed_block, :ret => conformed_ret)
+          true
+        else
+          explain_check(args, spec.fnspec, { :args => conformed_args, :block => conformed_block, :ret => conformed_ret }, :fn)
+        end
+      end
+
+      def quick_check(method, spec, opts)
+        gen = opts[:gen]
+        num_tests = opts.fetch(:num_tests, 1000)
+
+        args_gen = begin
+                     S.gen(spec.argspec, gen)
+                   rescue => e
+                     return { :result => e }
+                   end
+
+        block_gen = if spec.blockspec
+                      begin
+                        S.gen(spec.blockspec, gen)
+                      rescue => e
+                        return { :result => e }
+                      end
+                    else
+                      Utils.constantly(nil)
+                    end
+
+        combined_gen = ->(r) { [args_gen.call(r), block_gen.call(r)] }
+
+        rantly_quick_check(combined_gen, num_tests) { |(args, block)| check_call(method, spec, args, block) }
+      end
+
+      def make_check_result(method, spec, check_result)
+        result = { :spec   => spec,
+                   :ret.ns => check_result,
+                   :method => method }
+
+        if check_result[:result] && check_result[:result] != true
+          result[:failure] = check_result[:result]
+        end
+
+        if check_result[:shrunk]
+          result[:failure] = check_result[:shrunk][:result]
+        end
+
+        result
+      end
+
+      def check1(ident, spec, opts)
+        specd = S.spec(spec)
+
+        reinstrument = unstrument(ident).any?
+        method = ident.get_method
+
+        if specd.argspec # or blockspec?
+          check_result = quick_check(method, spec, opts)
+          make_check_result(method, spec, check_result)
+        else
+          failure = { :info         => "No :args spec",
+                      failure.ns(S) => :no_args_spec }
+
+          { :failure => failure,
+            :method  => method,
+            :spec    => spec }
+        end
+      ensure
+        instrument(ident) if reinstrument
+      end
+
+      def validate_check_opts(opts)
+        return unless opts[:gen]
+
+        unless opts[:gen].keys.all? { |k| k.is_a?(Method) || k.is_a?(Symbol) }
+          raise ArgumentErorr, "check :gen expects Method or Symbol keys"
+        end
+      end
+
+      def backtrace_relevant_to_instrument(backtrace)
+        backtrace.drop_while { |line| line.include?(__FILE__) }
+      end
+
+      def fn_spec_name?(spec_name)
+        spec_name.is_a?(S::Identifier)
+      end
+
+      # Reimplementation of Rantly's `check` since it does not provide direct access to results
+      # (shrunk data etc.), instead printing them to STDOUT.
+      def rantly_quick_check(gen, num_tests, &block)
+        i = 0
+        limit = 100
+
+        Rantly.singleton.generate(num_tests, limit, gen) do |val|
+          args, blk = val
+          i += 1
+
+          result = begin
+                     block.call([args, blk])
+                   rescue => e
+                     e
+                   end
+
+          unless result == true
+            # This is a Rantly Tuple.
+            args = ::Tuple.new(args)
+
+            if args.respond_to?(:shrink)
+              shrunk = shrink(args, result, ->(v) { block.call([v, blk]) })
+
+              shrunk[:smallest] = [shrunk[:smallest].array, blk]
+
+              return { :fail      => args.array,
+                       :block     => blk,
+                       :num_tests => i,
+                       :result    => result,
+                       :shrunk    => shrunk }
+            else
+              return { :fail      => args.array,
+                       :block     => blk,
+                       :num_tests => i,
+                       :result    => result }
+            end
+          end
+        end
+
+        { :num_tests => i,
+          :result    => true }
+      end
+
+      # reimplementation of Rantly's shrinking.
+      def shrink(data, result, block, depth = 0, iteration = 0)
+        smallest = data
+        max_depth = depth
+
+        if data.shrinkable?
+          while iteration < 1024
+            shrunk_data = data.shrink
+            result = begin
+                       block.call(shrunk_data.array)
+                     rescue => e
+                       e
+                     end
+
+            unless result == true
+              shrunk = shrink(shrunk_data, result, block, depth + 1, iteration + 1)
+
+              branch_smallest, branch_depth, iteration =
+                shrunk.values_at(:smallest, :depth, :iteration)
+
+              if branch_depth > max_depth
+                smallest = branch_smallest
+                max_depth = branch_depth
+              end
+            end
+
+            break unless data.retry?
+          end
+        end
+
+        { :depth     => max_depth,
+          :iteration => iteration,
+          :result    => result,
+          :smallest  => smallest }
+      end
+
+      ### check reporting ###
+
+      def failure_type(x)
+        x.data[:failure.ns(S)] if x.is_a?(S::Error)
+      end
+
+      def unwrap_failure(x)
+        failure_type(x) ? x.data : x
+      end
+
+      # Returns the type of the check result. This can be any of the
+      # :"Speculation/failure" symbols documented in 'check', or:
+      #
+      # :check_passed   all checked method returns conformed
+      # :check_raised   checked fn threw an exception
+      def result_type(ret)
+        failure = ret[:failure]
+
+        if failure.nil?
+          :check_passed
+        else
+          failure_type(failure) || :check_raised
+        end
+      end
     end
   end
 end
