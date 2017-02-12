@@ -441,7 +441,7 @@ module Speculation
 
       # Reimplementation of Rantly's `check` since it does not provide direct access to results
       # (shrunk data etc.), instead printing them to STDOUT.
-      def rantly_quick_check(gen, num_tests, &block)
+      def rantly_quick_check(gen, num_tests)
         i = 0
         limit = 100
 

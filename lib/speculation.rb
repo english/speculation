@@ -79,28 +79,28 @@ module Speculation
     gens << [1, ->(_) { Float::INFINITY }] if infinite
     gens << [1, ->(_) { Float::NAN }] if nan
 
-    spec(S.and(*preds), :gen => -> (rantly) { rantly.freq(*gens) })
+    spec(S.and(*preds), :gen => ->(rantly) { rantly.freq(*gens) })
   end
 
   # @param range [Range<Integer>]
   # @return Spec that validates ints in the given range
   def self.int_in(range)
     spec(S.and(Integer, ->(x) { range.include?(x) }),
-         :gen => ->(r) { rand(range) })
+         :gen => ->(_) { rand(range) })
   end
 
   # @param range [Range<Time>]
   # @return Spec that validates times in the given range
   def self.time_in(time_range)
     spec(S.and(Time, ->(x) { time_range.cover?(x) }),
-        :gen => ->(r) { rand(time_range) })
+         :gen => ->(_) { rand(time_range) })
   end
 
   # @param range [Range<Date>]
   # @return Spec that validates dates in the given range
   def self.date_in(date_range)
     spec(S.and(Date, ->(x) { date_range.cover?(x) }),
-        :gen => ->(r) { rand(date_range) })
+         :gen => ->(_) { rand(date_range) })
   end
 
   # returns x if x is a spec object, else logical false
