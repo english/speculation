@@ -60,13 +60,11 @@ module Speculation
     raise Speculation::Error.new("Spec assertion failed\n#{out.string}", :failure.ns => :assertion_failed)
   end
 
-  # Specs a 64-bit floating point number. Options:
-  #
   # @param infinite [Boolean] whether +/- infinity allowed (default true)
   # @param nan [Boolean] whether Flaot::NAN allowed (default true)
   # @param min [Boolean] minimum value (inclusive, default none)
   # @param max [Boolean] maximum value (inclusive, default none)
-  # @return Speculation::Spec
+  # @return Spec that validates floats
   def self.float_in(min: nil, max: nil, infinite: true, nan: true)
     preds = [Float]
     preds << ->(x) { !x.nan? } unless nan
@@ -82,6 +80,27 @@ module Speculation
     gens << [1, ->(_) { Float::NAN }] if nan
 
     spec(S.and(*preds), :gen => -> (rantly) { rantly.freq(*gens) })
+  end
+
+  # @param range [Range<Integer>]
+  # @return Spec that validates ints in the given range
+  def self.int_in(range)
+    spec(S.and(Integer, ->(x) { range.include?(x) }),
+         :gen => ->(r) { rand(range) })
+  end
+
+  # @param range [Range<Time>]
+  # @return Spec that validates times in the given range
+  def self.time_in(time_range)
+    spec(S.and(Time, ->(x) { time_range.cover?(x) }),
+        :gen => ->(r) { rand(time_range) })
+  end
+
+  # @param range [Range<Date>]
+  # @return Spec that validates dates in the given range
+  def self.date_in(date_range)
+    spec(S.and(Date, ->(x) { date_range.cover?(x) }),
+        :gen => ->(r) { rand(date_range) })
   end
 
   # returns x if x is a spec object, else logical false
