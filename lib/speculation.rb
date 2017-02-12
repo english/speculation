@@ -60,6 +60,30 @@ module Speculation
     raise Speculation::Error.new("Spec assertion failed\n#{out.string}", :failure.ns => :assertion_failed)
   end
 
+  # Specs a 64-bit floating point number. Options:
+  #
+  # @param infinite [Boolean] whether +/- infinity allowed (default true)
+  # @param nan [Boolean] whether Flaot::NAN allowed (default true)
+  # @param min [Boolean] minimum value (inclusive, default none)
+  # @param max [Boolean] maximum value (inclusive, default none)
+  # @return Speculation::Spec
+  def self.float_in(min: nil, max: nil, infinite: true, nan: true)
+    preds = [Float]
+    preds << ->(x) { !x.nan? } unless nan
+    preds << ->(x) { !x.infinite? } unless infinite
+    preds << ->(x) { x <= max } if max
+    preds << ->(x) { x >= min } if min
+
+    min ||= Float::MIN
+    max ||= Float::MAX
+
+    gens = [[20, ->(_) { rand(min.to_f..max.to_f) }]]
+    gens << [1, ->(_) { Float::INFINITY }] if infinite
+    gens << [1, ->(_) { Float::NAN }] if nan
+
+    spec(S.and(*preds), :gen => -> (rantly) { rantly.freq(*gens) })
+  end
+
   # returns x if x is a spec object, else logical false
   def self.spec?(x)
     x if x.is_a?(SpecImpl)
@@ -252,7 +276,7 @@ module Speculation
   # Returns a spec.
   def self.spec(pred, opts = {})
     if pred
-      spec_impl(pred, false).tap do
+      spec_impl(pred, false).tap do |spec|
         spec.gen = opts[:gen] if opts[:gen]
       end
     end
