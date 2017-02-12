@@ -3,6 +3,7 @@
 $LOAD_PATH.unshift File.expand_path("../../test", __FILE__)
 
 require "bundler/setup"
+require 'rubocop'
 require "speculation"
 require "speculation/test"
 require "speculation/gen"
@@ -49,6 +50,10 @@ end
 def t
   reload!
   Minitest.run
+end
+
+def r
+  RuboCop::CLI.new.run(['--display-cop-names'])
 end
 
 # allow running minitest assertions
