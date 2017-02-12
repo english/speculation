@@ -450,7 +450,7 @@ module Speculation
           i += 1
 
           result = begin
-                     block.call([args, blk])
+                     yield([args, blk])
                    rescue => e
                      e
                    end
@@ -460,7 +460,7 @@ module Speculation
             args = ::Tuple.new(args)
 
             if args.respond_to?(:shrink)
-              shrunk = shrink(args, result, ->(v) { block.call([v, blk]) })
+              shrunk = shrink(args, result, ->(v) { yield([v, blk]) })
 
               shrunk[:smallest] = [shrunk[:smallest].array, blk]
 
