@@ -8,6 +8,7 @@ module Speculation
     using NamespacedSymbols.refine(self)
     using Pmap
 
+    # @private
     S = Speculation
 
     @instrumented_methods = Concurrent::Atom.new({})
@@ -19,7 +20,6 @@ module Speculation
     end
 
     # Disables instrument's checking of calls within a block
-    # @yield
     def self.with_instrument_disabled
       instrument_enabled.value = false
       yield
@@ -45,45 +45,36 @@ module Speculation
       end
     end
 
-    # Instruments the methods named by method-or-methods, a method or collection
-    # of methods, or all instrumentable methods if method-or-methods is not
-    # specified.
-    #
-    # If a method has an :args fn-spec, replaces the method with a method that
-    # checks arg conformance (throwing an exception on failure) before
-    # delegating to the original method.
-    #
-    # The opts hash can be used to override registered specs, and/or to replace
-    # method implementations entirely. Opts for methods not included in
-    # method-or-methods are ignored. This facilitates sharing a common options
-    # hash across many different calls to instrument.
-    #
-    # The opts map may have the following keys:
-    #
-    #   :spec     a map from methods to override specs
-    #   :stub     a set of methods to be replaced by stubs
-    #   :gen      a map from spec names to generator overrides
-    #   :replace  a map from methods to replacement procs
-    #
-    # :spec overrides registered method specs with specs you provide. Use :spec
-    # overrides to provide specs for libraries that do not have them, or to
-    # constrain your own use of a fn to a subset of its spec'ed contract.
-    #
-    # :stub replaces a fn with a stub that checks :args, then uses the :ret spec
-    # to generate a return value.
-    #
-    # :gen overrides are used only for :stub generation.
-    #
-    # :replace replaces a method with a method that checks args conformance,
-    # then invokes the method/proc you provide, enabling arbitrary stubbing and
-    # mocking.
-    #
-    # :spec can be used in combination with :stub or :replace.
-    #
-    # Returns a collection of Identifiers naming the methods instrumented.
     # @param method_or_methods [Method, Identifier, Array<Method>, Array<Identifier>]
-    # @param opts [Hash]
-    # @return [Array<Identifier>]
+    #   Instruments the methods named by method-or-methods, a method or collection
+    #   of methods, or all instrumentable methods if method-or-methods is not
+    #   specified.
+    #   If a method has an :args fn-spec, replaces the method with a method that
+    #   checks arg conformance (throwing an exception on failure) before
+    #   delegating to the original method.
+    # @param opts [Hash] opts hash can be used to override registered specs, and/or to replace
+    #   method implementations entirely. Opts for methods not included in
+    #   method-or-methods are ignored. This facilitates sharing a common options
+    #   hash across many different calls to instrument
+    # @option opts :spec [Hash] a map from methods to override specs.
+    #   :spec overrides registered method specs with specs you provide. Use :spec
+    #   overrides to provide specs for libraries that do not have them, or to
+    #   constrain your own use of a fn to a subset of its spec'ed contract.
+    #   :spec can be used in combination with :stub or :replace.
+    #
+    # @option opts :stub [Set, Array] a set of methods to be replaced by stubs.
+    #   :stub replaces a fn with a stub that checks :args, then uses the :ret spec
+    #   to generate a return value.
+    #
+    # @option opts :gen [Hash{Symbol => Proc}] a map from spec names to generator overrides.
+    #   :gen overrides are used only for :stub generation.
+    #
+    # @option opts :replace [Hash{Method => Proc}] a map from methods to replacement procs.
+    #   :replace replaces a method with a method that checks args conformance,
+    #   then invokes the method/proc you provide, enabling arbitrary stubbing and
+    #   mocking.
+    #
+    # @return [Array<Identifier>] a collection of Identifiers naming the methods instrumented.
     def self.instrument(method_or_methods = instrumentable_methods, opts = {})
       if opts[:gen]
         gens = opts[:gen].reduce({}) { |h, (k, v)| h.merge(S.Identifier(k) => v) }
@@ -98,10 +89,9 @@ module Speculation
     end
 
     # Undoes instrument on the method_or_methods, specified as in instrument.
-    # With no args, unstruments all instrumented methods. Returns a collection
-    # of Identifiers naming the methods unstrumented.
+    # With no args, unstruments all instrumented methods.
     # @param method_or_methods [Method, Identifier, Array<Method>, Array<Identifier>]
-    # @return [Array<Identifier>]
+    # @return [Array<Identifier>] a collection of Identifiers naming the methods unstrumented
     def self.unstrument(method_or_methods = nil)
       method_or_methods ||= @instrumented_methods.value.keys
 
@@ -111,19 +101,19 @@ module Speculation
         compact
     end
 
-    # Runs generative tests for method using spec and opts. See 'check' for options and return
+    # Runs generative tests for method using spec and opts.
     # @param method [Method, Identifier]
     # @param spec [Spec]
     # @param opts [Hash]
     # @return [Hash]
+    # @see check see check for options and return
     def self.check_method(method, spec, opts = {})
       validate_check_opts(opts)
       check1(S.Identifier(method), spec, opts)
     end
 
-    # Given an opts hash as per `check`, returns the set of Identifiers that can be checked.
-    # @param opts [Hash]
-    # @return [Array<Identifier>]
+    # @param opts [Hash] an opts hash as per `check`
+    # @return [Array<Identifier>] the set of Identifiers that can be checked.
     def self.checkable_methods(opts = {})
       validate_check_opts(opts)
 
@@ -139,31 +129,25 @@ module Speculation
     # Run generative tests for spec conformance on method_or_methods. If
     # method_or_methods is not specified, check all checkable methods.
     #
-    # The opts hash includes the following optional keys:
-    #
-    # :num_tests  number of times to generatively test each method (default: 1000)
-    # :gen        hash map from spec names to generator overrides
-    #
-    # Generator overrides are passed to Speculation.gen when generating method args.
-    #
-    # Returns an array of check result hashes with the following keys:
-    #
-    # :spec       the spec tested
-    # :method     optional method tested
-    # :failure    optional test failure
-    # :result     optional boolean as to whether all generative tests passed
-    # :num_tests  optional number of generative tests ran
-    #
-    # :failure is a hash that will contain a :"Speculation/failure" key with possible values:
-    #
-    # :check_failed   at least one checked return did not conform
-    # :no_args_spec   no :args spec provided
-    # :no_fspec       no fspec provided
-    # :no_gen         unable to generate :args
-    # :instrument     invalid args detected by instrument
     # @param method_or_methods [Array<Method>, Method]
     # @param opts [Hash]
-    # @return Array<Identifier>
+    # @option opts :num_tests [Integer] (1000) number of times to generatively test each method
+    # @option opts :gen [Hash] map from spec names to generator overrides.
+    #   Generator overrides are passed to Speculation.gen when generating method args.
+    # @return [Array<Identifier>] an array of check result hashes with the following keys:
+    #   * :spec       the spec tested
+    #   * :method     optional method tested
+    #   * :failure    optional test failure
+    #   * :result     optional boolean as to whether all generative tests passed
+    #   * :num_tests  optional number of generative tests ran
+    #
+    #   :failure is a hash that will contain a :"Speculation/failure" key with possible values:
+    #
+    #   * :check_failed   at least one checked return did not conform
+    #   * :no_args_spec   no :args spec provided
+    #   * :no_fspec       no fspec provided
+    #   * :no_gen         unable to generate :args
+    #   * :instrument     invalid args detected by instrument
     def self.check(method_or_methods = nil, opts = {})
       method_or_methods ||= checkable_methods
 
@@ -173,8 +157,7 @@ module Speculation
         pmap { |ident| check1(ident, S.get_spec(ident), opts) }
     end
 
-    # Given a check result, returns an abbreviated version suitable for summary
-    # use.
+    # Given a check result, returns an abbreviated version suitable for summary use.
     # @param x [Hash]
     # @return [Hash]
     def self.abbrev_result(x)
@@ -190,11 +173,12 @@ module Speculation
     # Given a collection of check_results, e.g. from `check`, pretty prints the
     # summary_result (default abbrev_result) of each.
     #
-    # Returns a hash with :total, the total number of results, plus a key with a
-    # count for each different :type of result.
-    # @param check_results [Array]
+    # @param check_results [Array] a collection of check_results
     # @yield [Hash]
-    # @return [Hash]
+    # @return [Hash] a hash with :total, the total number of results, plus a key with a
+    #   count for each different :type of result.
+    # @see check see check for check_results
+    # @see abbrev_result
     def self.summarize_results(check_results, &summary_result)
       summary_result ||= method(:abbrev_result)
 

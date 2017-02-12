@@ -10,6 +10,7 @@ module Speculation
   using NamespacedSymbols.refine(self)
 
   module Gen
+    # @private
     GEN_BUILTINS = {
       Integer    => ->(r) { r.integer },
       String     => ->(r) { r.sized(r.range(0, 100)) { string(:alpha) } },
@@ -56,33 +57,35 @@ module Speculation
     # @param pred
     # @param gen [Proc]
     # @return [Proc]
+    # @see https://github.com/abargnesi/rantly Rantly
     def self.such_that(pred, gen)
       ->(rantly) do
         gen.call(rantly).tap { |val| rantly.guard(pred.call(val)) }
       end
     end
 
-    # Generate a single value using `gen`.
-    # `limit` specifies how many times `gen` can fail to produce a valid value.
-    # @param gen [Proc]
-    # @param limit [Integer]
+    # @param gen [Proc] Rantly generator
+    # @param limit [Integer]  specifies how many times `gen` can fail to produce a valid value.
     # @return single value using gen
+    # @see https://github.com/abargnesi/rantly Rantly
     def self.generate(gen, limit = 100)
       Rantly.value(limit, &gen)
     end
 
     # Generate `n` values using `gen`
-    # `limit` specifies how many times `gen` can fail to produce a valid value.
-    # @param gen [Proc]
-    # @param limit [Integer]
+    # @param gen [Proc] Rantly generator
+    # @param limit [Integer] specifies how many times `gen` can fail to produce a valid value.
     # @return [Array] array of generated values using gne
+    # @see https://github.com/abargnesi/rantly Rantly
     def self.sample(gen, n, limit = 100)
       Rantly.map(n, limit, &gen)
     end
 
     # Given a predicate, returns a built-in generator if one exists.
     # @param pred
-    # @return [Proc]
+    # @return [Proc] built-in generator for pred
+    # @return nil if no built-in generator found
+    # @see https://github.com/abargnesi/rantly Rantly
     def self.gen_for_pred(pred)
       if pred.is_a?(Set)
         ->(r) { r.choose(*pred) }
