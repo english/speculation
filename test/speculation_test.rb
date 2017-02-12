@@ -245,10 +245,10 @@ module Speculation
                       :"dog/tail?"   => true,
                       :"dog/breed"   => "retriever")
 
-      S.explain(:"animal/dog",
-                :"animal/kind" => "dog",
-                :"dog/tail?"   => "why yes",
-                :"dog/breed"   => "retriever")
+      S.explain_str(:"animal/dog",
+                    :"animal/kind" => "dog",
+                    :"dog/tail?"   => "why yes",
+                    :"dog/breed"   => "retriever")
     end
 
     def test_coll_of
@@ -503,7 +503,7 @@ module Speculation
             S.keys(:req_un => [:first_name.ns, :last_name.ns, :email.ns],
                    :opt_un => [:phone.ns]))
 
-      assert_equal <<-EOS, S.explain(:person.ns(:unq), :first_name => "Elon")
+      assert_equal <<-EOS, S.explain_str(:person.ns(:unq), :first_name => "Elon")
 val: {:first_name=>\"Elon\"} fails spec: :\"unq/person\" predicate: \":Speculation::SpeculationTest/last_name\"
 val: {:first_name=>\"Elon\"} fails spec: :\"unq/person\" predicate: \":Speculation::SpeculationTest/email\"
       EOS
@@ -511,7 +511,7 @@ val: {:first_name=>\"Elon\"} fails spec: :\"unq/person\" predicate: \":Speculati
       email_regex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,63}$/
       S.def(:email.ns, S.and(String, email_regex))
 
-      assert_equal <<-EOS, S.explain(:person.ns(:unq), :first_name => "Elon", :last_name => "Musk", :email => "elon")
+      assert_equal <<-EOS, S.explain_str(:person.ns(:unq), :first_name => "Elon", :last_name => "Musk", :email => "elon")
 In: [:email] val: "elon" fails spec: :"Speculation::SpeculationTest/email" at: [:email] predicate: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,63}$/
       EOS
     end
@@ -521,7 +521,7 @@ In: [:email] val: "elon" fails spec: :"Speculation::SpeculationTest/email" at: [
             S.keys(:req_un => [S.or_keys(S.and_keys(:first_name.ns, :last_name.ns), :email.ns)],
                    :opt_un => [:phone.ns]))
 
-      assert_equal <<-EOS, S.explain(:person.ns(:unq), :first_name => "Elon")
+      assert_equal <<-EOS, S.explain_str(:person.ns(:unq), :first_name => "Elon")
 val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: "(:Speculation::SpeculationTest/first_name and :Speculation::SpeculationTest/last_name) or :Speculation::SpeculationTest/email"
       EOS
     end

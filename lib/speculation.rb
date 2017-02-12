@@ -92,42 +92,48 @@ module Speculation
     _explain_data(spec, [], Array(name), [], x)
   end
 
-  # returns explanation data (per 'explain_data') as a human readable string
-  def self.explain_str(data)
-    return "Success!" unless data
+  # Prints explanation data (per 'explain_data') to `out`
+  def self.explain_out(ed, out = STDOUT)
+    unless ed
+      return out.puts("Success!")
+    end
 
-    s = String.new
-
-    data.fetch(:problems.ns).each do |prob|
+    ed.fetch(:problems.ns).each do |prob|
       path, pred, val, reason, via, inn = prob.values_at(:path, :pred, :val, :reason, :via, :in)
 
-      s << "In: #{inn.to_a.inspect} " unless inn.empty?
-      s << "val: #{val.inspect} fails"
-      s << " spec: #{via.last.inspect}" unless via.empty?
-      s << " at: #{path.to_a.inspect}" unless path.empty?
-      s << " predicate: #{pred.inspect}"
-      s << ", #{reason.inspect}" if reason
+      out.print("In: ", inn.to_a.inspect, " ") unless inn.empty?
+      out.print("val: ", val.inspect, " fails")
+      out.print(" spec: ", via.last.inspect) unless via.empty?
+      out.print(" at: ", path.to_a.inspect) unless path.empty?
+      out.print(" predicate: ", pred.inspect)
+      out.print(", ", reason.inspect) if reason
 
       prob.each do |k, v|
         unless [:path, :pred, :val, :reason, :via, :in].include?(k)
-          s << "\n\t #{k.inspect} #{v.inspect}"
+          out.print("\n\t ", k.inspect, v.inspect)
         end
       end
 
-      s << "\n"
+      out.puts
     end
 
-    data.each do |k, v|
-      s << "#{k} #{v}\n" unless k == :problems.ns
+    ed.each do |k, v|
+      out.puts(k, v) unless k == :problems.ns
     end
 
-    s
+    nil
   end
 
-  # Given a spec and a value that fails to conform, returns an explanation as a
-  # string
+  # Given a spec and a value that fails to conform, prints an explaination to STDOUT
   def self.explain(spec, x)
-    explain_str(explain_data(spec, x))
+    explain_out(explain_data(spec, x))
+  end
+
+  # Given a spec and a value that fails to conform, returns an explanation as a string
+  def self.explain_str(spec, x)
+    out = StringIO.new
+    explain_out(explain_data(spec, x), out)
+    out.string
   end
 
   # @private

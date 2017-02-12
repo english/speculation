@@ -65,11 +65,11 @@ module Speculation
       ->(_rantly) do
         ->(*args, &block) do
           unless S.pvalid?(@argspec, args)
-            raise S.explain(@argspec, args)
+            raise S.explain_str(@argspec, args)
           end
 
           if @blockspec && !S.pvalid?(@blockspec, block)
-            raise S.explain(@blockspec, block)
+            raise S.explain_str(@blockspec, block)
           end
 
           S::Gen.generate(S.gen(@retspec, overrides))
