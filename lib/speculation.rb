@@ -16,6 +16,9 @@ module Speculation
   using Conj
 
   class << self
+    # Enables or disables spec asserts. Defaults to false.
+    attr_accessor :check_asserts
+
     # A soft limit on how many times a branching spec (or/alt/zero_or_more) can
     # be recursed through during generation.  After this a non-recursive branch
     # will be chosen.
@@ -33,12 +36,29 @@ module Speculation
     attr_accessor :coll_error_limit
   end
 
+  @check_asserts    = false
   @recursion_limit  = 4
   @fspec_iterations = 21
   @coll_check_limit = 101
   @coll_error_limit = 20
 
   @registry_ref = Concurrent::Atom.new({})
+
+  # spec-checking assert expression. Returns x if x is valid? according
+  # to spec, else throws an exception with explain_data plus :Speculation/failure
+  # of :assertion-failed.
+  #
+  # Can be enabled/disabled by setting check_asserts.
+  def self.assert(spec, x)
+    return x unless check_asserts
+    return x unless valid?(spec, x)
+
+    ed = S._explain_data(spec, [], [], [], x)
+    out = StringIO.new
+    S.explain_out(ed, out)
+
+    raise Speculation::Error.new("Spec assertion failed\n#{out.string}", :failure.ns => :assertion_failed)
+  end
 
   # returns x if x is a spec object, else logical false
   def self.spec?(x)
