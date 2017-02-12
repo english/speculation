@@ -104,12 +104,6 @@ module Speculation
     end
 
     def test_fdef_gen
-      mod = Module.new do
-        def self.ranged_rand(start, eend)
-          start + rand(eend - start)
-        end
-      end
-
       S.def(:ranged_rand.ns,
             S.fspec(:args => S.and(S.cat(:start => Integer, :end => Integer),
                                    ->(args) { args[:start] < args[:end] }),
