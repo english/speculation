@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+
 module Speculation
   module NamespacedSymbols
     def self.refine(namespace)

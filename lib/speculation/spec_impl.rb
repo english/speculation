@@ -1,5 +1,7 @@
 # frozen_string_literal: true
+
 module Speculation
+  # @private
   class SpecImpl
     attr_accessor :name, :gen
     attr_reader :id

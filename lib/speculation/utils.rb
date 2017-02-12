@@ -5,6 +5,7 @@ require "speculation/conj"
 module Speculation
   using Conj
 
+  # @private
   module Utils
     def self.hash?(x)
       x.respond_to?(:store)

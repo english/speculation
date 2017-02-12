@@ -1,5 +1,7 @@
 # frozen_string_literal: true
+
 module Speculation
+  # @private
   class Identifier
     attr_reader :namespace, :name
 

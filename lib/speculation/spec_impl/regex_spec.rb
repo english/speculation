@@ -2,6 +2,7 @@
 module Speculation
   using NamespacedSymbols.refine(self)
 
+  # @private
   class RegexSpec < SpecImpl
     S = Speculation
 

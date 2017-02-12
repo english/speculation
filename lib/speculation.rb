@@ -44,11 +44,11 @@ module Speculation
 
   @registry_ref = Concurrent::Atom.new({})
 
-  # spec-checking assert expression. Returns x if x is valid? according
-  # to spec, else throws an exception with explain_data plus :Speculation/failure
-  # of :assertion-failed.
-  #
   # Can be enabled/disabled by setting check_asserts.
+  # @param spec [Spec]
+  # @param x value to validate
+  # @return x if x is valid? according to spec
+  # @raise [Speculation::Error] with explain_data plus :Speculation/failure of :assertion_failed
   def self.assert(spec, x)
     return x unless check_asserts
     return x unless valid?(spec, x)
@@ -103,30 +103,36 @@ module Speculation
          :gen => ->(_) { rand(date_range) })
   end
 
-  # returns x if x is a spec object, else logical false
+  # @param x [Spec, Object]
+  # @return [Spec, false] x if x is a spec, else false
   def self.spec?(x)
     x if x.is_a?(SpecImpl)
   end
 
-  # returns x if x is a (Speculation) regex op, else logical false
+  # @param x [Hash, Object]
+  # @return [Hash, false] x if x is a (Speculation) regex op, else logical false
   def self.regex?(x)
     Utils.hash?(x) && x[:op.ns] && x
   end
 
-  # tests the validity of a conform return value
+  # @param value return value of a `conform` call
+  # @return [Boolean] true if value is the result of an unsuccessful conform
   def self.invalid?(value)
     value.equal?(:invalid.ns)
   end
 
-  # Given a spec and a value, returns :Speculation/invalid if value does not
-  # match spec, else the (possibly destructured) value
+  # @param spec [Spec]
+  # @param value value to conform
+  # @return :Speculation/invalid if value does not match spec, else the (possibly destructured) value
   def self.conform(spec, value)
     spec = Identifier(spec)
     specize(spec).conform(value)
   end
 
-  # Takes a spec and a one-arg generator block and returns a version of the
-  # spec that uses that generator
+  # Takes a spec and a one-arg generator block and returns a version of the spec that uses that generator
+  # @param spec [Spec]
+  # @yield [Rantly] generator block
+  # @return [Spec]
   def self.with_gen(spec, &gen)
     if regex?(spec)
       spec.merge(:gfn.ns => gen)
@@ -149,17 +155,22 @@ module Speculation
   # value is a collection of problem-hashes, where problem-hash has at least
   # :path :pred and :val keys describing the predicate and the value that failed
   # at that path.
+  # @param spec [Spec]
+  # @param x value which ought to conform
+  # @return [nil, Hash] nil if x conforms, else a hash with at least the key
+  #   :Speculation/problems whose value is a collection of problem-hashes,
+  #   where problem-hash has at least :path :pred and :val keys describing the
+  #   predicate and the value that failed at that path.
   def self.explain_data(spec, x)
     spec = Identifier(spec)
     name = spec_name(spec)
     _explain_data(spec, [], Array(name), [], x)
   end
 
-  # Prints explanation data (per 'explain_data') to `out`
+  # @param ed [Hash] explain data (per 'explain_data')
+  # @param out [IO] destination to write explain human readable message to (default STDOUT)
   def self.explain_out(ed, out = STDOUT)
-    unless ed
-      return out.puts("Success!")
-    end
+    return out.puts("Success!") unless ed
 
     ed.fetch(:problems.ns).each do |prob|
       path, pred, val, reason, via, inn = prob.values_at(:path, :pred, :val, :reason, :via, :in)
@@ -188,11 +199,15 @@ module Speculation
   end
 
   # Given a spec and a value that fails to conform, prints an explaination to STDOUT
+  # @param spec [Spec]
+  # @param x
   def self.explain(spec, x)
     explain_out(explain_data(spec, x))
   end
 
-  # Given a spec and a value that fails to conform, returns an explanation as a string
+  # @param spec [Spec]
+  # @param x a value that fails to conform
+  # @return [String] a human readable explaination
   def self.explain_str(spec, x)
     out = StringIO.new
     explain_out(explain_data(spec, x), out)
@@ -225,6 +240,10 @@ module Speculation
   # subtrees. A generator for a regex op must always return a sequential
   # collection (i.e. a generator for Speculation.zero_or_more should return
   # either an empty array or an array with one item in it)
+  #
+  # @param spec [Spec]
+  # @param overrides <Hash>
+  # @return [Proc]
   def self.gen(spec, overrides = nil)
     spec = Identifier(spec)
     gensub(spec, overrides, [], :recursion_limit.ns => recursion_limit)
@@ -241,9 +260,11 @@ module Speculation
   end
   # rubocop:enable Style/MethodName
 
-  # Given a namespace-qualified symbol or Speculation::Identifier k, and a spec,
-  # spec name, predicate or regex-op makes an entry in the registry mapping k to
-  # the spec
+  # Given a namespace-qualified symbol key, and a spec, spec name, predicate or
+  # regex-op makes an entry in the registry mapping key to the spec
+  # @param key [Symbol] namespace-qualified symbol
+  # @param spec [Spec, Symbol, Proc, Hash] a spec, spec name, predicate or regex-op
+  # @return [Symbol, Identifier]
   def self.def(key, spec)
     key = Identifier(key)
 
@@ -265,38 +286,46 @@ module Speculation
     key
   end
 
-  # returns the registry hash, prefer 'get_spec' to lookup a spec by name
+  # @return [Hash] the registry hash
+  # @see 'get_spec' to lookup a spec by name
   def self.registry
     @registry_ref.value
   end
 
-  # Returns spec registered for symbol/method key, or nil.
+  # @param key [Symbol, Method]
+  # @return [Spec, nil] spec registered for key, or nil
   def self.get_spec(key)
     registry[Identifier(key)]
   end
 
-  # Takes a single predicate. A predicate can be one of:
-  # - Proc, e.g. `-> (x) { x.even? }`, will be called with the given value
-  # - Method, e.g. `Foo.method(:bar?)`, will be called with the given value
-  # - Set, e.g. `Set[1, 2]`, will be tested whether it includes the given value
-  # - Class/Module, e.g. `String`, will be tested for case equality (is_a?) with the
-  #   given value
+  # NOTE: it is not generally necessary to wrap predicates in spec when using
+  # `S.def` etc., only to attach a unique generator.
   #
-  # Note that it is not generally necessary to wrap predicates in spec when using `S.def` etc., only
-  # to attach a unique generator.
   #
-  # Can also be passed the result of one of the regex ops - cat, alt, zero_or_more, one_or_more,
-  # zero_or_one, in which case it will return a regex-conforming spec, useful when nesting an
-  # independent regex.
-  #
-  # Optionally takes :gen generator function, which must be a proc of one arg (Rantly instance) that
-  # generates a valid value.
+  # Optionally takes :gen generator function, which must be a proc of one arg
+  # (Rantly instance) that generates a valid value.
 
-  # Returns a spec.
-  def self.spec(pred, opts = {})
+  # @param pred [Proc, Method, Set, Class, Regexp, Hash] Takes a single predicate. A
+  #   predicate can be one of:
+  #
+  #   - Proc, e.g. `-> (x) { x.even? }`, will be called with the given value
+  #   - Method, e.g. `Foo.method(:bar?)`, will be called with the given value
+  #   - Set, e.g. `Set[1, 2]`, will be tested whether it includes the given value
+  #   - Class/Module, e.g. `String`, will be tested for case equality (is_a?)
+  #     with the given value
+  #   - Regexp, e.g. `/foo/`, will be tested using `===` with given value
+  #
+  #   Can also be passed the result of one of the regex ops - cat, alt,
+  #   zero_or_more, one_or_more, zero_or_one, in which case it will return a
+  #   regex-conforming spec, useful when nesting an independent regex.
+  #
+  # @param gen [Proc] :gen generator function, which must be a proc of one
+  #   arg (Rantly instance) that generates a valid value.
+  # @return [Spec]
+  def self.spec(pred, gen: nil)
     if pred
       spec_impl(pred, false).tap do |spec|
-        spec.gen = opts[:gen] if opts[:gen]
+        spec.gen = gen if gen
       end
     end
   end
@@ -328,6 +357,11 @@ module Speculation
   #
   # Optionally takes :gen generator function, which must be a proc of one arg
   # (Rantly instance) that generates a valid value.
+  # @param req [Array<Symbol>]
+  # @param opt [Array<Symbol>]
+  # @param req_un [Array<Symbol>]
+  # @param opt_un [Array<Symbol>]
+  # @param gen [Proc]
   def self.keys(req: [], opt: [], req_un: [], opt_un: [], gen: nil)
     HashSpec.new(req, opt, req_un, opt_un).tap do |spec|
       spec.gen = gen
@@ -351,6 +385,8 @@ module Speculation
   # Returns a destructuring spec that returns a two element array containing the key of the first
   # matching pred and the corresponding value. Thus the 'key' and 'val' functions can be used to
   # refer generically to the components of the tagged return.
+  # @param key_preds [Hash]
+  # @return [Spec]
   def self.or(key_preds)
     OrSpec.new(key_preds)
   end
@@ -361,6 +397,8 @@ module Speculation
   #
   # Returns a spec that returns the conformed value. Successive conformed values
   # propagate through rest of predicates.
+  # @param preds [Array]
+  # @return [Spec]
   def self.and(*preds)
     AndSpec.new(preds)
   end
@@ -368,15 +406,18 @@ module Speculation
   # Takes hash-validating specs (e.g. 'keys' specs) and returns a spec that
   # returns a conformed hash satisfying all of the specs. Unlike 'and', merge
   # can generate maps satisfying the union of the predicates.
+  # @param preds [Array]
+  # @return [Spec]
   def self.merge(*preds)
     MergeSpec.new(preds)
   end
 
   # Takes a pred and validates collection elements against that pred.
   #
-  # Note that 'every' does not do exhaustive checking, rather it samples `coll_check_limit`
-  # elements. Nor (as a result) does it do any conforming of elements. 'explain' will report at most
-  # coll_error_limit problems. Thus 'every' should be suitable for potentially large collections.
+  # Note that 'every' does not do exhaustive checking, rather it samples
+  # `coll_check_limit` elements. Nor (as a result) does it do any conforming of
+  # elements. 'explain' will report at most coll_error_limit problems. Thus
+  # 'every' should be suitable for potentially large collections.
   #
   # Takes several kwargs options that further constrain the collection:
   #
@@ -396,7 +437,9 @@ module Speculation
   # Optionally takes :gen generator proc, which must be a proc of one arg (Rantly instance) that
   # generates a valid value.
   #
-  # See also - coll_of, every_kv
+  # @see coll_of
+  # @see every_kv
+  # @return [Spec]
   def self.every(predicate, opts = {})
     gen = opts.delete(:gen)
 
@@ -409,7 +452,11 @@ module Speculation
   #
   # Same options as 'every', :into defaults to {}
   #
-  # See also - hash_of
+  # @see hash_of
+  # @param kpred key pred
+  # @param vpred val pred
+  # @param options [Hash]
+  # @return [Spec]
   def self.every_kv(kpred, vpred, options)
     every(tuple(kpred, vpred), :kfn.ns => ->(_i, v) { v.first },
                                :into   => {},
@@ -422,9 +469,13 @@ module Speculation
   # Same options as 'every'. conform will produce a collection corresponding to :into if supplied,
   # else will match the input collection, avoiding rebuilding when possible.
   #
-  # See also - every, hash_of
-  def self.coll_of(spec, opts = {})
-    every(spec, :conform_all.ns => true, **opts)
+  # @see every
+  # @see hash_of
+  # @param pred
+  # @param opts [Hash]
+  # @return [Spec]
+  def self.coll_of(pred, opts = {})
+    every(pred, :conform_all.ns => true, **opts)
   end
 
   # Returns a spec for a hash whose keys satisfy kpred and vals satisfy vpred.
@@ -435,7 +486,11 @@ module Speculation
   #
   # :conform_keys - conform keys as well as values (default false)
   #
-  # See also - every_kv
+  # @see every_kv
+  # @param kpred key pred
+  # @param vpred val pred
+  # @param options [Hash]
+  # @return [Spec]
   def self.hash_of(kpred, vpred, options = {})
     every_kv(kpred, vpred, :kind           => Utils.method(:hash?).to_proc,
                            :conform_all.ns => true,
@@ -444,18 +499,24 @@ module Speculation
 
   # Returns a regex op that matches zero or more values matching pred. Produces
   # an array of matches iff there is at least one match
+  # @param pred
+  # @return [Hash] regex op
   def self.zero_or_more(pred)
     rep(pred, pred, [], false)
   end
 
   # Returns a regex op that matches one or more values matching pred. Produces
   # an array of matches
+  # @param pred
+  # @return [Hash] regex op
   def self.one_or_more(pred)
     pcat(:predicates => [pred, rep(pred, pred, [], true)], :return_value => [])
   end
 
   # Returns a regex op that matches zero or one value matching pred. Produces a
   # single value (not a collection) if matched.
+  # @param pred
+  # @return [Hash] regex op
   def self.zero_or_one(pred)
     _alt([pred, accept(:nil.ns)], nil)
   end
@@ -467,6 +528,8 @@ module Speculation
   # Returns a regex op that returns a two item array containing the key of the
   # first matching pred and the corresponding value. Thus can be destructured
   # to refer generically to the components of the return.
+  # @param kv_specs [Hash]
+  # @return [Hash] regex op
   def self.alt(kv_specs)
     _alt(kv_specs.values, kv_specs.keys).merge(:id => SecureRandom.uuid)
   end
@@ -477,6 +540,8 @@ module Speculation
   #
   # Returns a regex op that matches (all) values in sequence, returning a map
   # containing the keys of each pred and the corresponding value.
+  # @param named_specs [Hash]
+  # @return [Hash] regex op
   def self.cat(named_specs)
     keys = named_specs.keys
     predicates = named_specs.values
@@ -487,6 +552,9 @@ module Speculation
   # Takes a regex op re, and predicates. Returns a regex-op that consumes input
   # as per re but subjects the resulting value to the conjunction of the
   # predicates, and any conforming they might perform.
+  # @param re [Hash] regex op
+  # @param preds [Array]
+  # @return [Hash] regex op
   def self.constrained(re, *preds)
     { :op.ns => :amp.ns, :p1 => re, :predicates => preds }
   end
@@ -494,6 +562,8 @@ module Speculation
   # Takes a predicate function with the semantics of conform i.e. it should
   # return either a (possibly converted) value or :"Speculation/invalid", and
   # returns a spec that uses it as a predicate/conformer.
+  # @param f
+  # @return [Spec]
   def self.conformer(f)
     spec_impl(f, true)
   end
@@ -510,6 +580,13 @@ module Speculation
 
   # Optionally takes :gen generator proc, which must be a proc of one arg (Rantly instance) that
   # generates a valid value.
+  #
+  # @param args predicate
+  # @param ret predicate
+  # @param fn predicate
+  # @param block predicate
+  # @param gen [Proc]
+  # @return [Spec]
   def self.fspec(args: nil, ret: nil, fn: nil, block: nil, gen: nil)
     FSpec.new(:argspec => spec(args), :retspec => spec(ret), :fnspec => spec(fn), :blockspec => spec(block)).tap do |spec|
       spec.gen = gen
@@ -519,6 +596,8 @@ module Speculation
   # Takes one or more preds and returns a spec for a tuple, an array where each
   # element conforms to the corresponding pred. Each element will be referred to
   # in paths using its ordinal.
+  # @param preds [Array]
+  # @return [Spec]
   def self.tuple(*preds)
     TupleSpec.new(preds)
   end
@@ -550,9 +629,56 @@ module Speculation
   #   ),
   #   ret: Hash
   # )
+  # @param method [Method]
+  # @param spec [Hash]
+  # @return [Identifier]
   def self.fdef(method, spec)
     ident = Identifier(method)
     self.def(ident, fspec(spec))
+  end
+
+  # Helper function that returns true when x is valid for spec.
+  # @param spec
+  # @param x
+  # @return [Boolean]
+  def self.valid?(spec, x)
+    spec = Identifier(spec)
+    spec = specize(spec)
+
+    !invalid?(spec.conform(x))
+  end
+
+  # @param pred
+  # @return [Spec] a spec that accepts nil and values satisfying pred
+  def self.nilable(pred)
+    NilableSpec.new(pred)
+  end
+
+  # Generates a number (default 10) of values compatible with spec and maps
+  # conform over them, returning a sequence of [val conformed-val] tuples.
+  # Optionally takes a generator overrides hash as per gen
+  # @param spec
+  # @param n [Integer]
+  # @param overrides [Hash]
+  # @return [Array]
+  def self.exercise(spec, n: 10, overrides: {})
+    Gen.sample(gen(spec, overrides), n).map { |value|
+      [value, conform(spec, value)]
+    }
+  end
+
+  # Exercises the method by applying it to n (default 10) generated samples of
+  # its args spec. When fspec is supplied its arg spec is used, and
+  # method can be a proc. Returns an arrray of tuples of [args, ret].
+  # @param method [Method]
+  # @param n [Integer]
+  # @param fspec [Spec]
+  # @return [Array]
+  def self.exercise_fn(method, n: 10, fspec: nil)
+    fspec ||= get_spec(method)
+    raise ArgumentError, "No fspec found for #{method}" unless fspec
+
+    Gen.sample(gen(fspec.argspec), n).map { |args| [args, method.call(*args)] }
   end
 
   ### impl ###
@@ -585,14 +711,6 @@ module Speculation
     else
       raise "#{pred} is not a class, proc, set or regexp"
     end
-  end
-
-  # Helper function that returns true when x is valid for spec.
-  def self.valid?(spec, x)
-    spec = Identifier(spec)
-    spec = specize(spec)
-
-    !invalid?(spec.conform(x))
   end
 
   # internal helper function that returns true when x is valid for spec.
@@ -791,30 +909,6 @@ module Speculation
     else
       op_explain(p, path, via, inn, nil)
     end
-  end
-
-  # returns a spec that accepts nil and values satisfying pred
-  def self.nilable(pred)
-    NilableSpec.new(pred)
-  end
-
-  # Generates a number (default 10) of values compatible with spec and maps
-  # conform over them, returning a sequence of [val conformed-val] tuples.
-  # Optionally takes a generator overrides hash as per gen
-  def self.exercise(spec, n: 10, overrides: {})
-    Gen.sample(gen(spec, overrides), n).map { |value|
-      [value, conform(spec, value)]
-    }
-  end
-
-  # Exercises the method by applying it to n (default 10) generated samples of
-  # its args spec. When fspec is supplied its arg spec is used, and
-  # method can be a proc. Returns an arrray of tuples of [args, ret].
-  def self.exercise_fn(method, n: 10, fspec: nil)
-    fspec ||= get_spec(method)
-    raise ArgumentError, "No fspec found for #{method}" unless fspec
-
-    Gen.sample(gen(fspec.argspec), n).map { |args| [args, method.call(*args)] }
   end
 
   class << self

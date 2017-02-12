@@ -1,7 +1,9 @@
 # frozen_string_literal: true
+
 require "concurrent"
 
 module Speculation
+  # @private
   module Pmap
     refine Array do
       if RUBY_PLATFORM == "java"

@@ -53,6 +53,9 @@ module Speculation
     }.freeze
 
     # Adds `pred` as a Rantly `guard` to generator `gen`.
+    # @param pred
+    # @param gen [Proc]
+    # @return [Proc]
     def self.such_that(pred, gen)
       ->(rantly) do
         gen.call(rantly).tap { |val| rantly.guard(pred.call(val)) }
@@ -61,17 +64,25 @@ module Speculation
 
     # Generate a single value using `gen`.
     # `limit` specifies how many times `gen` can fail to produce a valid value.
+    # @param gen [Proc]
+    # @param limit [Integer]
+    # @return single value using gen
     def self.generate(gen, limit = 100)
       Rantly.value(limit, &gen)
     end
 
     # Generate `n` values using `gen`
     # `limit` specifies how many times `gen` can fail to produce a valid value.
+    # @param gen [Proc]
+    # @param limit [Integer]
+    # @return [Array] array of generated values using gne
     def self.sample(gen, n, limit = 100)
       Rantly.map(n, limit, &gen)
     end
 
     # Given a predicate, returns a built-in generator if one exists.
+    # @param pred
+    # @return [Proc]
     def self.gen_for_pred(pred)
       if pred.is_a?(Set)
         ->(r) { r.choose(*pred) }

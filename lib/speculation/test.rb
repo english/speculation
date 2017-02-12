@@ -19,15 +19,18 @@ module Speculation
     end
 
     # Disables instrument's checking of calls within a block
-    def self.with_instrument_disabled(&block)
+    # @yield
+    def self.with_instrument_disabled
       instrument_enabled.value = false
-      block.call
+      yield
     ensure
       instrument_enabled.value = true
     end
 
-    # Given an opts hash as per instrument, returns the set of methods that can
-    # be instrumented.
+    # Given an opts hash as per instrument, returns the set of
+    # Speculation::Identifiers for methods that can be instrumented.
+    # @param opts [Hash]
+    # @return [Array<Identifier>]
     def self.instrumentable_methods(opts = {})
       if opts[:gen]
         unless opts[:gen].keys.all? { |k| k.is_a?(Method) || k.is_a?(Symbol) }
@@ -78,6 +81,9 @@ module Speculation
     # :spec can be used in combination with :stub or :replace.
     #
     # Returns a collection of Identifiers naming the methods instrumented.
+    # @param method_or_methods [Method, Identifier, Array<Method>, Array<Identifier>]
+    # @param opts [Hash]
+    # @return [Array<Identifier>]
     def self.instrument(method_or_methods = instrumentable_methods, opts = {})
       if opts[:gen]
         gens = opts[:gen].reduce({}) { |h, (k, v)| h.merge(S.Identifier(k) => v) }
@@ -94,6 +100,8 @@ module Speculation
     # Undoes instrument on the method_or_methods, specified as in instrument.
     # With no args, unstruments all instrumented methods. Returns a collection
     # of Identifiers naming the methods unstrumented.
+    # @param method_or_methods [Method, Identifier, Array<Method>, Array<Identifier>]
+    # @return [Array<Identifier>]
     def self.unstrument(method_or_methods = nil)
       method_or_methods ||= @instrumented_methods.value.keys
 
@@ -104,12 +112,18 @@ module Speculation
     end
 
     # Runs generative tests for method using spec and opts. See 'check' for options and return
+    # @param method [Method, Identifier]
+    # @param spec [Spec]
+    # @param opts [Hash]
+    # @return [Hash]
     def self.check_method(method, spec, opts = {})
       validate_check_opts(opts)
       check1(S.Identifier(method), spec, opts)
     end
 
     # Given an opts hash as per `check`, returns the set of Identifiers that can be checked.
+    # @param opts [Hash]
+    # @return [Array<Identifier>]
     def self.checkable_methods(opts = {})
       validate_check_opts(opts)
 
@@ -147,6 +161,9 @@ module Speculation
     # :no_fspec       no fspec provided
     # :no_gen         unable to generate :args
     # :instrument     invalid args detected by instrument
+    # @param method_or_methods [Array<Method>, Method]
+    # @param opts [Hash]
+    # @return Array<Identifier>
     def self.check(method_or_methods = nil, opts = {})
       method_or_methods ||= checkable_methods
 
@@ -158,6 +175,8 @@ module Speculation
 
     # Given a check result, returns an abbreviated version suitable for summary
     # use.
+    # @param x [Hash]
+    # @return [Hash]
     def self.abbrev_result(x)
       if x[:failure]
         x.reject { |k, _| k == :ret.ns }.
@@ -173,6 +192,9 @@ module Speculation
     #
     # Returns a hash with :total, the total number of results, plus a key with a
     # count for each different :type of result.
+    # @param check_results [Array]
+    # @yield [Hash]
+    # @return [Hash]
     def self.summarize_results(check_results, &summary_result)
       summary_result ||= method(:abbrev_result)
 

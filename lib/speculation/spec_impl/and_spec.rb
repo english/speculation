@@ -1,7 +1,9 @@
 # frozen_string_literal: true
+
 module Speculation
   using NamespacedSymbols.refine(self)
 
+  # @private
   class AndSpec < SpecImpl
     S = Speculation
 

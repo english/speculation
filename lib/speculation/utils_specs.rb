@@ -1,4 +1,6 @@
 # frozen_string_literal: true
+
+# @private
 module Speculation
   module UtilsSpecs
     using Speculation::NamespacedSymbols.refine(self)

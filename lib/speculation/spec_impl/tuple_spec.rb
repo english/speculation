@@ -3,6 +3,7 @@ module Speculation
   using Speculation::NamespacedSymbols.refine(self)
   using Conj
 
+  # @private
   class TupleSpec < SpecImpl
     S = Speculation
 

@@ -111,10 +111,9 @@ module Speculation
       end
 
       S.def(:ranged_rand.ns,
-            S.fdef(mod.method(:ranged_rand),
-                   :args => S.and(S.cat(:start => Integer, :end => Integer),
-                                  ->(args) { args[:start] < args[:end] }),
-                   :ret  => Integer))
+            S.fspec(:args => S.and(S.cat(:start => Integer, :end => Integer),
+                                   ->(args) { args[:start] < args[:end] }),
+                    :ret  => Integer))
 
       genned = Gen.generate(S.gen(:ranged_rand.ns))
 

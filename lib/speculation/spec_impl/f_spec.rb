@@ -4,6 +4,7 @@ module Speculation
   using NamespacedSymbols.refine(self)
   using Conj
 
+  # @private
   class FSpec < SpecImpl
     S = Speculation
 

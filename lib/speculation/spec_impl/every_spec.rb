@@ -3,6 +3,7 @@ module Speculation
   using NamespacedSymbols.refine(self)
   using Conj
 
+  # @private
   class EverySpec < SpecImpl
     S = Speculation
 
