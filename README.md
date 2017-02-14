@@ -98,7 +98,6 @@ Bug reports and pull requests are welcome on GitHub at https://github.com/englis
 - tidy up tests
 - write up comparison with clojure.spec
 - write guide
-- build up a library of generators
 
 ### clojure.spec features
 
@@ -109,7 +108,8 @@ Bug reports and pull requests are welcome on GitHub at https://github.com/englis
 
 ### Improvements
 
-- Find/build an alternative to Rantly
+- Explore alternative generator library
+  - Build up a library of generators around Rantly in the meantime?
 - Profile and optimise
 
 ## License
