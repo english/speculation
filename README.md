@@ -98,6 +98,7 @@ Bug reports and pull requests are welcome on GitHub at https://github.com/englis
 - tidy up tests
 - write up comparison with clojure.spec
 - write guide
+- build up a library of generators
 
 ### clojure.spec features
 
