@@ -533,11 +533,11 @@ module Speculation
     { :op.ns => :amp.ns, :p1 => re, :predicates => preds }
   end
 
-  # @param f predicate function with the semantics of conform i.e. it should
+  # @yield [value] predicate function with the semantics of conform i.e. it should
   #   return either a (possibly converted) value or :"Speculation/invalid"
-  # @return [Spec] a spec that uses pred as a predicate/conformer.
-  def self.conformer(f)
-    spec_impl(f, true)
+  # @return [Spec] a spec that uses block as a predicate/conformer.
+  def self.conformer(&pred)
+    spec_impl(pred, true)
   end
 
   # Takes :args :ret and (optional) :block and :fn kwargs whose values are preds and returns a spec

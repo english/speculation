@@ -327,14 +327,14 @@ module Speculation
     end
 
     def test_conformer
-      S.def(:wont_conform_keys.ns, S.hash_of(S.and(Symbol, S.conformer(->(x) { x.to_s })),
-                                             S.and(Float, S.conformer(->(x) { x.to_i }))))
+      S.def(:wont_conform_keys.ns, S.hash_of(S.and(Symbol, S.conformer(&:to_s)),
+                                             S.and(Float, S.conformer(&:to_i))))
 
       assert_equal({ :foo => 1, :bar => 2 },
                    S.conform(:wont_conform_keys.ns, :foo => 1.0, :bar => 2.0))
 
-      S.def(:will_conform_keys.ns, S.hash_of(S.and(Symbol, S.conformer(->(x) { x.to_s })),
-                                             S.and(Float, S.conformer(->(x) { x.to_i })),
+      S.def(:will_conform_keys.ns, S.hash_of(S.and(Symbol, S.conformer(&:to_s)),
+                                             S.and(Float, S.conformer(&:to_i)),
                                              :conform_keys => true))
 
       assert_equal({ "foo" => 1, "bar" => 2 },
