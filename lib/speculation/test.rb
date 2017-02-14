@@ -2,6 +2,7 @@
 require "concurrent"
 require "pp"
 require "speculation/pmap"
+require "speculation/gen"
 
 module Speculation
   module Test
