@@ -27,8 +27,8 @@ module Speculation
       req_keys += req_un_specs.map(&method(:unqualify_key))
 
       pred_exprs = [Utils.method(:hash?)]
-      pred_exprs.push(->(v) { parse_req(req, v, :itself.to_proc) == true }) if req.any?
-      pred_exprs.push(->(v) { parse_req(req_un, v, method(:unqualify_key)) == true }) if req_un.any?
+      pred_exprs.push(->(v) { parse_req(req, v, :itself.to_proc).empty? }) if req.any?
+      pred_exprs.push(->(v) { parse_req(req_un, v, method(:unqualify_key)).empty? }) if req_un.any?
 
       @req_keys        = req_keys
       @req_specs       = req_specs
@@ -74,7 +74,7 @@ module Speculation
       if @req.any?
         valid_or_failure = parse_req(@req, value, :itself.to_proc)
 
-        unless valid_or_failure == true
+        unless valid_or_failure.empty?
           valid_or_failure.each do |failure_sexp|
             pred = sexp_to_rb(failure_sexp)
             problems << { :path => path, :pred => pred, :val => value, :via => via, :in => inn }
@@ -85,7 +85,7 @@ module Speculation
       if @req_un.any?
         valid_or_failure = parse_req(@req_un, value, method(:unqualify_key))
 
-        unless valid_or_failure == true
+        unless valid_or_failure.empty?
           valid_or_failure.each do |failure_sexp|
             pred = sexp_to_rb(failure_sexp)
             problems << { :path => path, :pred => pred, :val => value, :via => via, :in => inn }
@@ -151,14 +151,14 @@ module Speculation
             rb_string << " #{op.name} "
           end
 
-          rb_string << sexp_to_rb(key, level + 1)
+          rb_string << sexp_to_rb(key, level + 1).to_s
         end
 
         rb_string << ")" unless level.zero?
 
         rb_string
       else
-        ":#{sexp}"
+        :"#{sexp}"
       end
     end
 
@@ -181,14 +181,14 @@ module Speculation
               op, *kks = key
               case op
               when :or.ns
-                if kks.one? { |k| parse_req([k], v, f) == true }
-                  true
+                if kks.one? { |k| parse_req([k], v, f).empty? }
+                  []
                 else
                   [key]
                 end
               when :and.ns
-                if kks.all? { |k| parse_req([k], v, f) == true }
-                  true
+                if kks.all? { |k| parse_req([k], v, f).empty? }
+                  []
                 else
                   [key]
                 end
@@ -196,17 +196,13 @@ module Speculation
                 raise "Expected or, and, got #{op}"
               end
             elsif v.key?(f.call(key))
-              true
+              []
             else
               [key]
             end
 
       if ks.any?
-        if ret == true
-          parse_req(ks, v, f)
-        else
-          ret + parse_req(ks, v, f)
-        end
+        ret + parse_req(ks, v, f)
       else
         ret
       end
