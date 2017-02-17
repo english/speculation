@@ -72,24 +72,20 @@ module Speculation
       problems = []
 
       if @req.any?
-        valid_or_failure = parse_req(@req, value, :itself.to_proc)
+        failures = parse_req(@req, value, :itself.to_proc)
 
-        unless valid_or_failure.empty?
-          valid_or_failure.each do |failure_sexp|
-            pred = sexp_to_rb(failure_sexp)
-            problems << { :path => path, :pred => pred, :val => value, :via => via, :in => inn }
-          end
+        failures.each do |failure_sexp|
+          pred = [:key?, sexp_to_rb(failure_sexp)]
+          problems << { :path => path, :pred => pred, :val => value, :via => via, :in => inn }
         end
       end
 
       if @req_un.any?
-        valid_or_failure = parse_req(@req_un, value, method(:unqualify_key))
+        failures = parse_req(@req_un, value, method(:unqualify_key))
 
-        unless valid_or_failure.empty?
-          valid_or_failure.each do |failure_sexp|
-            pred = sexp_to_rb(failure_sexp)
-            problems << { :path => path, :pred => pred, :val => value, :via => via, :in => inn }
-          end
+        failures.each do |failure_sexp|
+          pred = [:key?, sexp_to_rb(failure_sexp)]
+          problems << { :path => path, :pred => pred, :val => value, :via => via, :in => inn }
         end
       end
 
@@ -158,7 +154,7 @@ module Speculation
 
         rb_string
       else
-        "key?(:#{sexp})"
+        sexp
       end
     end
 
