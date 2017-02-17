@@ -158,7 +158,7 @@ module Speculation
 
         rb_string
       else
-        :"#{sexp}"
+        "key?(:#{sexp})"
       end
     end
 

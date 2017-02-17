@@ -504,8 +504,8 @@ module Speculation
                    :opt_un => [:phone.ns]))
 
       assert_equal <<-EOS, S.explain_str(:person.ns(:unq), :first_name => "Elon")
-val: {:first_name=>\"Elon\"} fails spec: :\"unq/person\" predicate: :\"Speculation::SpeculationTest/last_name\"
-val: {:first_name=>\"Elon\"} fails spec: :\"unq/person\" predicate: :\"Speculation::SpeculationTest/email\"
+val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: "key?(:Speculation::SpeculationTest/last_name)"
+val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: "key?(:Speculation::SpeculationTest/email)"
       EOS
 
       email_regex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,63}$/
@@ -522,7 +522,7 @@ In: [:email] val: "elon" fails spec: :"Speculation::SpeculationTest/email" at: [
                    :opt_un => [:phone.ns]))
 
       assert_equal <<-EOS, S.explain_str(:person.ns(:unq), :first_name => "Elon")
-val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: "(Speculation::SpeculationTest/first_name and Speculation::SpeculationTest/last_name) or Speculation::SpeculationTest/email\"
+val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: "(key?(:Speculation::SpeculationTest/first_name) and key?(:Speculation::SpeculationTest/last_name)) or key?(:Speculation::SpeculationTest/email)"
       EOS
     end
 
@@ -534,7 +534,7 @@ val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: "(Speculation::S
       S.def(:hash.ns, S.keys(:req_un => [:foo.ns, :bar.ns, :baz.ns]))
 
       expected = { :"Speculation/problems" => [{ :path => [],
-                                                 :pred => :bar.ns,
+                                                 :pred => "key?(:#{:bar.ns})",
                                                  :val  => { :foo => "bar", :baz => "baz" },
                                                  :via  => [:hash.ns],
                                                  :in   => [] }] }
