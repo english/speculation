@@ -192,7 +192,7 @@ module Speculation
     end
 
     ed.each do |k, v|
-      out.puts(k, v) unless k == :problems.ns
+      out.puts("#{k} #{v.inspect}") unless k == :problems.ns
     end
 
     nil
