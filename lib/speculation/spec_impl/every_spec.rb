@@ -163,7 +163,9 @@ module Speculation
       end
 
       if min_count || max_count
-        if x.count.between?(min_count || 0, max_count || Float::Infinity)
+        min_count ||= 0
+        max_count ||= Float::INFINITY
+        unless x.count.between?(min_count, max_count)
           return [{ :path => path, :pred => "count.between?(min_count || 0, max_count || Float::Infinity)", :val => x, :via => via, :in => inn }]
         end
       end
