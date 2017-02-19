@@ -170,7 +170,7 @@ module Speculation
         end
       end
 
-      if distinct && !x.empty? && Utils.distinct?(x)
+      if distinct && !x.empty? && !Utils.distinct?(x)
         [{ :path => path, :pred => "distinct?", :val => x, :via => via, :in => inn }]
       end
     end
