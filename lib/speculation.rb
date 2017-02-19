@@ -556,7 +556,7 @@ module Speculation
   # @return [Spec]
   # @see fdef See 'fdef' for a single operation that creates an fspec and registers it, as well as a full description of :args, :block, :ret and :fn
   def self.fspec(args: nil, ret: nil, fn: nil, block: nil, gen: nil)
-    FSpec.new(:argspec => spec(args), :retspec => spec(ret), :fnspec => spec(fn), :blockspec => spec(block)).tap do |spec|
+    FSpec.new(:args => spec(args), :ret => spec(ret), :fn => spec(fn), :block => spec(block)).tap do |spec|
       spec.gen = gen
     end
   end
@@ -638,7 +638,7 @@ module Speculation
     fspec ||= get_spec(method)
     raise ArgumentError, "No fspec found for #{method}" unless fspec
 
-    Gen.sample(gen(fspec.argspec), n).map { |args| [args, method.call(*args)] }
+    Gen.sample(gen(fspec.args), n).map { |args| [args, method.call(*args)] }
   end
 
   ### impl ###

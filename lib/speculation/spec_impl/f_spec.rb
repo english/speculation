@@ -8,21 +8,21 @@ module Speculation
   class FSpec < SpecImpl
     S = Speculation
 
-    attr_reader :argspec, :retspec, :fnspec, :blockspec
+    attr_reader :args, :ret, :fn, :block
 
-    def initialize(argspec: nil, retspec: nil, fnspec: nil, blockspec: nil)
-      @argspec = argspec
-      @retspec = retspec
-      @fnspec = fnspec
-      @blockspec = blockspec
+    def initialize(args: nil, ret: nil, fn: nil, block: nil)
+      @args = args
+      @ret = ret
+      @fn = fn
+      @block = block
     end
 
     def conform(f)
-      raise "Can't conform fspec without args spec: #{inspect}" unless @argspec
+      raise "Can't conform fspec without args spec: #{inspect}" unless @args
 
       return :invalid.ns unless f.is_a?(Proc) || f.is_a?(Method)
 
-      specs = { :args => @argspec, :ret => @retspec, :fn => @fnspec, :block => @blockspec }
+      specs = { :args => @args, :ret => @ret, :fn => @fn, :block => @block }
 
       if f.equal?(FSpec.validate_fn(f, specs, S.fspec_iterations))
         f
@@ -36,7 +36,7 @@ module Speculation
         return [{ :path => path, :pred => "respond_to?(:call)", :val => f, :via => via, :in => inn }]
       end
 
-      specs = { :args => @argspec, :ret => @retspec, :fn => @fnspec, :block => @blockspec }
+      specs = { :args => @args, :ret => @ret, :fn => @fn, :block => @block }
       args, block = FSpec.validate_fn(f, specs, 100)
       return if f.equal?(args)
 
@@ -51,12 +51,12 @@ module Speculation
         return [{ :path => path, :pred => "f.call(*args)", :val => val, :reason => ret.message.chomp, :via => via, :in => inn }]
       end
 
-      cret = S.dt(@retspec, ret)
-      return S.explain1(@retspec, path.conj(:ret), via, inn, ret) if S.invalid?(cret)
+      cret = S.dt(@ret, ret)
+      return S.explain1(@ret, path.conj(:ret), via, inn, ret) if S.invalid?(cret)
 
-      if @fnspec
-        cargs = S.conform(@argspec, args)
-        S.explain1(@fnspec, path.conj(:fn), via, inn, :args => cargs, :ret => cret)
+      if @fn
+        cargs = S.conform(@args, args)
+        S.explain1(@fn, path.conj(:fn), via, inn, :args => cargs, :ret => cret)
       end
     end
 
@@ -65,15 +65,15 @@ module Speculation
 
       ->(_rantly) do
         ->(*args, &block) do
-          unless S.pvalid?(@argspec, args)
-            raise S.explain_str(@argspec, args)
+          unless S.pvalid?(@args, args)
+            raise S.explain_str(@args, args)
           end
 
-          if @blockspec && !S.pvalid?(@blockspec, block)
-            raise S.explain_str(@blockspec, block)
+          if @block && !S.pvalid?(@block, block)
+            raise S.explain_str(@block, block)
           end
 
-          S::Gen.generate(S.gen(@retspec, overrides))
+          S::Gen.generate(S.gen(@ret, overrides))
         end
       end
     end

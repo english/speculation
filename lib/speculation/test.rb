@@ -202,14 +202,14 @@ module Speculation
         fspec = S.send(:maybe_spec, fspec)
 
         conform = ->(args, block) do
-          conformed_args = S.conform(fspec.argspec, args)
-          conformed_block = S.conform(fspec.blockspec, block) if fspec.blockspec
+          conformed_args = S.conform(fspec.args, args)
+          conformed_block = S.conform(fspec.block, block) if fspec.block
 
           if conformed_args == :invalid.ns(S)
             backtrace = backtrace_relevant_to_instrument(caller)
 
             ed = S.
-              _explain_data(fspec.argspec, [:args], [], [], args).
+              _explain_data(fspec.args, [:args], [], [], args).
               merge(:args.ns(S) => args, :failure.ns(S) => :instrument, :caller.ns => backtrace)
 
             io = StringIO.new
@@ -221,7 +221,7 @@ module Speculation
             backtrace = backtrace_relevant_to_instrument(caller)
 
             ed = S.
-              _explain_data(fspec.blockspec, [:block], [], [], block).
+              _explain_data(fspec.block, [:block], [], [], block).
               merge(:block.ns(S) => block, :failure.ns(S) => :instrument, :caller.ns => backtrace)
 
             io = StringIO.new
@@ -237,7 +237,7 @@ module Speculation
 
           if Test.instrument_enabled.value
             Test.with_instrument_disabled do
-              conform.call(args, block) if fspec.argspec
+              conform.call(args, block) if fspec.args
 
               begin
                 Test.instrument_enabled.value = true
@@ -339,13 +339,13 @@ module Speculation
       # :backtrace, :cause and :data keys. :data will have a
       # :"Speculation/failure" key.
       def check_call(method, spec, args, block)
-        conformed_args = S.conform(spec.argspec, args) if spec.argspec
+        conformed_args = S.conform(spec.args, args) if spec.args
 
         if conformed_args == :invalid.ns(S)
-          return explain_check(args, spec.argspec, args, :args)
+          return explain_check(args, spec.args, args, :args)
         end
 
-        conformed_block = S.conform(spec.blockspec, block) if spec.blockspec
+        conformed_block = S.conform(spec.block, block) if spec.block
 
         if conformed_block == :invalid.ns(S)
           return explain_check(block, spec.block, block, :block)
@@ -353,18 +353,18 @@ module Speculation
 
         ret = method.call(*args, &block)
 
-        conformed_ret = S.conform(spec.retspec, ret) if spec.retspec
+        conformed_ret = S.conform(spec.ret, ret) if spec.ret
 
         if conformed_ret == :invalid.ns(S)
-          return explain_check(args, spec.retspec, ret, :ret)
+          return explain_check(args, spec.ret, ret, :ret)
         end
 
-        return true unless spec.argspec && spec.retspec && spec.fnspec
+        return true unless spec.args && spec.ret && spec.fn
 
-        if S.valid?(spec.fnspec, :args => conformed_args, :block => conformed_block, :ret => conformed_ret)
+        if S.valid?(spec.fn, :args => conformed_args, :block => conformed_block, :ret => conformed_ret)
           true
         else
-          explain_check(args, spec.fnspec, { :args => conformed_args, :block => conformed_block, :ret => conformed_ret }, :fn)
+          explain_check(args, spec.fn, { :args => conformed_args, :block => conformed_block, :ret => conformed_ret }, :fn)
         end
       end
 
@@ -373,14 +373,14 @@ module Speculation
         num_tests = opts.fetch(:num_tests, 1000)
 
         args_gen = begin
-                     S.gen(spec.argspec, gen)
+                     S.gen(spec.args, gen)
                    rescue => e
                      return { :result => e }
                    end
 
-        block_gen = if spec.blockspec
+        block_gen = if spec.block
                       begin
-                        S.gen(spec.blockspec, gen)
+                        S.gen(spec.block, gen)
                       rescue => e
                         return { :result => e }
                       end
@@ -415,7 +415,7 @@ module Speculation
         reinstrument = unstrument(ident).any?
         method = ident.get_method
 
-        if specd.argspec # or blockspec?
+        if specd.args
           check_result = quick_check(method, spec, opts)
           make_check_result(method, spec, check_result)
         else
