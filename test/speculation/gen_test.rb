@@ -57,7 +57,7 @@ module Speculation
         "#{local_part}@#{subdomain}.#{tld}"
       end
 
-      S.def(:email_type.ns, S.with_gen(spec, &gen))
+      S.def(:email_type.ns, S.with_gen(spec, gen))
 
       assert Gen.generate(S.gen(:email_type.ns)).is_a?(String)
     end

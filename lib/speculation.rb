@@ -36,7 +36,7 @@ module Speculation
     attr_accessor :coll_error_limit
   end
 
-  @check_asserts    = false
+  @check_asserts    = ENV["SPECULATION_CHECK_ASSERTS"] == "true"
   @recursion_limit  = 4
   @fspec_iterations = 21
   @coll_check_limit = 101
@@ -133,11 +133,11 @@ module Speculation
     specize(spec).conform(value)
   end
 
-  # Takes a spec and a one-arg generator block and returns a version of the spec that uses that generator
+  # Takes a spec and a one-arg generator function and returns a version of the spec that uses that generator
   # @param spec [Spec]
-  # @yield [Rantly] generator block
+  # @param gen [Proc] generator proc that receives a Rantly instance
   # @return [Spec]
-  def self.with_gen(spec, &gen)
+  def self.with_gen(spec, gen)
     if regex?(spec)
       spec.merge(:gfn.ns => gen)
     else
@@ -1296,13 +1296,13 @@ module Speculation
     # Resets the spec registry to only builtin specs
     def reset_registry!
       builtins = {
-        :any.ns              => with_gen(Utils.constantly(true)) { |r| r.branch(*Gen::GEN_BUILTINS.values) },
+        :any.ns              => with_gen(Utils.constantly(true), ->(r) { r.branch(*Gen::GEN_BUILTINS.values) }),
         :boolean.ns          => Set[true, false],
-        :positive_integer.ns => with_gen(self.and(Integer, ->(x) { x > 0 })) { |r| r.range(1) },
+        :positive_integer.ns => with_gen(self.and(Integer, ->(x) { x > 0 }), ->(r) { r.range(1) }),
         # Rantly#positive_integer is actually a natural integer
-        :natural_integer.ns  => with_gen(self.and(Integer, ->(x) { x >= 0 }), &:positive_integer),
-        :negative_integer.ns => with_gen(self.and(Integer, ->(x) { x < 0 })) { |r| r.range(nil, -1) },
-        :empty.ns            => with_gen(:empty?.to_proc) { |_| [] }
+        :natural_integer.ns  => with_gen(self.and(Integer, ->(x) { x >= 0 }), :positive_integer.to_proc),
+        :negative_integer.ns => with_gen(self.and(Integer, ->(x) { x < 0 }), ->(r) { r.range(nil, -1) }),
+        :empty.ns            => with_gen(:empty?.to_proc, Utils.constantly([]))
       }
 
       @registry_ref.reset(builtins)
