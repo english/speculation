@@ -188,7 +188,7 @@ module Speculation
 
       prob.each do |k, v|
         unless [:path, :pred, :val, :reason, :via, :in].include?(k)
-          out.print("\n\t ", k.inspect, v.inspect)
+          out.print("\n\t ", k.inspect, PP.pp(v, String.new))
         end
       end
 
@@ -196,7 +196,7 @@ module Speculation
     end
 
     ed.each do |k, v|
-      out.puts("#{k} #{v.inspect}") unless k == :problems.ns
+      out.puts("#{k} #{PP.pp(v, String.new)}") unless k == :problems.ns
     end
 
     nil
