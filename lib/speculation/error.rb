@@ -3,15 +3,16 @@ require "pp"
 
 module Speculation
   class Error < StandardError
-    attr_reader :data
+    attr_reader :data, :message
 
     def initialize(message, data)
       super(message)
-      @data = data.merge(:cause => message)
+      @data = data
+      @message = message
     end
 
     def to_s
-      PP.pp(@data, String.new)
+      "#{@message} #{PP.pp(@data, String.new)}"
     end
   end
 end
