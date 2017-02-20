@@ -19,6 +19,7 @@ module Speculation
       Symbol     => ->(r) { r.sized(r.range(0, 100)) { string(:alpha).to_sym } },
       TrueClass  => ->(_r) { true },
       FalseClass => ->(_r) { false },
+      NilClass   => ->(_r) { nil },
       Date       => ->(r) { Gen.gen_for_pred(Time).call(r).to_date },
       Time       => ->(r) { Time.at(r.range(-569001744000, 569001744000)) }, # 20k BC => 20k AD
       Array      => ->(r) do
@@ -77,7 +78,8 @@ module Speculation
     # @param limit [Integer] specifies how many times `gen` can fail to produce a valid value.
     # @return [Array] array of generated values using gne
     # @see https://github.com/abargnesi/rantly Rantly
-    def self.sample(gen, n, limit = 100)
+    def self.sample(gen, n = 10, limit = 100)
+      limit /= n
       Rantly.map(n, limit, &gen)
     end
 
