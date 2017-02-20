@@ -24,7 +24,7 @@ module Speculation
         end)
       end
 
-      @collection_predicate = ->(coll) { collection_predicates.all? { |f| f === coll } }
+      @collection_predicate = ->(coll) { collection_predicates.all? { |f| f.respond_to?(:call) ? f.call(coll) : f === coll } }
       @delayed_spec = Concurrent::Delay.new { S.send(:specize, predicate) }
       @kfn = options.fetch(:kfn.ns, ->(i, _v) { i })
       @conform_keys, @conform_all, @kind, @gen_into, @gen_max, @distinct, @count, @min_count, @max_count =
@@ -166,12 +166,13 @@ module Speculation
         min_count ||= 0
         max_count ||= Float::INFINITY
         unless x.count.between?(min_count, max_count)
-          return [{ :path => path, :pred => "count.between?(min_count || 0, max_count || Float::Infinity)", :val => x, :via => via, :in => inn }]
+          # TODO: no string pred
+          return [{ :path => path, :pred => "count.between?(min_count, max_count)", :val => x, :via => via, :in => inn }]
         end
       end
 
       if distinct && !x.empty? && !Utils.distinct?(x)
-        [{ :path => path, :pred => "distinct?", :val => x, :via => via, :in => inn }]
+        [{ :path => path, :pred => Utils.method(:distinct?), :val => x, :via => via, :in => inn }]
       end
     end
   end

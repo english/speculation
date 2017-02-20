@@ -66,7 +66,7 @@ module Speculation
 
     def explain(path, via, inn, value)
       unless Utils.hash?(value)
-        return [{ :path => path, :pred => :hash?, :val => value, :via => via, :in => inn }]
+        return [{ :path => path, :pred => Utils.method(:hash?), :val => value, :via => via, :in => inn }]
       end
 
       problems = []

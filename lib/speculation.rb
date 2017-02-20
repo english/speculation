@@ -476,7 +476,7 @@ module Speculation
   # @param options [Hash]
   # @return [Spec]
   def self.hash_of(kpred, vpred, options = {})
-    every_kv(kpred, vpred, :kind           => Utils.method(:hash?).to_proc,
+    every_kv(kpred, vpred, :kind           => Utils.method(:hash?),
                            :conform_all.ns => true,
                            **options)
   end
@@ -1218,9 +1218,10 @@ module Speculation
       end
     end
 
-    def insufficient(path, via, inn)
+    def insufficient(pred, path, via, inn)
       [{ :path   => path,
          :reason => "Insufficient input",
+         :pred   => pred,
          :val    => [],
          :via    => via,
          :in     => inn }]
@@ -1235,7 +1236,7 @@ module Speculation
 
       unless regex?(p)
         if input.empty?
-          return insufficient(path, via, inn)
+          return insufficient(p, path, via, inn)
         else
           return explain1(p, path, via, inn, x)
         end
@@ -1248,7 +1249,7 @@ module Speculation
           if accept_nil?(p[:p1])
             explain_pred_list(p[:predicates], path, via, inn, preturn(p[:p1]))
           else
-            insufficient(path, via, inn)
+            insufficient(p, path, via, inn)
           end
         else
           p1 = deriv(p[:p1], x)
@@ -1269,12 +1270,12 @@ module Speculation
         path = path.conj(k) if k
 
         if input.empty? && !pred
-          insufficient(path, via, inn)
+          insufficient(pred, path, via, inn)
         else
           op_explain(pred, path, via, inn, input)
         end
       when :alt.ns
-        return insufficient(path, via, inn) if input.empty?
+        return insufficient(p, path, via, inn) if input.empty?
 
         probs = p[:predicates].zip(p[:keys]).flat_map { |(predicate, key)|
           op_explain(predicate, key ? path.conj(key) : path, via, inn, input)
