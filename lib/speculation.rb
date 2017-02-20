@@ -76,7 +76,7 @@ module Speculation
     max ||= Float::MAX
 
     gens = [[20, ->(_) { rand(min.to_f..max.to_f) }]]
-    gens << [1, ->(_) { Float::INFINITY }] if infinite
+    gens << [1, ->(r) { r.choose(Float::INFINITY, -Float::INFINITY) }] if infinite
     gens << [1, ->(_) { Float::NAN }] if nan
 
     spec(S.and(*preds), :gen => ->(rantly) { rantly.freq(*gens) })
