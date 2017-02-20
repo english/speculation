@@ -44,20 +44,24 @@ module Speculation
 
   @registry_ref = Concurrent::Atom.new({})
 
-  # Can be enabled/disabled by setting check_asserts.
+  # Can be enabled or disabled at runtime:
+  # - enabled/disabled by setting `check_asserts`.
+  # - enabled by setting environment variable SPECULATION_CHECK_ASSERTS to the
+  #   string "true"
+  # Defaults to false if not set.
   # @param spec [Spec]
   # @param x value to validate
   # @return x if x is valid? according to spec
   # @raise [Error] with explain_data plus :Speculation/failure of :assertion_failed
   def self.assert(spec, x)
     return x unless check_asserts
-    return x unless valid?(spec, x)
+    return x if valid?(spec, x)
 
-    ed = S._explain_data(spec, [], [], [], x)
+    ed = S._explain_data(spec, [], [], [], x).merge(:failure.ns => :assertion_failed)
     out = StringIO.new
     S.explain_out(ed, out)
 
-    raise Speculation::Error.new("Spec assertion failed\n#{out.string}", :failure.ns => :assertion_failed)
+    raise Speculation::Error.new("Spec assertion failed\n#{out.string}", ed)
   end
 
   # @param infinite [Boolean] whether +/- infinity allowed (default true)
