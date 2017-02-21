@@ -3,6 +3,7 @@ AllCops:
     - 'bin/*'
     - '*.*'
     - 'vendor/**/*'
+    - 'examples/**/*'
   TargetRubyVersion: 2.4
 
 Metrics/ClassLength:
@@ -84,4 +85,13 @@ Style/NumericLiterals:
   Enabled: false
 
 Style/NumericPredicate:
+  Enabled: false
+
+Style/SpecialGlobalVars:
+  Enabled: false
+
+Style/RescueModifier:
+  Enabled: false
+
+Performance/RedundantBlockCall:
   Enabled: false
