@@ -395,9 +395,12 @@ module Speculation
                       Utils.constantly(nil)
                     end
 
-        combined_gen = ->(r) { [args_gen.call(r), block_gen.call(r)] }
+        arg_block_gen = ->(r) { [args_gen.call(r), block_gen.call(r)] }
 
-        rantly_quick_check(combined_gen, num_tests) { |(args, block)| check_call(method, spec, args, block) }
+        generator_guard = ->(genned_val) { S.valid?(spec.args, genned_val) }
+        rantly_quick_check(arg_block_gen, num_tests, generator_guard) do |(args, block)|
+          check_call(method, spec, args, block)
+        end
       end
 
       def make_check_result(method, spec, check_result)
@@ -455,7 +458,7 @@ module Speculation
 
       # Reimplementation of Rantly's `check` since it does not provide direct access to results
       # (shrunk data etc.), instead printing them to STDOUT.
-      def rantly_quick_check(gen, num_tests)
+      def rantly_quick_check(gen, num_tests, generator_guard, &invariant)
         i = 0
         limit = 100
 
@@ -463,32 +466,19 @@ module Speculation
           args, blk = val
           i += 1
 
-          result = begin
-                     yield([args, blk])
-                   rescue => e
-                     e
-                   end
+          result = yield([args, blk]) rescue $!
 
           unless result == true
-            # This is a Rantly Tuple.
-            args = ::Tuple.new(args)
+            args = ::Tuple.new(args) # This is a Rantly Tuple.
 
-            if args.respond_to?(:shrink)
-              shrunk = shrink(args, result, ->(v) { yield([v, blk]) })
+            shrunk = shrink(generator_guard, args, result, ->(v) { invariant.call([v, blk]) })
 
-              shrunk[:smallest] = [shrunk[:smallest].array, blk]
+            shrunk[:smallest] = { :args => shrunk[:smallest].array, :block => blk }
 
-              return { :fail      => args.array,
-                       :block     => blk,
-                       :num_tests => i,
-                       :result    => result,
-                       :shrunk    => shrunk }
-            else
-              return { :fail      => args.array,
-                       :block     => blk,
-                       :num_tests => i,
-                       :result    => result }
-            end
+            return { :fail      => { :args => args.array, :block => blk },
+                     :num_tests => i,
+                     :result    => result,
+                     :shrunk    => shrunk }
           end
         end
 
@@ -497,32 +487,36 @@ module Speculation
       end
 
       # reimplementation of Rantly's shrinking.
-      def shrink(data, result, block, depth = 0, iteration = 0)
-        smallest = data
+      def shrink(generator_guard, value, result, invariant, depth = 0, iteration = 0)
+        smallest = value
         max_depth = depth
 
-        if data.shrinkable?
+        if value.shrinkable?
           while iteration < 1024
-            shrunk_data = data.shrink
-            result = begin
-                       block.call(shrunk_data.array)
-                     rescue => e
-                       e
-                     end
+            shrunk_value = value.shrink
 
-            unless result == true
-              shrunk = shrink(shrunk_data, result, block, depth + 1, iteration + 1)
+            unless generator_guard.call(shrunk_value.array)
+              iteration += 1
+              value = shrunk_value
+              value.shrinkable? ? next : break
+            end
 
-              branch_smallest, branch_depth, iteration =
-                shrunk.values_at(:smallest, :depth, :iteration)
+            res = invariant.call(shrunk_value.array) rescue $!
+
+            unless res == true
+              shrunk = shrink(generator_guard, shrunk_value, res, invariant, depth + 1, iteration + 1)
+
+              branch_smallest, branch_depth, iteration, branch_result =
+                shrunk.values_at(:smallest, :depth, :iteration, :result)
 
               if branch_depth > max_depth
-                smallest = branch_smallest
                 max_depth = branch_depth
+                smallest = branch_smallest
+                result = branch_result
               end
             end
 
-            break unless data.retry?
+            break unless value.retry?
           end
         end
 

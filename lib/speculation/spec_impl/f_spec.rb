@@ -33,22 +33,17 @@ module Speculation
 
     def explain(path, via, inn, f)
       unless f.respond_to?(:call)
-        return [{ :path => path, :pred => "respond_to?(:call)", :val => f, :via => via, :in => inn }]
+        return [{ :path => path, :pred => [f.method(:respond_to?), :call], :val => f, :via => via, :in => inn }]
       end
 
       specs = { :args => @args, :ret => @ret, :fn => @fn, :block => @block }
-      args, block = FSpec.validate_fn(f, specs, 100)
-      return if f.equal?(args)
+      validate_fn_result = FSpec.validate_fn(f, specs, 100)
+      return if f.equal?(validate_fn_result)
 
-      ret = begin
-              f.call(*args, &block)
-            rescue => e
-              e
-            end
+      ret = f.call(*validate_fn_result[:args], &validate_fn_result[:block]) rescue $!
 
       if ret.is_a?(Exception)
-        val = block ? [args, block] : args
-        return [{ :path => path, :pred => "f.call(*args)", :val => val, :reason => ret.message.chomp, :via => via, :in => inn }]
+        return [{ :path => path, :pred => f, :val => validate_fn_result, :reason => ret.message.chomp, :via => via, :in => inn }]
       end
 
       cret = S.dt(@ret, ret)
@@ -91,7 +86,8 @@ module Speculation
 
       combined = ->(r) { [args_gen.call(r), block_gen.call(r)] }
 
-      ret = S::Test.send(:rantly_quick_check, combined, iterations) { |(args, block)|
+      generator_guard = ->(genned_val) { S.valid?(specs[:args], genned_val) }
+      ret = S::Test.send(:rantly_quick_check, combined, iterations, generator_guard) { |(args, block)|
         call_valid?(f, specs, args, block)
       }
 

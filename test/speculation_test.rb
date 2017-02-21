@@ -616,7 +616,7 @@ val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: [:key?, "(Specul
 
       ed = S.explain_data(:foo.ns, :trigger_no_method_error.to_proc).fetch(:problems.ns(S)).first
       assert_equal [], ed[:path]
-      assert_equal "f.call(*args)", ed[:pred]
+      assert_equal :trigger_no_method_error.to_proc, ed[:pred]
       assert_equal [:foo.ns], ed[:via]
       assert_equal [], ed[:in]
       assert_match(/undefined method `trigger_no_method_error' for .*String/, ed[:reason])
@@ -643,13 +643,14 @@ val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: [:key?, "(Specul
       assert_kind_of Integer, val.call { |_x| 1 }
 
       identifier = S.Identifier(mod.method(:foo))
-      ed = S.explain_data(mod.method(:foo), ->(&b) { b.call("1") })
+      f = ->(&b) { b.call("1") }
+      ed = S.explain_data(mod.method(:foo), f)
       ed = ed.fetch(:problems.ns(S)).first
 
       assert_equal [], ed[:path]
-      assert_equal "f.call(*args)", ed[:pred]
-      assert_equal [], ed[:val].first
-      assert_kind_of Proc, ed[:val].last
+      assert_equal f, ed[:pred]
+      assert_equal [], ed[:val][:args]
+      assert_kind_of Proc, ed[:val][:block]
       assert_equal "In: [0] val: \"1\" fails at: [:x] predicate: Integer", ed[:reason]
       assert_equal [identifier], ed[:via]
       assert_equal [], ed[:in]

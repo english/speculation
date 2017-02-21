@@ -27,7 +27,7 @@ module Speculation
       assert_match(/^Call to '.*ranged_rand' did not conform to spec/, e.message)
 
       assert_equal :instrument, e.data.fetch(:"Speculation/failure")
-      assert_match %r{test/speculation/test_test\.rb:\d+:in `block in test_fdef_instrument'}, e.data.fetch(:"Speculation::Test/caller").first
+      assert_match %r{test/speculation/test_test\.rb:\d+:in `block in test_fdef_instrument'}, e.data.fetch(:"Speculation::Test/caller")
 
       problems = e.data.fetch(:"Speculation/problems")
       assert_equal 1, problems.count
@@ -210,7 +210,7 @@ module Speculation
       assert_match(/^Call to '.*ranged_rand' did not conform to spec/, e.message)
 
       assert_equal :instrument, e.data.fetch(:"Speculation/failure")
-      assert_match %r{test/speculation/test_test\.rb:\d+:in `block in test_fdef_block_instrument'}, e.data.fetch(:"Speculation::Test/caller").first
+      assert_match %r{test/speculation/test_test\.rb:\d+:in `block in test_fdef_block_instrument'}, e.data.fetch(:"Speculation::Test/caller")
 
       problems = e.data.fetch(:"Speculation/problems")
       assert_equal 1, problems.count
