@@ -614,9 +614,10 @@ val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: [:key?, "(Specul
 
       S.def(:foo.ns, S.fspec(:args => S.cat(:x => String), :ret => Integer))
 
-      ed = S.explain_data(:foo.ns, :trigger_no_method_error.to_proc).fetch(:problems.ns(S)).first
+      trigger_no_method_error = :trigger_no_method_error.to_proc
+      ed = S.explain_data(:foo.ns, trigger_no_method_error).fetch(:problems.ns(S)).first
       assert_equal [], ed[:path]
-      assert_equal :trigger_no_method_error.to_proc, ed[:pred]
+      assert_equal trigger_no_method_error, ed[:pred]
       assert_equal [:foo.ns], ed[:via]
       assert_equal [], ed[:in]
       assert_match(/undefined method `trigger_no_method_error' for .*String/, ed[:reason])
