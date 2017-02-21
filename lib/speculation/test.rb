@@ -195,6 +195,13 @@ module Speculation
       }
     end
 
+    # @param modules [Module, Class]
+    # @return [Array<Method>] an array of public and protected singleton
+    #   methods belonging to modules
+    def self.enumerate_methods(*modules)
+      modules.flat_map { |mod| mod.methods(false).map(&mod.method(:method)) } # method
+    end
+
     class << self
       private
 

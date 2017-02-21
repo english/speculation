@@ -3,20 +3,15 @@ require "test_helper"
 
 module Speculation
   class SpeculationUtilsTest < Minitest::Test
-    using Speculation::NamespacedSymbols.refine(self)
-
     STest = Speculation::Test
-    U = Speculation::Utils
 
-    methods = STest.checkable_methods.select { |m| m.namespace == U }
+    def test_check_utils
+      results = STest.check(STest.enumerate_methods(Speculation::Utils), :num_tests => 50)
 
-    methods.each do |meth|
-      define_method(:"test_check_#{meth.name}") do
-        results = STest.check(meth, :num_tests => 50)
-        result = STest.abbrev_result(results.first)
+      abbreved_results = results.map(&STest.method(:abbrev_result))
+      failed_results = abbreved_results.select { |result| result[:failure] }
 
-        assert_nil result[:failure], PP.pp(result, String.new)
-      end
+      assert failed_results.empty?, PP.pp(failed_results, String.new)
     end
   end
 end
