@@ -284,7 +284,7 @@ module Speculation
            end
 
     @registry_ref.swap do |reg|
-      reg.merge(key => with_name(spec, key))
+      reg.merge(key => with_name(spec, key)).freeze
     end
 
     key
@@ -1303,7 +1303,7 @@ module Speculation
         :natural_integer.ns  => with_gen(self.and(Integer, ->(x) { x >= 0 }), :positive_integer.to_proc),
         :negative_integer.ns => with_gen(self.and(Integer, ->(x) { x < 0 }), ->(r) { r.range(nil, -1) }),
         :empty.ns            => with_gen(:empty?.to_proc, Utils.constantly([]))
-      }
+      }.freeze
 
       @registry_ref.reset(builtins)
     end
