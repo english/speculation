@@ -28,8 +28,8 @@ module Speculation
       instrument_enabled.value = true
     end
 
-    # Given an opts hash as per instrument, returns the set of
-    # Speculation::Identifiers for methods that can be instrumented.
+    # Given an opts hash as per instrument, returns the set of methods that can
+    # be instrumented.
     # @param opts [Hash]
     # @return [Array<Identifier>]
     def self.instrumentable_methods(opts = {})
@@ -39,16 +39,16 @@ module Speculation
         end
       end
 
-      S.registry.keys.select(&method(:fn_spec_name?)).to_set.tap do |set|
+      S.registry.keys.select(&method(:fn_spec_name?)).to_set.tap { |set|
         set.merge(opts[:spec].keys)    if opts[:spec]
         set.merge(opts[:stub])         if opts[:stub]
         set.merge(opts[:replace].keys) if opts[:replace]
-      end
+      }.map(&method(:Method))
     end
 
-    # @param method_or_methods [Method, Identifier, Array<Method>, Array<Identifier>]
+    # @param method_or_methods [Method, Array<Method>]
     #   Instruments the methods named by method-or-methods, a method or collection
-    #   of methods, or all instrumentable methods if method-or-methods is not
+    #   of methods, or all instrumentable methods if method_or_methods is not
     #   specified.
     #   If a method has an :args fn-spec, replaces the method with a method that
     #   checks arg conformance (throwing an exception on failure) before
@@ -75,7 +75,7 @@ module Speculation
     #   then invokes the method/proc you provide, enabling arbitrary stubbing and
     #   mocking.
     #
-    # @return [Array<Identifier>] a collection of Identifiers naming the methods instrumented.
+    # @return [Array<Method>] a collection of methods instrumented.
     def self.instrument(method_or_methods = instrumentable_methods, opts = {})
       if opts[:gen]
         gens = opts[:gen].reduce({}) { |h, (k, v)| h.merge(S.Identifier(k) => v) }
@@ -86,24 +86,26 @@ module Speculation
         map { |method| S.Identifier(method) }.
         uniq.
         map { |ident| instrument1(ident, opts) }.
-        compact
+        compact.
+        map(&method(:Method))
     end
 
     # Undoes instrument on the method_or_methods, specified as in instrument.
     # With no args, unstruments all instrumented methods.
-    # @param method_or_methods [Method, Identifier, Array<Method>, Array<Identifier>]
-    # @return [Array<Identifier>] a collection of Identifiers naming the methods unstrumented
+    # @param method_or_methods [Method, Array<Method>]
+    # @return [Array<Method>] a collection of methods unstrumented
     def self.unstrument(method_or_methods = nil)
       method_or_methods ||= @instrumented_methods.value.keys
 
       Array(method_or_methods).
         map { |method| S.Identifier(method) }.
         map { |ident| unstrument1(ident) }.
-        compact
+        compact.
+        map(&method(:Method))
     end
 
     # Runs generative tests for method using spec and opts.
-    # @param method [Method, Identifier]
+    # @param method [Method]
     # @param spec [Spec]
     # @param opts [Hash]
     # @return [Hash]
@@ -114,7 +116,7 @@ module Speculation
     end
 
     # @param opts [Hash] an opts hash as per `check`
-    # @return [Array<Identifier>] the set of Identifiers that can be checked.
+    # @return [Array<Method>] the set of methods that can be checked.
     def self.checkable_methods(opts = {})
       validate_check_opts(opts)
 
@@ -124,7 +126,8 @@ module Speculation
         select(&method(:fn_spec_name?)).
         reject(&:instance_method?).
         to_set.
-        tap { |set| set.merge(opts[:spec].keys) if opts[:spec] }
+        tap { |set| set.merge(opts[:spec].keys) if opts[:spec] }.
+        map(&method(:Method))
     end
 
     # Run generative tests for spec conformance on method_or_methods. If
@@ -154,7 +157,7 @@ module Speculation
 
       Array(method_or_methods).
         map { |method| S.Identifier(method) }.
-        select { |ident| checkable_methods(opts).include?(ident) }.
+        select { |ident| checkable_methods(opts).map(&S.method(:Identifier)).include?(ident) }.
         pmap { |ident| check1(ident, S.get_spec(ident), opts) }
     end
 
@@ -548,6 +551,15 @@ module Speculation
           :check_passed
         else
           failure_type(failure) || :check_raised
+        end
+      end
+
+      # if x is an Identifier, return its method
+      def Method(x)
+        case x
+        when Identifier then x.get_method
+        when Method, UnboundMethod then x
+        else raise "unexpected method-like object #{x}"
         end
       end
     end

@@ -268,13 +268,12 @@ module Speculation
   # regex-op makes an entry in the registry mapping key to the spec
   # @param key [Symbol] namespace-qualified symbol
   # @param spec [Spec, Symbol, Proc, Hash] a spec, spec name, predicate or regex-op
-  # @return [Symbol, Identifier]
+  # @return [Symbol, Method]
   def self.def(key, spec)
     key = Identifier(key)
 
     unless Utils.ident?(key) && key.namespace
-      raise ArgumentError,
-            "key must be a namespaced Symbol, e.g. #{:my_spec.ns}, given #{key}, or a Speculation::Identifier"
+      raise ArgumentError, "key must be a namespaced Symbol, e.g. #{:my_spec.ns}, or a Method"
     end
 
     spec = if spec?(spec) || regex?(spec) || registry[spec]
@@ -287,7 +286,7 @@ module Speculation
       reg.merge(key => with_name(spec, key)).freeze
     end
 
-    key
+    key.is_a?(Identifier) ? key.get_method : key
   end
 
   # @return [Hash] the registry hash
@@ -593,13 +592,12 @@ module Speculation
   # @option spec :fn a spec of the relationship between args and ret - the value passed is
   #   { args: conformed_args, block: given_block, ret: conformed_ret } and is expected to contain
   #   predicates that relate those values
-  # @return [Identifier] the Speculation::Identifier object representing the method which is used as the spec's
-  #   key in the spec registry.
+  # @return [Method] the method spec'ed
   # @note Note that :fn specs require the presence of :args and :ret specs to conform values, and so :fn
   #   specs will be ignored if :args or :ret are missing.
   def self.fdef(method, spec)
-    ident = Identifier(method)
-    self.def(ident, fspec(spec))
+    self.def(Identifier(method), fspec(spec))
+    method
   end
 
   # @param spec
