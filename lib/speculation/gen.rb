@@ -79,7 +79,6 @@ module Speculation
     # @return [Array] array of generated values using gne
     # @see https://github.com/abargnesi/rantly Rantly
     def self.sample(gen, n = 10, limit = 100)
-      limit /= n
       Rantly.map(n, limit, &gen)
     end
 
