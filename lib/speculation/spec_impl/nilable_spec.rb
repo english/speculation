@@ -21,7 +21,7 @@ module Speculation
 
       S.
         explain1(@pred, path.conj(:pred.ns), via, inn, value).
-        conj(:path => path.conj(:nil.ns), :pred => NilClass, :val => value, :via => via, :in => inn)
+        conj(:path => path.conj(:nil.ns), :pred => [NilClass, [value]], :val => value, :via => via, :in => inn)
     end
 
     def gen(overrides, path, rmap)

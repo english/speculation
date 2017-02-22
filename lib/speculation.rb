@@ -693,7 +693,7 @@ module Speculation
 
       spec.explain(path, via, inn, value)
     else
-      [{ :path => path, :val => value, :via => via, :in => inn, :pred => pred }]
+      [{ :path => path, :val => value, :via => via, :in => inn, :pred => [pred, [value]] }]
     end
   end
 
@@ -1225,7 +1225,7 @@ module Speculation
     def insufficient(pred, path, via, inn)
       [{ :path   => path,
          :reason => "Insufficient input",
-         :pred   => pred,
+         :pred   => [pred, []],
          :val    => [],
          :via    => via,
          :in     => inn }]

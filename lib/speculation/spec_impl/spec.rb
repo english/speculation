@@ -28,7 +28,7 @@ module Speculation
 
     def explain(path, via, inn, value)
       if S.invalid?(S.dt(@predicate, value))
-        [{ :path => path, :val => value, :via => via, :in => inn, :pred => @predicate }]
+        [{ :path => path, :val => value, :via => via, :in => inn, :pred => [@predicate, [value]] }]
       end
     end
 

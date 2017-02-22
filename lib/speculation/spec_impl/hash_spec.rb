@@ -66,7 +66,7 @@ module Speculation
 
     def explain(path, via, inn, value)
       unless Utils.hash?(value)
-        return [{ :path => path, :pred => Utils.method(:hash?), :val => value, :via => via, :in => inn }]
+        return [{ :path => path, :pred => [Utils.method(:hash?), [value]], :val => value, :via => via, :in => inn }]
       end
 
       problems = []
@@ -75,7 +75,8 @@ module Speculation
         failures = parse_req(@req, value, :itself.to_proc)
 
         failures.each do |failure_sexp|
-          pred = [:key?, sexp_to_rb(failure_sexp)]
+          # eww
+          pred = [Utils.method(:key?), [sexp_to_rb(failure_sexp)]]
           problems << { :path => path, :pred => pred, :val => value, :via => via, :in => inn }
         end
       end
@@ -84,7 +85,7 @@ module Speculation
         failures = parse_req(@req_un, value, method(:unqualify_key))
 
         failures.each do |failure_sexp|
-          pred = [:key?, sexp_to_rb(failure_sexp)]
+          pred = [Utils.method(:key?), [sexp_to_rb(failure_sexp)]]
           problems << { :path => path, :pred => pred, :val => value, :via => via, :in => inn }
         end
       end

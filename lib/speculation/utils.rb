@@ -60,5 +60,17 @@ module Speculation
     def self.into(to, from)
       from.reduce(to) { |memo, obj| memo.conj(obj) }
     end
+
+    def self.count_eq?(coll, count)
+      coll.count == count
+    end
+
+    def self.count_between?(coll, min_count, max_count)
+      coll.count.between?(min_count, max_count)
+    end
+
+    def self.key?(hash, key)
+      hash.key?(key)
+    end
   end
 end

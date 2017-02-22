@@ -301,7 +301,7 @@ module Speculation
 
       expected = {
         :"Speculation/problems" => [
-          { :path => [2], :val => 3.0, :via => [:point.ns], :in => [2], :pred => Integer }
+          { :path => [2], :val => 3.0, :via => [:point.ns], :in => [2], :pred => [Integer, [3.0]] }
         ]
       }
 
@@ -354,7 +354,8 @@ module Speculation
       assert_equal 1, problem[:val]
       assert_equal [:even.ns], problem[:via]
       assert_equal [], problem[:in]
-      assert_kind_of Proc, problem[:pred]
+      assert_kind_of Proc, problem[:pred].first
+      assert_equal [1], problem[:pred].last
 
       S.def(:integer.ns, Integer)
       S.def(:even.ns, ->(x) { x.even? })
@@ -370,7 +371,7 @@ module Speculation
       assert_equal "s", problem[:val]
       assert_equal [:even_integer.ns, :integer.ns], problem[:via]
       assert_equal [], problem[:in]
-      assert_equal Integer, problem[:pred]
+      assert_equal [Integer, ["s"]], problem[:pred]
     end
 
     def test_explain_data_map
@@ -401,7 +402,7 @@ module Speculation
               :person.ns,
               :email_type.ns
             ],
-            :pred => /^[a-zA-Z1-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,63}$/
+            :pred => [/^[a-zA-Z1-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,63}$/, ["n/a"]]
           }
         ]
       }
@@ -414,8 +415,8 @@ module Speculation
 
       expected = {
         :"Speculation/problems" => [
-          { :path => [:name], :val => :foo, :in => [], :via => [:name_or_id.ns], :pred => String },
-          { :path => [:id], :val => :foo, :in => [], :via => [:name_or_id.ns], :pred => Integer }
+          { :path => [:name], :val => :foo, :in => [], :via => [:name_or_id.ns], :pred => [String, [:foo]] },
+          { :path => [:id], :val => :foo, :in => [], :via => [:name_or_id.ns], :pred => [Integer, [:foo]] }
         ]
       }
 
@@ -436,13 +437,14 @@ module Speculation
       assert_equal "peaches", problem[:val]
       assert_equal [:ingredient.ns], problem[:via]
       assert_equal [1], problem[:in]
-      assert_equal Symbol, problem[:pred]
+      assert_equal [Symbol, ["peaches"]], problem[:pred]
+
+      even_count = ->(nums) { nums.count.even? }
 
       S.def(:nested.ns, S.cat(:names_sym => ->(x) { x == :names },
                               :names     => S.spec(S.zero_or_more(String)),
                               :nums_sym  => ->(x) { x == :nums },
-                              :nums      => S.spec(S.constrained(S.one_or_more(Numeric),
-                                                                 ->(nums) { nums.count.even? }))))
+                              :nums      => S.spec(S.constrained(S.one_or_more(Numeric), even_count))))
 
       ed = S.explain_data(:nested.ns, [:names, ["a", "b"], :nums, [1, 2, 3, 4, 5]])
       problems = ed.fetch(:problems.ns(S))
@@ -454,7 +456,7 @@ module Speculation
       assert_equal [1, 2, 3, 4, 5], problem[:val]
       assert_equal [3], problem[:in]
       assert_equal [:nested.ns], problem[:via]
-      assert_kind_of Proc, problem[:pred]
+      assert_equal [even_count, [[1, 2, 3, 4, 5]]], problem[:pred]
     end
 
     def test_explain_hash_of
@@ -464,7 +466,7 @@ module Speculation
                                                  :val  => "300",
                                                  :via  => [:scores.ns],
                                                  :in   => ["Joe", 1],
-                                                 :pred => Integer }] }
+                                                 :pred => [Integer, ["300"]] }] }
 
       assert_equal expected, S.explain_data(:scores.ns, "Sally" => 1000, "Joe" => "300")
     end
@@ -481,16 +483,16 @@ module Speculation
           {
             :path => [:nums, :ints],
             :val  => "1",
-            :in   => [3, 0],
             :via  => [:nested.ns],
-            :pred => Integer
+            :in   => [3, 0],
+            :pred => [Integer, ["1"]]
           },
           {
             :path => [:nums, :floats],
             :val  => "1",
-            :in   => [3, 0],
             :via  => [:nested.ns],
-            :pred => Float
+            :in   => [3, 0],
+            :pred => [Float, ["1"]]
           }
         ]
       }
@@ -504,15 +506,15 @@ module Speculation
                    :opt_un => [:phone.ns]))
 
       assert_equal <<-EOS, S.explain_str(:person.ns(:unq), :first_name => "Elon")
-val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: [:key?, :"Speculation::SpeculationTest/last_name"]
-val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: [:key?, :"Speculation::SpeculationTest/email"]
+val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: [#{Utils.method(:key?)}, [:"Speculation::SpeculationTest/last_name"]]
+val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: [#{Utils.method(:key?)}, [:"Speculation::SpeculationTest/email"]]
       EOS
 
       email_regex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,63}$/
       S.def(:email.ns, S.and(String, email_regex))
 
       assert_equal <<-EOS, S.explain_str(:person.ns(:unq), :first_name => "Elon", :last_name => "Musk", :email => "elon")
-In: [:email] val: "elon" fails spec: :"Speculation::SpeculationTest/email" at: [:email] predicate: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,63}$/
+In: [:email] val: "elon" fails spec: :"Speculation::SpeculationTest/email" at: [:email] predicate: [/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,63}$/, ["elon"]]
       EOS
     end
 
@@ -522,7 +524,7 @@ In: [:email] val: "elon" fails spec: :"Speculation::SpeculationTest/email" at: [
                    :opt_un => [:phone.ns]))
 
       assert_equal <<-EOS, S.explain_str(:person.ns(:unq), :first_name => "Elon")
-val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: [:key?, "(Speculation::SpeculationTest/first_name and Speculation::SpeculationTest/last_name) or Speculation::SpeculationTest/email"]
+val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: [#{Utils.method(:key?)}, ["(Speculation::SpeculationTest/first_name and Speculation::SpeculationTest/last_name) or Speculation::SpeculationTest/email"]]
       EOS
     end
 
@@ -534,7 +536,7 @@ val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: [:key?, "(Specul
       S.def(:hash.ns, S.keys(:req_un => [:foo.ns, :bar.ns, :baz.ns]))
 
       expected = { :"Speculation/problems" => [{ :path => [],
-                                                 :pred => [:key?, :bar.ns],
+                                                 :pred => [Utils.method(:key?), [:bar.ns]],
                                                  :val  => { :foo => "bar", :baz => "baz" },
                                                  :via  => [:hash.ns],
                                                  :in   => [] }] }
@@ -554,12 +556,12 @@ val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: [:key?, "(Specul
                     :val  => 1,
                     :in   => [],
                     :via  => [:maybe_string.ns],
-                    :pred => String },
+                    :pred => [String, [1]] },
                   { :path => [:"Speculation/nil"],
                     :val  => 1,
                     :in   => [],
                     :via  => [:maybe_string.ns],
-                    :pred => NilClass }]
+                    :pred => [NilClass, [1]] }]
 
       assert_equal expected, ed.fetch(:problems.ns(Speculation))
 
@@ -579,7 +581,7 @@ val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: [:key?, "(Specul
                     :val  => 1,
                     :via  => [:"Speculation::SpeculationTest/suit"],
                     :in   => [],
-                    :pred => Set[:club, :diamond, :heart, :spade] }]
+                    :pred => [Set[:club, :diamond, :heart, :spade], [1]] }]
 
       assert_equal expected, ed.fetch(:problems.ns(Speculation))
 
@@ -606,7 +608,7 @@ val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: [:key?, "(Specul
       Gen.generate(S.gen(mod.method(:foo)))
 
       identifier = S.send(:Identifier, mod.method(:foo))
-      expected = { :path => [:ret], :via => [identifier], :in => [], :pred => Integer }
+      expected = { :path => [:ret], :via => [identifier], :in => [], :pred => [Integer, ["0"]] }
 
       ed = S.explain_data(mod.method(:foo), :to_s.to_proc)
       assert_equal expected, ed.fetch(:problems.ns(S)).first.reject { |k, _v| k == :val }
@@ -617,7 +619,7 @@ val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: [:key?, "(Specul
       trigger_no_method_error = :trigger_no_method_error.to_proc
       ed = S.explain_data(:foo.ns, trigger_no_method_error).fetch(:problems.ns(S)).first
       assert_equal [], ed[:path]
-      assert_equal trigger_no_method_error, ed[:pred]
+      assert_equal [trigger_no_method_error, [""]], ed[:pred]
       assert_equal [:foo.ns], ed[:via]
       assert_equal [], ed[:in]
       assert_match(/undefined method `trigger_no_method_error' for .*String/, ed[:reason])
@@ -649,10 +651,10 @@ val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: [:key?, "(Specul
       ed = ed.fetch(:problems.ns(S)).first
 
       assert_equal [], ed[:path]
-      assert_equal f, ed[:pred]
+      assert_equal [f, []], ed[:pred]
       assert_equal [], ed[:val][:args]
       assert_kind_of Proc, ed[:val][:block]
-      assert_equal "In: [0] val: \"1\" fails at: [:x] predicate: Integer", ed[:reason]
+      assert_equal 'In: [0] val: "1" fails at: [:x] predicate: [Integer, ["1"]]', ed[:reason]
       assert_equal [identifier], ed[:via]
       assert_equal [], ed[:in]
     end

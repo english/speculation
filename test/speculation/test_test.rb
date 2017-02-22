@@ -37,7 +37,8 @@ module Speculation
       assert_equal Hash[:start => 8, :end => 5], problem[:val]
       assert_equal [], problem[:in]
       assert_equal [], problem[:via]
-      assert_kind_of Proc, problem[:pred]
+      assert_kind_of Array, problem[:pred]
+      assert_kind_of Proc, problem[:pred].first
 
       assert_equal [8, 5], e.data.fetch(:"Speculation/args")
 
@@ -220,7 +221,8 @@ module Speculation
       assert_equal Hash[:start => 8, :end => 5], problem[:val]
       assert_equal [], problem[:in]
       assert_equal [], problem[:via]
-      assert_kind_of Proc, problem[:pred]
+      assert_kind_of Proc, problem[:pred].first
+      assert_equal Hash[:start => 8, :end => 5], problem[:val], problem[:pred].last
 
       assert_equal [8, 5], e.data.fetch(:"Speculation/args")
 

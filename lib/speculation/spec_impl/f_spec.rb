@@ -33,7 +33,7 @@ module Speculation
 
     def explain(path, via, inn, f)
       unless f.respond_to?(:call)
-        return [{ :path => path, :pred => [f.method(:respond_to?), :call], :val => f, :via => via, :in => inn }]
+        return [{ :path => path, :pred => [f.method(:respond_to?), [:call]], :val => f, :via => via, :in => inn }]
       end
 
       specs = { :args => @args, :ret => @ret, :fn => @fn, :block => @block }
@@ -43,7 +43,8 @@ module Speculation
       ret = f.call(*validate_fn_result[:args], &validate_fn_result[:block]) rescue $!
 
       if ret.is_a?(Exception)
-        return [{ :path => path, :pred => f, :val => validate_fn_result, :reason => ret.message.chomp, :via => via, :in => inn }]
+        # no args available for pred
+        return [{ :path => path, :pred => [f, validate_fn_result[:args]], :val => validate_fn_result, :reason => ret.message.chomp, :via => via, :in => inn }]
       end
 
       cret = S.dt(@ret, ret)
