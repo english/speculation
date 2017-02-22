@@ -44,7 +44,9 @@ module Speculation
 
       if ret.is_a?(Exception)
         # no args available for pred
-        return [{ :path => path, :pred => [f, validate_fn_result[:args]], :val => validate_fn_result, :reason => ret.message.chomp, :via => via, :in => inn }]
+        pred = [f, validate_fn_result[:args]]
+        pred << validate_fn_result[:block] if validate_fn_result[:block]
+        return [{ :path => path, :pred => pred, :val => validate_fn_result, :reason => ret.message.chomp, :via => via, :in => inn }]
       end
 
       cret = S.dt(@ret, ret)

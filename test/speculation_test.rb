@@ -651,7 +651,12 @@ val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: [#{Utils.method(
       ed = ed.fetch(:problems.ns(S)).first
 
       assert_equal [], ed[:path]
-      assert_equal [f, []], ed[:pred]
+      func, args, block = ed[:pred]
+
+      assert_equal f, func
+      assert_equal [], args
+      assert_kind_of Proc, block
+
       assert_equal [], ed[:val][:args]
       assert_kind_of Proc, ed[:val][:block]
       assert_equal 'In: [0] val: "1" fails at: [:x] predicate: [Integer, ["1"]]', ed[:reason]
