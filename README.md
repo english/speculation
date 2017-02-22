@@ -110,6 +110,8 @@ Bug reports and pull requests are welcome on GitHub at https://github.com/englis
 
 - Explore alternative generator library
   - Build up a library of generators around Rantly in the meantime?
+- Generate documentation from specs
+  - perhaps integrating with [Pry's documentation browsing](https://github.com/pry/pry/wiki/Documentation-browsing)?
 - Profile and optimise
 
 ## License
