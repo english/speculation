@@ -63,6 +63,14 @@ def self.assertions; 1; end
 def self.assertions=(_x); end
 using Speculation::NamespacedSymbols.refine(self)
 
+if RUBY_PLATFORM == "java"
+  class Symbol
+    def ns(mod = "main")
+      :"#{mod}/#{self}"
+    end
+  end
+end
+
 reload!
 
 # (If you use this, don't forget to add pry to your Gemfile!)
