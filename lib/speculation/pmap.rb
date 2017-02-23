@@ -5,7 +5,7 @@ require "concurrent"
 module Speculation
   # @private
   module Pmap
-    refine Array do
+    refine Set do
       if RUBY_PLATFORM == "java"
         def pmap(&block)
           Pmap.pmap_jruby(self, &block)

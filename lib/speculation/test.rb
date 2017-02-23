@@ -116,17 +116,15 @@ module Speculation
     end
 
     # @param opts [Hash] an opts hash as per `check`
-    # @return [Array<Method>] the set of methods that can be checked.
+    # @return [Array<Method>] the array of methods that can be checked.
     def self.checkable_methods(opts = {})
       validate_check_opts(opts)
 
       S.
         registry.
         keys.
-        select(&method(:fn_spec_name?)).
-        reject(&:instance_method?).
-        to_set.
-        tap { |set| set.merge(opts[:spec].keys) if opts[:spec] }.
+        select { |k| fn_spec_name?(k) && !k.instance_method? }.
+        concat(Hash(opts[:spec]).keys).
         map(&method(:Method))
     end
 
@@ -155,9 +153,14 @@ module Speculation
     def self.check(method_or_methods = nil, opts = {})
       method_or_methods ||= checkable_methods
 
-      Array(method_or_methods).
-        map { |method| S.Identifier(method) }.
-        select { |ident| checkable_methods(opts).map(&S.method(:Identifier)).include?(ident) }.
+      checkable = Set(checkable_methods(opts))
+      checkable.map!(&S.method(:Identifier))
+
+      methods = Set(method_or_methods)
+      methods.map!(&S.method(:Identifier))
+
+      methods.
+        intersection(checkable).
         pmap { |ident| check1(ident, S.get_spec(ident), opts) }
     end
 
@@ -560,6 +563,14 @@ module Speculation
         when Identifier then x.get_method
         when Method, UnboundMethod then x
         else raise ArgumentError, "unexpected method-like object #{x}"
+        end
+      end
+
+      def Set(x)
+        case x
+        when Set then x
+        when Enumerable then Set.new(x)
+        else Set[x]
         end
       end
     end
