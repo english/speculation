@@ -559,7 +559,7 @@ module Speculation
         case x
         when Identifier then x.get_method
         when Method, UnboundMethod then x
-        else raise "unexpected method-like object #{x}"
+        else raise ArgumentError, "unexpected method-like object #{x}"
         end
       end
     end

@@ -253,7 +253,6 @@ module Speculation
     gensub(spec, overrides, [], :recursion_limit.ns => recursion_limit)
   end
 
-  # rubocop:disable Style/MethodName
   # @private
   def self.Identifier(x)
     case x
@@ -262,7 +261,6 @@ module Speculation
     else x
     end
   end
-  # rubocop:enable Style/MethodName
 
   # Given a namespace-qualified symbol key, and a spec, spec name, predicate or
   # regex-op makes an entry in the registry mapping key to the spec

@@ -95,3 +95,6 @@ Style/RescueModifier:
 
 Performance/RedundantBlockCall:
   Enabled: false
+
+Style/MethodName:
+  Enabled: false
