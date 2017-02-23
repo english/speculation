@@ -72,5 +72,9 @@ module Speculation
     def self.key?(hash, key)
       hash.key?(key)
     end
+
+    def self.empty?(coll)
+      coll.empty?
+    end
   end
 end

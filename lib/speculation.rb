@@ -1298,7 +1298,7 @@ module Speculation
         # Rantly#positive_integer is actually a natural integer
         :natural_integer.ns  => with_gen(self.and(Integer, ->(x) { x >= 0 }), :positive_integer.to_proc),
         :negative_integer.ns => with_gen(self.and(Integer, ->(x) { x < 0 }), ->(r) { r.range(nil, -1) }),
-        :empty.ns            => with_gen(:empty?.to_proc, Utils.constantly([]))
+        :empty.ns            => with_gen(Utils.method(:empty?), Utils.constantly([]))
       }.freeze
 
       @registry_ref.reset(builtins)
