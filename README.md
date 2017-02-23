@@ -96,8 +96,6 @@ Bug reports and pull requests are welcome on GitHub at https://github.com/englis
 ## TODO
 
 - tidy up tests
-- write up comparison with clojure.spec
-- write guide
 
 ### clojure.spec features
 
