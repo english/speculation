@@ -7,6 +7,8 @@ require "concurrent/delay"
 require "date"
 require "securerandom"
 require "uri"
+require "date"
+require "time"
 
 module Speculation
   using NamespacedSymbols.refine(self)
@@ -22,8 +24,8 @@ module Speculation
       TrueClass  => ->(_r) { true },
       FalseClass => ->(_r) { false },
       NilClass   => ->(_r) { nil },
-      Date       => ->(r) { Gen.gen_for_pred(Time).call(r).to_date },
-      Time       => ->(r) { Time.at(r.range(-569001744000, 569001744000)) }, # 20k BC => 20k AD
+      Date       => ->(_r) { Speculation.gen(Speculation.date_in(Date.new(1970, 1, 1)..Date.new(3000, 1, 1))) },
+      Time       => ->(_r) { Speculation.gen(Speculation.time_in(Time.new(1970, 1, 1)..Time.new(3000, 1, 1))) },
       URI        => ->(_r) { URI("http://#{SecureRandom.uuid}.com") },
       Array      => ->(r) do
         size = r.range(0, 20)
