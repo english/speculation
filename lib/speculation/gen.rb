@@ -5,6 +5,8 @@ require "rantly/property"
 require "rantly/shrinks"
 require "concurrent/delay"
 require "date"
+require "securerandom"
+require "uri"
 
 module Speculation
   using NamespacedSymbols.refine(self)
@@ -22,6 +24,7 @@ module Speculation
       NilClass   => ->(_r) { nil },
       Date       => ->(r) { Gen.gen_for_pred(Time).call(r).to_date },
       Time       => ->(r) { Time.at(r.range(-569001744000, 569001744000)) }, # 20k BC => 20k AD
+      URI        => ->(_r) { URI("http://#{SecureRandom.uuid}.com") },
       Array      => ->(r) do
         size = r.range(0, 20)
 
