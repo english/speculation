@@ -1,10 +1,10 @@
 # frozen_string_literal: true
 module Speculation
-  using Speculation::NamespacedSymbols.refine(self)
   using Conj
 
   # @private
   class HashSpec < SpecImpl
+    include NamespacedSymbols
     S = Speculation
 
     attr_reader :id
@@ -19,7 +19,8 @@ module Speculation
       req_keys     = req.flat_map(&method(:extract_keys))
       req_un_specs = req_un.flat_map(&method(:extract_keys))
 
-      unless (req_keys + req_un_specs + opt + opt_un).all? { |s| s.is_a?(Symbol) && s.namespace }
+      all_keys = req_keys + req_un_specs + opt + opt_un
+      unless all_keys.all? { |s| s.is_a?(Symbol) && NamespacedSymbols.namespace(s) }
         raise "all keys must be namespaced Symbols"
       end
 
@@ -39,7 +40,7 @@ module Speculation
     end
 
     def conform(value)
-      return :invalid.ns unless @keys_pred.call(value)
+      return ns(S, :invalid) unless @keys_pred.call(value)
 
       reg = S.registry
       ret = value
@@ -53,7 +54,7 @@ module Speculation
         conformed_value = S.conform(spec, v)
 
         if S.invalid?(conformed_value)
-          return :invalid.ns
+          return ns(S, :invalid)
         else
           unless conformed_value.equal?(v)
             ret = ret.merge(key => conformed_value)
@@ -145,7 +146,7 @@ module Speculation
 
         keys.each_with_index do |key, i|
           unless i.zero?
-            rb_string << " #{op.name} "
+            rb_string << " #{NamespacedSymbols.name(op)} "
           end
 
           rb_string << sexp_to_rb(key, level + 1).to_s
@@ -168,7 +169,7 @@ module Speculation
     end
 
     def unqualify_key(x)
-      x.name.to_sym
+      NamespacedSymbols.name(x).to_sym
     end
 
     def parse_req(ks, v, f)
@@ -177,13 +178,13 @@ module Speculation
       ret = if key.is_a?(Array)
               op, *kks = key
               case op
-              when :or.ns
+              when ns(S, :or)
                 if kks.one? { |k| parse_req([k], v, f).empty? }
                   []
                 else
                   [key]
                 end
-              when :and.ns
+              when ns(S, :and)
                 if kks.all? { |k| parse_req([k], v, f).empty? }
                   []
                 else

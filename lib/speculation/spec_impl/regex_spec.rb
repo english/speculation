@@ -1,9 +1,8 @@
 # frozen_string_literal: true
 module Speculation
-  using NamespacedSymbols.refine(self)
-
   # @private
   class RegexSpec < SpecImpl
+    include NamespacedSymbols
     S = Speculation
 
     def initialize(regex)
@@ -14,7 +13,7 @@ module Speculation
       if value.nil? || Utils.collection?(value)
         S.re_conform(@regex, value)
       else
-        :invalid.ns
+        ns(S, :invalid)
       end
     end
 

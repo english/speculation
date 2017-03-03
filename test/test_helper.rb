@@ -6,4 +6,5 @@ require "set"
 require "speculation"
 require "speculation/test"
 require "speculation/gen"
-require "speculation/utils_specs"
+
+require 'speculation/namespaced_symbols/refine'

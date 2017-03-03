@@ -1,10 +1,10 @@
 # frozen_string_literal: true
 module Speculation
-  using Speculation::NamespacedSymbols.refine(self)
   using Conj
 
   # @private
   class Spec < SpecImpl
+    include NamespacedSymbols
     S = Speculation
 
     def initialize(predicate, should_conform)
@@ -22,7 +22,7 @@ module Speculation
       if @should_conform
         ret
       else
-        ret ? value : :invalid.ns
+        ret ? value : ns(S, :invalid)
       end
     end
 

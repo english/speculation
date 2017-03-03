@@ -1,10 +1,10 @@
 # frozen_string_literal: true
 module Speculation
-  using Speculation::NamespacedSymbols.refine(self)
   using Conj
 
   # @private
   class TupleSpec < SpecImpl
+    include NamespacedSymbols
     S = Speculation
 
     def initialize(preds)
@@ -19,7 +19,7 @@ module Speculation
       specs = @delayed_specs.value!
 
       unless Utils.array?(collection) && collection.count == specs.count
-        return :invalid.ns
+        return ns(S, :invalid)
       end
 
       return_value = collection.class.new
@@ -28,7 +28,7 @@ module Speculation
         conformed_value = spec.conform(value)
 
         if S.invalid?(conformed_value)
-          return :invalid.ns
+          return ns(S, :invalid)
         else
           return_value += [conformed_value]
         end

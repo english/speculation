@@ -1,10 +1,10 @@
 # frozen_string_literal: true
 module Speculation
-  using NamespacedSymbols.refine(self)
   using Conj
 
   # @private
   class OrSpec < SpecImpl
+    include NamespacedSymbols
     S = Speculation
 
     attr_reader :id
@@ -29,7 +29,7 @@ module Speculation
         end
       end
 
-      :invalid.ns
+      ns(S, :invalid)
     end
 
     def explain(path, via, inn, value)

@@ -1,10 +1,9 @@
 # frozen_string_literal: true
 
 module Speculation
-  using NamespacedSymbols.refine(self)
-
   # @private
   class AndSpec < SpecImpl
+    include NamespacedSymbols
     S = Speculation
 
     def initialize(preds)
@@ -18,7 +17,7 @@ module Speculation
       @specs.value!.each do |spec|
         value = spec.conform(value)
 
-        return :invalid.ns if S.invalid?(value)
+        return ns(S, :invalid) if S.invalid?(value)
       end
 
       value

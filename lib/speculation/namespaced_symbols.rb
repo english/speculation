@@ -2,23 +2,21 @@
 
 module Speculation
   module NamespacedSymbols
-    def self.refine(namespace)
-      Module.new do
-        refine Symbol do
-          define_method(:ns) do |mod = nil|
-            mod ||= namespace
-            NamespacedSymbols.symbol(mod, self)
-          end
-
-          def name
-            NamespacedSymbols.name(self)
-          end
-
-          def namespace
-            NamespacedSymbols.namespace(self)
-          end
-        end
+    # @param [#to_s] namespace
+    # @param [#to_s] name
+    # @return [Symbol] concatenation of `namespace` and `name`
+    # @example
+    #     ns(Foo::Bar, :foo)
+    #     # => :"Foo::Bar/baz"
+    def ns(name_or_namespace, name = nil)
+      if name
+        namespace = name_or_namespace
+      else
+        name = name_or_namespace
+        namespace = self
       end
+
+      NamespacedSymbols.symbol(namespace, name)
     end
 
     def self.symbol(ns, name)

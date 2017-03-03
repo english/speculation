@@ -1,10 +1,10 @@
 # frozen_string_literal: true
 module Speculation
-  using NamespacedSymbols.refine(self)
   using Conj
 
   # @private
   class NilableSpec < SpecImpl
+    include NamespacedSymbols
     S = Speculation
 
     def initialize(pred)
@@ -20,8 +20,8 @@ module Speculation
       return if S.pvalid?(@delayed_spec.value!, value) || value.nil?
 
       S.
-        explain1(@pred, path.conj(:pred.ns), via, inn, value).
-        conj(:path => path.conj(:nil.ns), :pred => [NilClass, [value]], :val => value, :via => via, :in => inn)
+        explain1(@pred, path.conj(ns(S, :pred)), via, inn, value).
+        conj(:path => path.conj(ns(S, :nil)), :pred => [NilClass, [value]], :val => value, :via => via, :in => inn)
     end
 
     def gen(overrides, path, rmap)
@@ -29,7 +29,7 @@ module Speculation
 
       ->(rantly) do
         rantly.freq([1, Gen.delay { Utils.constantly(nil) }],
-                    [9, Gen.delay { S.gensub(@pred, overrides, path.conj(:pred.ns), rmap) }])
+                    [9, Gen.delay { S.gensub(@pred, overrides, path.conj(ns(S, :pred)), rmap) }])
       end
     end
   end

@@ -1,9 +1,8 @@
 # frozen_string_literal: true
 module Speculation
-  using NamespacedSymbols.refine(self)
-
   # @private
   class MergeSpec < SpecImpl
+    include NamespacedSymbols
     S = Speculation
 
     def initialize(preds)
@@ -14,7 +13,7 @@ module Speculation
       ms = @preds.map { |pred| S.dt(pred, x) }
 
       if ms.any?(&S.method(:invalid?))
-        :invalid.ns(S)
+        ns(S, :invalid)
       else
         ms.reduce(&:merge)
       end

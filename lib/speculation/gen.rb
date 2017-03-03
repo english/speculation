@@ -11,8 +11,6 @@ require "date"
 require "time"
 
 module Speculation
-  using NamespacedSymbols.refine(self)
-
   module Gen
     # Adds `pred` as a Rantly `guard` to generator `gen`.
     # @param pred

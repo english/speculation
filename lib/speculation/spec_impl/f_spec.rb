@@ -1,11 +1,11 @@
 # frozen_string_literal: true
 
 module Speculation
-  using NamespacedSymbols.refine(self)
   using Conj
 
   # @private
   class FSpec < SpecImpl
+    include NamespacedSymbols
     S = Speculation
 
     attr_reader :args, :ret, :fn, :block
@@ -20,14 +20,14 @@ module Speculation
     def conform(f)
       raise "Can't conform fspec without args spec: #{inspect}" unless @args
 
-      return :invalid.ns unless f.is_a?(Proc) || f.is_a?(Method)
+      return ns(S, :invalid) unless f.is_a?(Proc) || f.is_a?(Method)
 
       specs = { :args => @args, :ret => @ret, :fn => @fn, :block => @block }
 
       if f.equal?(FSpec.validate_fn(f, specs, S.fspec_iterations))
         f
       else
-        :invalid.ns
+        ns(S, :invalid)
       end
     end
 
