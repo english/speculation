@@ -161,14 +161,11 @@ end
 
 # S.exercise_fn method(:score)
 
-# Speculation::Error: {:"Speculation/problems"=>
-#   [{:path=>[:args, :guess],
-#     :pred=>"count.between?(min_count || 0, max_count || Float::Infinity)",
-#     :val=>[:c, :y, :r],
-#     :via=>[:"main/code"],
-#     :in=>[1]}],
-#  :"Speculation/args"=>[[:b, :b, :r, :r], [:c, :y, :r]],
-#  :"Speculation/failure"=>:instrument,
+# Speculation::Error: Call to 'main.exact_matches' did not conform to spec:
+#  In: [1] val: [:w, :y, :c] fails spec: :"Object/code" at: [:args, :guess] predicate: [#<Method: Speculation::Utils.count_between?>, [[:w, :y, :c], 4, 6]]
+# Speculation/args [[:r, :b, :c, :y, :b, :r], [:w, :y, :c]]
+# Speculation/failure :instrument
+# Speculation::Test/caller "(pry):69:in `score'"
 
 def self.score(secret, guess)
   { ns(:exact_matches) => exact_matches(secret, guess),
