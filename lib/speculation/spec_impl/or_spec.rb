@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 module Speculation
-  using Conj
-
   # @private
   class OrSpec < SpecImpl
     include NamespacedSymbols
@@ -37,7 +35,7 @@ module Speculation
 
       @keys.zip(@preds).flat_map do |(key, pred)|
         next if S.pvalid?(pred, value)
-        S.explain1(pred, path.conj(key), via, inn, value)
+        S.explain1(pred, Utils.conj(path, key), via, inn, value)
       end
     end
 
@@ -49,7 +47,7 @@ module Speculation
           rmap = S.inck(rmap, @id)
 
           unless S.recur_limit?(rmap, @id, path, k)
-            Gen.delay { S.gensub(p, overrides, path.conj(k), rmap) }
+            Gen.delay { S.gensub(p, overrides, Utils.conj(path, k), rmap) }
           end
         }.
         compact

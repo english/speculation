@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 module Speculation
-  using Conj
-
   # @private
   class HashSpec < SpecImpl
     include NamespacedSymbols
@@ -95,7 +93,7 @@ module Speculation
         next unless S.registry.key?(@key_to_spec_map[k])
 
         unless S.pvalid?(@key_to_spec_map.fetch(k), v)
-          S.explain1(@key_to_spec_map.fetch(k), path.conj(k), via, inn.conj(k), v)
+          S.explain1(@key_to_spec_map.fetch(k), Utils.conj(path, k), via, Utils.conj(inn, k), v)
         end
       }
 
@@ -113,7 +111,7 @@ module Speculation
 
       reqs = @req_keys.zip(@req_specs).
         reduce({}) { |m, (k, s)|
-          m.merge(k => S.gensub(s, overrides, path.conj(k), rmap))
+          m.merge(k => S.gensub(s, overrides, Utils.conj(path, k), rmap))
         }
 
       opts = @opt_keys.zip(@opt_specs).
@@ -121,7 +119,7 @@ module Speculation
           if S.recur_limit?(rmap, @id, path, k)
             m
           else
-            m.merge(k => Gen.delay { S.gensub(s, overrides, path.conj(k), rmap) })
+            m.merge(k => Gen.delay { S.gensub(s, overrides, Utils.conj(path, k), rmap) })
           end
         }
 

@@ -1,8 +1,6 @@
 # frozen_string_literal: true
 
 module Speculation
-  using Conj
-
   # @private
   class FSpec < SpecImpl
     include NamespacedSymbols
@@ -50,11 +48,11 @@ module Speculation
       end
 
       cret = S.dt(@ret, ret)
-      return S.explain1(@ret, path.conj(:ret), via, inn, ret) if S.invalid?(cret)
+      return S.explain1(@ret, Utils.conj(path, :ret), via, inn, ret) if S.invalid?(cret)
 
       if @fn
         cargs = S.conform(@args, args)
-        S.explain1(@fn, path.conj(:fn), via, inn, :args => cargs, :ret => cret)
+        S.explain1(@fn, Utils.conj(path, :fn), via, inn, :args => cargs, :ret => cret)
       end
     end
 

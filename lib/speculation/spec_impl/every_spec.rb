@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 module Speculation
-  using Conj
-
   # @private
   class EverySpec < SpecImpl
     include NamespacedSymbols
@@ -50,7 +48,7 @@ module Speculation
            :itself.to_proc]
         else
           [->(init) { Utils.empty(@conform_into || init) },
-           ->(ret, _i, _v, cv) { ret.conj(cv) },
+           ->(ret, _i, _v, cv) { Utils.conj(ret, cv) },
            :itself.to_proc]
         end
       end
@@ -100,7 +98,7 @@ module Speculation
         k = @kfn.call(i, v)
 
         unless S.valid?(spec, v)
-          S.explain1(@predicate, path, via, inn.conj(k), v)
+          S.explain1(@predicate, path, via, Utils.conj(inn, k), v)
         end
       }
 

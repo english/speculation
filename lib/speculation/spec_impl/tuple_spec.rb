@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 module Speculation
-  using Conj
-
   # @private
   class TupleSpec < SpecImpl
     include NamespacedSymbols
@@ -45,7 +43,7 @@ module Speculation
       else
         probs = @preds.zip(value).each_with_index.flat_map { |(pred, x), index|
           unless S.pvalid?(pred, x)
-            S.explain1(pred, path.conj(index), via, inn.conj(index), x)
+            S.explain1(pred, Utils.conj(path, index), via, Utils.conj(inn, index), x)
           end
         }
 
@@ -57,7 +55,7 @@ module Speculation
       return @gen if @gen
 
       gens = @preds.each_with_index.
-        map { |p, i| S.gensub(p, overrides, path.conj(i), rmap) }
+        map { |p, i| S.gensub(p, overrides, Utils.conj(path, i), rmap) }
 
       ->(rantly) do
         gens.map { |g| g.call(rantly) }

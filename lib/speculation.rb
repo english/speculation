@@ -5,7 +5,6 @@ require "securerandom"
 
 require "speculation/version"
 require "speculation/namespaced_symbols"
-require "speculation/conj"
 require "speculation/identifier"
 require "speculation/utils"
 require "speculation/spec_impl"
@@ -13,7 +12,6 @@ require "speculation/error"
 
 module Speculation
   extend NamespacedSymbols
-  using Conj
 
   class << self
     # Enables or disables spec asserts. Defaults to false.
@@ -685,7 +683,7 @@ module Speculation
 
     if spec?(spec)
       name = spec_name(spec)
-      via = via.conj(name) if name
+      via = Utils.conj(via, name) if name
 
       spec.explain(path, via, inn, value)
     else
@@ -743,9 +741,9 @@ module Speculation
       preds.zip(keys).map do |pred, k|
         unless rmap && id && k && recur_limit?(rmap, id, path, k)
           if id
-            Gen.delay { Speculation.re_gen(pred, overrides, k ? path.conj(k) : path, rmap) }
+            Gen.delay { Speculation.re_gen(pred, overrides, k ? Utils.conj(path, k) : path, rmap) }
           else
-            re_gen(pred, overrides, k ? path.conj(k) : path, rmap)
+            re_gen(pred, overrides, k ? Utils.conj(path, k) : path, rmap)
           end
         end
       end
@@ -846,21 +844,21 @@ module Speculation
 
       if accept?(p)
         if p[ns(:op)] == ns(:pcat)
-          return op_explain(p, path, via, inn.conj(index), input[index..-1])
+          return op_explain(p, path, via, Utils.conj(inn, index), input[index..-1])
         else
           return [{ :path   => path,
                     :reason => "Extra input",
                     :val    => input,
                     :via    => via,
-                    :in     => inn.conj(index) }]
+                    :in     => Utils.conj(inn, index) }]
         end
       else
-        return op_explain(p, path, via, inn.conj(index), input[index..-1]) ||
+        return op_explain(p, path, via, Utils.conj(inn, index), input[index..-1]) ||
             [{ :path   => path,
                :reason => "Extra input",
                :val    => input,
                :via    => via,
-               :in     => inn.conj(index) }]
+               :in     => Utils.conj(inn, index) }]
       end
     end
 
@@ -1004,7 +1002,7 @@ module Speculation
       end
 
       val = keys ? { key => predicate[:return_value] } : predicate[:return_value]
-      return_value = regex[:return_value].conj(val)
+      return_value = Utils.conj(regex[:return_value], val)
 
       if rest_predicates
         pcat(:predicates   => rest_predicates,
@@ -1021,7 +1019,7 @@ module Speculation
       regex = { ns(:op) => ns(:rep), :p2 => p2, :splice => splice, :id => SecureRandom.uuid }
 
       if accept?(p1)
-        regex.merge(:p1 => p2, :return_value => return_value.conj(p1[:return_value]))
+        regex.merge(:p1 => p2, :return_value => Utils.conj(return_value, p1[:return_value]))
       else
         regex.merge(:p1 => p1, :return_value => return_value)
       end
@@ -1140,7 +1138,7 @@ module Speculation
         else
           val = key ? { key => return_value } : return_value
 
-          regex[:splice] ? Utils.into(r, val) : r.conj(val)
+          regex[:splice] ? Utils.into(r, val) : Utils.conj(r, val)
         end
       end
 
@@ -1151,7 +1149,7 @@ module Speculation
         if return_value == ns(:nil)
           r
         else
-          r.conj(key ? { key => return_value } : return_value)
+          Utils.conj(r, key ? { key => return_value } : return_value)
         end
       when ns(:pcat), ns(:rep) then prop.call
       else
@@ -1267,7 +1265,7 @@ module Speculation
                   else
                     pks.lazy.reject { |(predicate, _)| accept_nil?(predicate) }.first
                   end
-        path = path.conj(k) if k
+        path = Utils.conj(path, k) if k
 
         if input.empty? && !pred
           insufficient(pred, path, via, inn)
@@ -1278,7 +1276,7 @@ module Speculation
         return insufficient(p, path, via, inn) if input.empty?
 
         probs = p[:predicates].zip(p[:keys]).flat_map { |(predicate, key)|
-          op_explain(predicate, key ? path.conj(key) : path, via, inn, input)
+          op_explain(predicate, key ? Utils.conj(path, key) : path, via, inn, input)
         }
 
         probs.compact

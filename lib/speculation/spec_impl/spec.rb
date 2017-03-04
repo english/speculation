@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 module Speculation
-  using Conj
-
   # @private
   class Spec < SpecImpl
     include NamespacedSymbols

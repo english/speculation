@@ -1,10 +1,7 @@
 # frozen_string_literal: true
 require "set"
-require "speculation/conj"
 
 module Speculation
-  using Conj
-
   # @private
   module Utils
     def self.hash?(x)
@@ -58,7 +55,7 @@ module Speculation
     end
 
     def self.into(to, from)
-      from.reduce(to) { |memo, obj| memo.conj(obj) }
+      from.reduce(to) { |memo, obj| conj(memo, obj) }
     end
 
     def self.count_eq?(coll, count)
@@ -75,6 +72,19 @@ module Speculation
 
     def self.empty?(coll)
       coll.empty?
+    end
+
+    def self.conj(a, b)
+      case a
+      when Array, Set
+        a + [b]
+      when Hash
+        case b
+        when Array then a.merge(b[0] => b[1])
+        else            a.merge(b)
+        end
+      else raise ArgumentError, "#{a}: must be an Array, Set or Hash"
+      end
     end
   end
 end
