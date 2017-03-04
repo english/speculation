@@ -337,8 +337,8 @@ module Speculation
   #
   # The :req key array supports 'and_keys' and 'or_keys' for key groups:
   #
-  #     S.keys(req: [:x.ns, :y.ns, S.or_keys(:secret.ns, S.and_keys(:user.ns, :pwd.ns))],
-  #            opt: [:z.ns])
+  #     S.keys(req: [ns(:x), ns(:y), S.or_keys(ns(:secret), S.and_keys(ns(:user), ns(:pwd)))],
+  #            opt: [ns(:z)])
   #
   # There are also _un versions of :req and :opt. These allow you to connect
   # unqualified keys to specs. In each case, fully qualfied keywords are passed,
@@ -576,8 +576,8 @@ module Speculation
   #   S.fdef(Hash.method(:[]),
   #     args: S.alt(
   #       hash: Hash,
-  #       array_of_pairs: S.coll_of(S.tuple(:any.ns(S), :any.ns(S)), kind: Array),
-  #       kvs: S.constrained(S.one_or_more(:any.ns(S)), -> (kvs) { kvs.count.even? })
+  #       array_of_pairs: S.coll_of(S.tuple(ns(S, :any), ns(S, :any)), kind: Array),
+  #       kvs: S.constrained(S.one_or_more(ns(S, :any)), -> (kvs) { kvs.count.even? })
   #     ),
   #     ret: Hash
   #   )

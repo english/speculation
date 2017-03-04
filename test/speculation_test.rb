@@ -502,8 +502,8 @@ module Speculation
 
     def test_explain
       S.def(ns(:unq, :person),
-            S.keys(:req_un => [ns(self.class, :first_name), ns(self.class, :last_name), ns(self.class, :email)],
-                   :opt_un => [ns(self.class, :phone)]))
+            S.keys(:req_un => [ns(:first_name), ns(:last_name), ns(:email)],
+                   :opt_un => [ns(:phone)]))
 
       assert_equal <<-EOS, S.explain_str(ns(:unq, :person), :first_name => "Elon")
 val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: [#{Utils.method(:key?)}, [:"Speculation::SpeculationTest/last_name"]]
@@ -511,7 +511,7 @@ val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: [#{Utils.method(
       EOS
 
       email_regex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,63}$/
-      S.def(ns(self.class, :email), S.and(String, email_regex))
+      S.def(ns(:email), S.and(String, email_regex))
 
       assert_equal <<-EOS, S.explain_str(ns(:unq, :person), :first_name => "Elon", :last_name => "Musk", :email => "elon")
 In: [:email] val: "elon" fails spec: :"Speculation::SpeculationTest/email" at: [:email] predicate: [/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,63}$/, ["elon"]]
@@ -520,8 +520,8 @@ In: [:email] val: "elon" fails spec: :"Speculation::SpeculationTest/email" at: [
 
     def test_explain_and_keys_or_keys
       S.def(ns(:unq, :person),
-            S.keys(:req_un => [S.or_keys(S.and_keys(ns(self.class, :first_name), ns(self.class, :last_name)), ns(self.class, :email))],
-                   :opt_un => [ns(self.class, :phone)]))
+            S.keys(:req_un => [S.or_keys(S.and_keys(ns(:first_name), ns(:last_name)), ns(:email))],
+                   :opt_un => [ns(:phone)]))
 
       assert_equal <<-EOS, S.explain_str(ns(:unq, :person), :first_name => "Elon")
 val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: [#{Utils.method(:key?)}, ["(Speculation::SpeculationTest/first_name and Speculation::SpeculationTest/last_name) or Speculation::SpeculationTest/email"]]
@@ -570,13 +570,13 @@ val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: [#{Utils.method(
     end
 
     def test_set_predicate
-      S.def(ns(self.class, :suit), Set[:club, :diamond, :heart, :spade])
+      S.def(ns(:suit), Set[:club, :diamond, :heart, :spade])
 
-      assert S.valid?(ns(self.class, :suit), :club)
-      assert S.valid?(ns(self.class, :suit), :heart)
-      refute S.valid?(ns(self.class, :suit), :lung)
+      assert S.valid?(ns(:suit), :club)
+      assert S.valid?(ns(:suit), :heart)
+      refute S.valid?(ns(:suit), :lung)
 
-      ed = S.explain_data(ns(self.class, :suit), 1)
+      ed = S.explain_data(ns(:suit), 1)
       expected = [{ :path => [],
                     :val  => 1,
                     :via  => [:"Speculation::SpeculationTest/suit"],
@@ -585,7 +585,7 @@ val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: [#{Utils.method(
 
       assert_equal expected, ed.fetch(ns(Speculation, :problems))
 
-      val = Gen.generate(S.gen(ns(self.class, :suit)))
+      val = Gen.generate(S.gen(ns(:suit)))
       assert [:club, :diamond, :heart, :spade].include?(val)
     end
 
@@ -614,13 +614,13 @@ val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: [#{Utils.method(
       assert_equal expected, ed.fetch(ns(S, :problems)).first.reject { |k, _v| k == :val }
       assert_kind_of String, ed.fetch(ns(S, :problems)).first[:val]
 
-      S.def(ns(self.class, :foo), S.fspec(:args => S.cat(:x => String), :ret => Integer))
+      S.def(ns(:foo), S.fspec(:args => S.cat(:x => String), :ret => Integer))
 
       trigger_no_method_error = :trigger_no_method_error.to_proc
-      ed = S.explain_data(ns(self.class, :foo), trigger_no_method_error).fetch(ns(S, :problems)).first
+      ed = S.explain_data(ns(:foo), trigger_no_method_error).fetch(ns(S, :problems)).first
       assert_equal [], ed[:path]
       assert_equal [trigger_no_method_error, [""]], ed[:pred]
-      assert_equal [ns(self.class, :foo)], ed[:via]
+      assert_equal [ns(:foo)], ed[:via]
       assert_equal [], ed[:in]
       assert_match(/undefined method `trigger_no_method_error' for .*String/, ed[:reason])
     end

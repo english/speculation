@@ -13,7 +13,7 @@ module Speculation
         namespace = name_or_namespace
       else
         name = name_or_namespace
-        namespace = self
+        namespace = is_a?(Module) ? self.name : self.class.name
       end
 
       NamespacedSymbols.symbol(namespace, name)
