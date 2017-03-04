@@ -7,7 +7,7 @@ require "speculation/gen"
 module Speculation
   module Test
     extend NamespacedSymbols
-    using Pmap
+    extend Pmap
 
     # @private
     S = Speculation
@@ -159,9 +159,9 @@ module Speculation
       methods = Set(method_or_methods)
       methods.map!(&S.method(:Identifier))
 
-      methods.
-        intersection(checkable).
-        pmap { |ident| check1(ident, S.get_spec(ident), opts) }
+      pmap(methods.intersection(checkable)) { |ident|
+        check1(ident, S.get_spec(ident), opts)
+      }
     end
 
     # Given a check result, returns an abbreviated version suitable for summary use.
