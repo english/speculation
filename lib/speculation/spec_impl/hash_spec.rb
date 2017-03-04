@@ -26,7 +26,7 @@ module Speculation
       req_keys += req_un_specs.map(&method(:unqualify_key))
 
       pred_exprs = [Utils.method(:hash?)]
-      pred_exprs.push(->(v) { parse_req(req, v, :itself.to_proc).empty? }) if req.any?
+      pred_exprs.push(->(v) { parse_req(req, v, Utils.method(:itself)).empty? }) if req.any?
       pred_exprs.push(->(v) { parse_req(req_un, v, method(:unqualify_key)).empty? }) if req_un.any?
 
       @req_keys        = req_keys
@@ -71,7 +71,7 @@ module Speculation
       problems = []
 
       if @req.any?
-        failures = parse_req(@req, value, :itself.to_proc)
+        failures = parse_req(@req, value, Utils.method(:itself))
 
         failures.each do |failure_sexp|
           # eww

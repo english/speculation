@@ -1035,7 +1035,7 @@ module Speculation
     end
 
     def _alt(predicates, keys)
-      predicates, keys = filter_alt(predicates, keys, &:itself)
+      predicates, keys = filter_alt(predicates, keys, &Utils.method(:itself))
       return unless predicates
 
       predicate, *rest_predicates = predicates

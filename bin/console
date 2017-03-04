@@ -75,7 +75,7 @@ def self.test_check_utils
          :args => S.tuple(ns(S, :any)),
          :ret  => ns(S, :boolean))
 
-  S.fdef(U.method(:identity),
+  S.fdef(U.method(:itself),
          :args => S.cat(:x => ns(S, :any)),
          :ret  => ns(S, :any),
          :fn   => ->(x) { x[:args][:x].equal?(x[:ret]) })

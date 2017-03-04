@@ -16,7 +16,7 @@ module Speculation
       xs.respond_to?(:each)
     end
 
-    def self.identity(x)
+    def self.itself(x)
       x
     end
 

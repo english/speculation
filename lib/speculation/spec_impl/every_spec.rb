@@ -33,11 +33,11 @@ module Speculation
       # returns a tuple of [init add complete] fns
       @cfns = ->(x) do
         if Utils.array?(x) && (!@conform_into || Utils.array?(@conform_into))
-          [:itself.to_proc,
+          [Utils.method(:itself),
            ->(ret, i, v, cv) { v.equal?(cv) ? ret : ret.tap { |r| r[i] = cv } },
-           :itself.to_proc]
+           Utils.method(:itself)]
         elsif Utils.hash?(x) && ((@kind && !@conform_into) || Utils.hash?(@conform_into))
-          [@conform_keys ? Utils.method(:empty) : :itself.to_proc,
+          [@conform_keys ? Utils.method(:empty) : Utils.method(:itself),
            ->(ret, _i, v, cv) {
              if v.equal?(cv) && !@conform_keys
                ret
@@ -45,11 +45,11 @@ module Speculation
                ret.merge((@conform_keys ? cv : v).first => cv.last)
              end
            },
-           :itself.to_proc]
+           Utils.method(:itself)]
         else
           [->(init) { Utils.empty(@conform_into || init) },
            ->(ret, _i, _v, cv) { Utils.conj(ret, cv) },
-           :itself.to_proc]
+           Utils.method(:itself)]
         end
       end
     end
