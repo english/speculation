@@ -21,7 +21,7 @@ module Speculation
     end
 
     def conform(value)
-      @delayed_specs.value.each_with_index do |spec, index|
+      @delayed_specs.value!.each_with_index do |spec, index|
         conformed = spec.conform(value)
 
         unless S.invalid?(conformed)

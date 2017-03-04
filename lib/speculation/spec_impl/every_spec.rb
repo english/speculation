@@ -59,7 +59,7 @@ module Speculation
     def conform(value)
       return :invalid.ns unless @collection_predicate.call(value)
 
-      spec = @delayed_spec.value
+      spec = @delayed_spec.value!
 
       if @conform_all
         init, add, complete = @cfns.call(value)
@@ -94,7 +94,7 @@ module Speculation
       probs = collection_problems(value, @kind, @distinct, @count, @min_count, @max_count, path, via, inn)
       return probs if probs
 
-      spec = @delayed_spec.value
+      spec = @delayed_spec.value!
 
       probs = value.lazy.each_with_index.flat_map { |v, i|
         k = @kfn.call(i, v)

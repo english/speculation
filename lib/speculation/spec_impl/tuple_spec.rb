@@ -16,7 +16,7 @@ module Speculation
     end
 
     def conform(collection)
-      specs = @delayed_specs.value
+      specs = @delayed_specs.value!
 
       unless Utils.array?(collection) && collection.count == specs.count
         return :invalid.ns

@@ -13,11 +13,11 @@ module Speculation
     end
 
     def conform(value)
-      value.nil? ? value : @delayed_spec.value.conform(value)
+      value.nil? ? value : @delayed_spec.value!.conform(value)
     end
 
     def explain(path, via, inn, value)
-      return if S.pvalid?(@delayed_spec.value, value) || value.nil?
+      return if S.pvalid?(@delayed_spec.value!, value) || value.nil?
 
       S.
         explain1(@pred, path.conj(:pred.ns), via, inn, value).

@@ -15,7 +15,7 @@ module Speculation
     end
 
     def conform(value)
-      @specs.value.each do |spec|
+      @specs.value!.each do |spec|
         value = spec.conform(value)
 
         return :invalid.ns if S.invalid?(value)

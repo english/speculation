@@ -60,7 +60,7 @@ module Speculation
       delayed = Concurrent::Delay.new(&block)
 
       ->(rantly) do
-        delayed.value.call(rantly)
+        delayed.value!.call(rantly)
       end
     end
 
