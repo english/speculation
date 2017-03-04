@@ -14,51 +14,6 @@ module Speculation
   using NamespacedSymbols.refine(self)
 
   module Gen
-    # @private
-    GEN_BUILTINS = {
-      Integer    => ->(r) { r.integer },
-      String     => ->(r) { r.sized(r.range(0, 20)) { string(:alpha) } },
-      Float      => ->(_r) { rand(Float::MIN..Float::MAX) },
-      Numeric    => ->(r) { r.branch(Gen.gen_for_pred(Integer), Gen.gen_for_pred(Float)) },
-      Symbol     => ->(r) { r.sized(r.range(0, 20)) { string(:alpha).to_sym } },
-      TrueClass  => ->(_r) { true },
-      FalseClass => ->(_r) { false },
-      NilClass   => ->(_r) { nil },
-      Date       => Speculation.gen(Speculation.date_in(Date.new(1970, 1, 1)..Date.new(3000, 1, 1))),
-      Time       => Speculation.gen(Speculation.time_in(Time.new(1970, 1, 1)..Time.new(3000, 1, 1))),
-      URI        => ->(_r) { URI("http://#{SecureRandom.uuid}.com") },
-      Array      => ->(r) do
-        size = r.range(0, 20)
-
-        r.array(size) do
-          gen = Gen.gen_for_pred(r.choose(Integer, String, Float, Symbol, Date, Time, Set[true, false]))
-          gen.call(r)
-        end
-      end,
-      Set        => ->(r) do
-        gen = Gen.gen_for_pred(Array)
-        Set.new(gen.call(r))
-      end,
-      Hash       => ->(r) do
-        kgen = Gen.gen_for_pred(r.choose(Integer, String, Float, Symbol, Date, Time))
-        vgen = Gen.gen_for_pred(r.choose(Integer, String, Float, Symbol, Date, Time, Set[true, false]))
-        size = r.range(0, 20)
-
-        h = {}
-        r.each(size) do
-          k = kgen.call(r)
-          r.guard(!h.key?(k))
-          h[k] = vgen.call(r)
-        end
-        h
-      end,
-      Enumerable => ->(r) do
-        klass = r.choose(Array, Hash, Set)
-        gen = Gen.gen_for_pred(klass)
-        gen.call(r)
-      end
-    }.freeze
-
     # Adds `pred` as a Rantly `guard` to generator `gen`.
     # @param pred
     # @param gen [Proc]
@@ -108,5 +63,50 @@ module Speculation
         delayed.value.call(rantly)
       end
     end
+
+    # @private
+    GEN_BUILTINS = {
+      Integer    => ->(r) { r.integer },
+      String     => ->(r) { r.sized(r.range(0, 20)) { string(:alpha) } },
+      Float      => ->(_r) { rand(Float::MIN..Float::MAX) },
+      Numeric    => ->(r) { r.branch(Gen.gen_for_pred(Integer), Gen.gen_for_pred(Float)) },
+      Symbol     => ->(r) { r.sized(r.range(0, 20)) { string(:alpha).to_sym } },
+      TrueClass  => ->(_r) { true },
+      FalseClass => ->(_r) { false },
+      NilClass   => ->(_r) { nil },
+      Date       => Speculation.gen(Speculation.date_in(Date.new(1970, 1, 1)..Date.new(3000, 1, 1))),
+      Time       => Speculation.gen(Speculation.time_in(Time.new(1970, 1, 1)..Time.new(3000, 1, 1))),
+      URI        => ->(_r) { URI("http://#{SecureRandom.uuid}.com") },
+      Array      => ->(r) do
+        size = r.range(0, 20)
+
+        r.array(size) do
+          gen = Gen.gen_for_pred(r.choose(Integer, String, Float, Symbol, Date, Time, Set[true, false]))
+          gen.call(r)
+        end
+      end,
+      Set        => ->(r) do
+        gen = Gen.gen_for_pred(Array)
+        Set.new(gen.call(r))
+      end,
+      Hash       => ->(r) do
+        kgen = Gen.gen_for_pred(r.choose(Integer, String, Float, Symbol, Date, Time))
+        vgen = Gen.gen_for_pred(r.choose(Integer, String, Float, Symbol, Date, Time, Set[true, false]))
+        size = r.range(0, 20)
+
+        h = {}
+        r.each(size) do
+          k = kgen.call(r)
+          r.guard(!h.key?(k))
+          h[k] = vgen.call(r)
+        end
+        h
+      end,
+      Enumerable => ->(r) do
+        klass = r.choose(Array, Hash, Set)
+        gen = Gen.gen_for_pred(klass)
+        gen.call(r)
+      end
+    }.freeze
   end
 end
