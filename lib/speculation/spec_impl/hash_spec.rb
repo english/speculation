@@ -125,7 +125,7 @@ module Speculation
 
       ->(rantly) do
         count = rantly.range(0, opts.count)
-        opts = opts.to_a.shuffle.take(count).to_h
+        opts = Hash[opts.to_a.shuffle.take(count)]
 
         reqs.merge(opts).each_with_object({}) { |(k, spec_gen), h|
           h[k] = spec_gen.call(rantly)
