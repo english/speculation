@@ -62,66 +62,49 @@ include Minitest::Assertions
 def self.assertions; 1; end
 def self.assertions=(_x); end
 
-# using Speculation::NamespacedSymbols.refine(self)
-
-if RUBY_PLATFORM == "java"
-  class Symbol
-    def ns(mod = "main")
-      mod ||= namespace
-      S::NamespacedSymbols.symbol(mod, self)
-    end
-
-    def name
-      S::NamespacedSymbols.name(self)
-    end
-
-    def namespace
-      S::NamespacedSymbols.namespace(self)
-    end
-  end
-end
+extend Speculation::NamespacedSymbols
 
 def self.test_check_utils
   S.fdef(U.method(:hash?),
-         :args => S.tuple(:any.ns(S)),
-         :ret  => :boolean.ns(S))
+         :args => S.tuple(ns(S, :any)),
+         :ret  => ns(S, :boolean))
 
   S.fdef(U.method(:array?),
-         :args => S.tuple(:any.ns(S)),
-         :ret  => :boolean.ns(S))
+         :args => S.tuple(ns(S, :any)),
+         :ret  => ns(S, :boolean))
 
   S.fdef(U.method(:collection?),
-         :args => S.tuple(:any.ns(S)),
-         :ret  => :boolean.ns(S))
+         :args => S.tuple(ns(S, :any)),
+         :ret  => ns(S, :boolean))
 
   S.fdef(U.method(:identity),
-         :args => S.cat(:x => :any.ns(S)),
-         :ret  => :any.ns(S),
+         :args => S.cat(:x => ns(S, :any)),
+         :ret  => ns(S, :any),
          :fn   => ->(x) { x[:args][:x].equal?(x[:ret]) })
 
   # S.fdef(U.method(:complement),
-  #        :args  => :empty.ns(S),
-  #        :block => S.fspec(:args => S.zero_or_more(:any.ns(S)),
-  #                          :ret  => :any.ns(S)),
-  #        :ret   => S.fspec(:args => S.zero_or_more(:any.ns(S)),
-  #                          :ret  => :boolean.ns(S)))
+  #        :args  => ns(S, :empty),
+  #        :block => S.fspec(:args => S.zero_or_more(ns(S, :any)),
+  #                          :ret  => ns(S, :any)),
+  #        :ret   => S.fspec(:args => S.zero_or_more(ns(S, :any)),
+  #                          :ret  => ns(S, :boolean)))
 
   S.fdef(U.method(:constantly),
-         :args => S.cat(:x => :any.ns(S)),
+         :args => S.cat(:x => ns(S, :any)),
          :ret  => Proc,
          :fn   => ->(x) { x[:args][:x].equal?(x[:ret].call) })
 
   S.fdef(U.method(:distinct?),
          :args => S.cat(:coll => Enumerable),
-         :ret  => :boolean.ns(S))
+         :ret  => ns(S, :boolean))
 
   S.fdef(U.method(:ident?),
-         :args => S.cat(:x => :any.ns(S)),
-         :ret  => :boolean.ns(S))
+         :args => S.cat(:x => ns(S, :any)),
+         :ret  => ns(S, :boolean))
 
   S.fdef(U.method(:method?),
-         :args => S.cat(:x => :any.ns(S)),
-         :ret  => :boolean.ns(S))
+         :args => S.cat(:x => ns(S, :any)),
+         :ret  => ns(S, :boolean))
 
   S.fdef(U.method(:empty),
          :args => S.cat(:coll => Enumerable),

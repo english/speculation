@@ -13,16 +13,16 @@ S = Speculation
 Gen = S::Gen
 STest = S::Test
 
-using Speculation::NamespacedSymbols.refine(self)
+extend Speculation::NamespacedSymbols
 
 peg = Set[:y, :g, :r, :c, :w, :b]
 
-S.def :code.ns, S.coll_of(peg, :min_count => 4, :max_count => 6)
+S.def ns(:code), S.coll_of(peg, :min_count => 4, :max_count => 6)
 
 def score; end
 
 S.fdef method(:score),
-  :args => S.cat(:secret => :code.ns, :guess => :code.ns)
+  :args => S.cat(:secret => ns(:code), :guess => ns(:code))
 
 S.exercise S.get_spec(method(:score)).args
 
@@ -32,7 +32,7 @@ S.exercise S.get_spec(method(:score)).args
 #  ...
 
 S.fdef method(:score),
-  :args => S.and(S.cat(:secret => :code.ns, :guess => :code.ns),
+  :args => S.and(S.cat(:secret => ns(:code), :guess => ns(:code)),
                  ->(args) { args[:secret].count == args[:guess].count })
 
 S.exercise S.get_spec(method(:score)).args
@@ -42,13 +42,13 @@ S.exercise S.get_spec(method(:score)).args
 #  [[[:g, :g, :y, :g], [:b, :y, :w, :b]], {:secret=>[:g, :g, :y, :g], :guess=>[:b, :y, :w, :b]}],
 #  ...
 
-S.def :exact_matches.ns, :natural_integer.ns(S)
-S.def :loose_matches.ns, :natural_integer.ns(S)
+S.def ns(:exact_matches), ns(S, :natural_integer)
+S.def ns(:loose_matches), ns(S, :natural_integer)
 
 S.fdef method(:score),
-  :args => S.and(S.cat(:secret => :code.ns, :guess => :code.ns),
+  :args => S.and(S.cat(:secret => ns(:code), :guess => ns(:code)),
                  ->(args) { args[:secret].count == args[:guess].count }),
-  :ret => S.keys(:req => [:exact_matches.ns, :loose_matches.ns])
+  :ret => S.keys(:req => [ns(:exact_matches), ns(:loose_matches)])
 
 S.exercise S.get_spec(method(:score)).ret
 # [[{:"main/exact_matches"=>301501626008109845, :"main/loose_matches"=>1592567845535536138},
@@ -58,25 +58,25 @@ S.exercise S.get_spec(method(:score)).ret
 # ...
 
 S.fdef method(:score),
-  :args => S.and(S.cat(:secret => :code.ns, :guess => :code.ns),
+  :args => S.and(S.cat(:secret => ns(:code), :guess => ns(:code)),
                  ->(args) { args[:secret].count == args[:guess].count }),
-  :ret => S.keys(:req => [:exact_matches.ns, :loose_matches.ns]),
+  :ret => S.keys(:req => [ns(:exact_matches), ns(:loose_matches)]),
   :fn => ->(fn) {
     sum_matches = fn[:ret].values.reduce(&:+)
     sum_matches.between?(0, fn[:args][:secret].count)
   }
 
 def self.score(secret, guess)
-  { :exact_matches.ns => 0,
-    :loose_matches.ns => 0 }
+  { ns(:exact_matches) => 0,
+    ns(:loose_matches) => 0 }
 end
 
 STest.check method(:score)
 # [{:spec=>Speculation::FSpec(main.score), :"Speculation::Test/ret"=>{:num_tests=>1000, :result=>true}, :method=>#<Method: main.score>}]
 
 def self.score(secret, guess)
-  { :exact_matches.ns => 4,
-    :loose_matches.ns => 3 }
+  { ns(:exact_matches) => 4,
+    ns(:loose_matches) => 3 }
 end
 
 # STest.check method(:score)
@@ -96,8 +96,8 @@ end
 #     :via=>[],
 
 def self.score(secret, guess)
-  { :exact_matches.ns => secret.zip(guess).count { |(a, b)| a.equal?(b) },
-    :loose_matches.ns => 0 }
+  { ns(:exact_matches) => secret.zip(guess).count { |(a, b)| a.equal?(b) },
+    ns(:loose_matches) => 0 }
 end
 
 S.exercise_fn method(:score)
@@ -112,28 +112,28 @@ STest.check method(:score)
 # [{:spec=>Speculation::FSpec(main.score), :"Speculation::Test/ret"=>{:num_tests=>1000, :result=>true}, :method=>#<Method: main.score>}]
 
 def self.score(secret, guess)
-  { :exact_matches.ns => exact_matches(secret, guess),
-    :loose_matches.ns => 0 }
+  { ns(:exact_matches) => exact_matches(secret, guess),
+    ns(:loose_matches) => 0 }
 end
 
 def self.exact_matches(secret, guess)
   secret.zip(guess).count { |(a, b)| a.equal?(b) }
 end
 
-S.def :secret_and_guess.ns, S.and(S.cat(:secret => :code.ns, :guess => :code.ns),
+S.def ns(:secret_and_guess), S.and(S.cat(:secret => ns(:code), :guess => ns(:code)),
                                   ->(args) { args[:secret].count == args[:guess].count })
 
 S.fdef method(:score),
-  :args => :secret_and_guess.ns,
-  :ret => S.keys(:req => [:exact_matches.ns, :loose_matches.ns]),
+  :args => ns(:secret_and_guess),
+  :ret => S.keys(:req => [ns(:exact_matches), ns(:loose_matches)]),
   :fn => ->(fn) {
     sum_matches = fn[:ret].values.reduce(&:+)
     sum_matches.between?(0, fn[:args][:secret].count)
   }
 
 S.fdef method(:exact_matches),
-  :args => :secret_and_guess.ns,
-  :ret => :natural_integer.ns(S),
+  :args => ns(:secret_and_guess),
+  :ret => ns(S, :natural_integer),
   :fn => ->(fn) { fn[:ret].between?(0, fn[:args][:secret].count) }
 
 S.exercise_fn method(:exact_matches)
@@ -155,8 +155,8 @@ S.exercise_fn method(:score)
 #  [[[:r, :y, :c, :y, :y, :b], [:g, :r, :b, :c, :r, :y]], {:"main/exact_matches"=>0, :"main/loose_matches"=>0}],
 
 def self.score(secret, guess)
-  { :exact_matches.ns => exact_matches(secret, guess.take(3)),
-    :loose_matches.ns => 0 }
+  { ns(:exact_matches) => exact_matches(secret, guess.take(3)),
+    ns(:loose_matches) => 0 }
 end
 
 # S.exercise_fn method(:score)
@@ -171,15 +171,15 @@ end
 #  :"Speculation/failure"=>:instrument,
 
 def self.score(secret, guess)
-  { :exact_matches.ns => exact_matches(secret, guess),
-    :loose_matches.ns => 0 }
+  { ns(:exact_matches) => exact_matches(secret, guess),
+    ns(:loose_matches) => 0 }
 end
 
 def match_count; end
 
 S.fdef method(:match_count),
-  :args => :secret_and_guess.ns,
-  :ret => :natural_integer.ns(S),
+  :args => ns(:secret_and_guess),
+  :ret => ns(S, :natural_integer),
   :fn => ->(fn) { fn[:ret].between?(0, fn[:args][:secret].count) }
 
 S.exercise_fn method(:exact_matches), :n => 10, :fspec => S.get_spec(method(:match_count))
@@ -224,8 +224,8 @@ def self.score(secret, guess)
   exact = exact_matches(secret, guess)
   all = all_matches(secret, guess)
 
-  { :exact_matches.ns => exact,
-    :loose_matches.ns => all - exact }
+  { ns(:exact_matches) => exact,
+    ns(:loose_matches) => all - exact }
 end
 
 STest.instrument [method(:exact_matches), method(:all_matches)],

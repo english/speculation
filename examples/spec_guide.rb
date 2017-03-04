@@ -6,7 +6,7 @@ require "date"
 require "speculation"
 
 S = Speculation
-using S::NamespacedSymbols.refine(self)
+extend S::NamespacedSymbols
 
 ## Predicates
 
@@ -66,14 +66,14 @@ S.valid? Set[42], 42                                 # => true
 # Specs are registered using def. It’s up to you to register the specification
 # in a namespace that makes sense (typically a namespace you control).
 
-S.def :date.ns, Date                                 # => :"main/date"
-S.def :suit.ns, Set[:club, :diamond, :heart, :spade] # => :"main/suit"
+S.def ns(:date), Date                                 # => :"main/date"
+S.def ns(:suit), Set[:club, :diamond, :heart, :spade] # => :"main/suit"
 
 # A registered spec identifier can be used in place of a spec definition in the
 # operations we’ve seen so far - conform and valid?.
 
-S.valid? :date.ns, Date.new # => true
-S.conform :suit.ns, :club   # => :club
+S.valid? ns(:date), Date.new # => true
+S.conform ns(:suit), :club   # => :club
 
 # You will see later that registered specs can (and should) be used anywhere we
 # compose specs.
@@ -83,17 +83,17 @@ S.conform :suit.ns, :club   # => :club
 # The simplest way to compose specs is with and and or. Let’s create a spec
 # that combines several predicates into a composite spec with S.and:
 
-S.def :big_even.ns, S.and(Integer, :even?.to_proc, ->(x) { x > 1000 })
-S.valid? :big_even.ns, :foo   # => false
-S.valid? :big_even.ns, 10     # => false
-S.valid? :big_even.ns, 100000 # => true
+S.def ns(:big_even), S.and(Integer, :even?.to_proc, ->(x) { x > 1000 })
+S.valid? ns(:big_even), :foo   # => false
+S.valid? ns(:big_even), 10     # => false
+S.valid? ns(:big_even), 100000 # => true
 
 # We can also use S.or to specify two alternatives:
 
-S.def :name_or_id.ns, S.or(:name => String, :id => Integer)
-S.valid? :name_or_id.ns, "abc" # => true
-S.valid? :name_or_id.ns, 100   # => true
-S.valid? :name_or_id.ns, :foo  # => false
+S.def ns(:name_or_id), S.or(:name => String, :id => Integer)
+S.valid? ns(:name_or_id), "abc" # => true
+S.valid? ns(:name_or_id), 100   # => true
+S.valid? ns(:name_or_id), :foo  # => false
 
 # This or spec is the first case we’ve seen that involves a choice during
 # validity checking. Each choice is annotated with a tag (here, between :name
@@ -103,8 +103,8 @@ S.valid? :name_or_id.ns, :foo  # => false
 # When an or is conformed, it returns an array with the tag name and conformed
 # value:
 
-S.conform :name_or_id.ns, "abc" # => [:name, "abc"]
-S.conform :name_or_id.ns, 100   # => [:id, 100]
+S.conform ns(:name_or_id), "abc" # => [:name, "abc"]
+S.conform ns(:name_or_id), 100   # => [:id, 100]
 
 # Many predicates that check an instance’s type do not allow nil as a valid
 # value (String, ->(x) { x.even? }, /foo/, etc). To include nil as a valid
@@ -119,13 +119,13 @@ S.valid? S.nilable(String), nil # => true
 # (to STDOUT) why a value does not conform to a spec. Let’s see what explain
 # says about some non-conforming examples we’ve seen so far.
 
-S.explain :suit.ns, 42
+S.explain ns(:suit), 42
 # val: 42 fails spec: :"main/suit" predicate: #<Set: {:club, :diamond, :heart, :spade}>
 
-S.explain :big_even.ns, 5
+S.explain ns(:big_even), 5
 # val: 5 fails spec: :"main/big_even" predicate: #<Proc:0x007fcae5e95630(&:even?)>
 
-S.explain :name_or_id.ns, :foo
+S.explain ns(:name_or_id), :foo
 # val: :foo fails spec: :"main/name_or_id" at: [:name] predicate: String
 # val: :foo fails spec: :"main/name_or_id" at: [:id] predicate: Integer
 
@@ -144,14 +144,14 @@ S.explain :name_or_id.ns, :foo
 #   example, the top-level value is the one that is failing so this is
 #   essentially an empty path and is omitted.
 # - For the first reported error we can see that the value :foo did not satisfy
-#   the predicate String at the path :name in the spec :name-or-id.ns. The second
+#   the predicate String at the path :name in the spec ns(:name-or-id). The second
 #   reported error is similar but fails on the :id path instead. The actual value
 #   is a Symbol so neither is a match.
 
 # In addition to explain, you can use explain_str to receive the error messages
 # as a string or explain_data to receive the errors as data.
 
-S.explain_data :name_or_id.ns, :foo
+S.explain_data ns(:name_or_id), :foo
 # => {:"Speculation/problems"=>
 #      [{:path=>[:name],
 #        :val=>:foo,
@@ -186,17 +186,17 @@ S.explain_data :name_or_id.ns, :foo
 
 email_regex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,63}$/
 
-S.def :email_type.ns, S.and(String, email_regex)
+S.def ns(:email_type), S.and(String, email_regex)
 
-S.def :acctid.ns, Integer
-S.def :first_name.ns, String
-S.def :last_name.ns, String
-S.def :email.ns, :email_type.ns
+S.def ns(:acctid), Integer
+S.def ns(:first_name), String
+S.def ns(:last_name), String
+S.def ns(:email), ns(:email_type)
 
-S.def :person.ns, S.keys(:req => [:first_name.ns, :last_name.ns, :email.ns], :opt => [:phone.ns])
+S.def ns(:person), S.keys(:req => [ns(:first_name), ns(:last_name), ns(:email)], :opt => [ns(:phone)])
 
-# This registers a :person.ns spec with the required keys :first-name.ns,
-# :last_name.ns, and :email.ns, with optional key :phone.ns. The hash spec
+# This registers a ns(:person) spec with the required keys ns(:first-name),
+# ns(:last_name), and ns(:email), with optional key ns(:phone). The hash spec
 # never specifies the value spec for the attributes, only what attributes are
 # required or optional.
 
@@ -207,15 +207,15 @@ S.def :person.ns, S.keys(:req => [:first_name.ns, :last_name.ns, :email.ns], :op
 # the :req and :opt keys. Thus a bare S.keys is valid and will check all
 # attributes of a map without checking which keys are required or optional.
 
-S.valid? :person.ns, :first_name.ns => "Elon", :last_name.ns => "Musk", :email.ns => "elon@example.com" # => true
+S.valid? ns(:person), ns(:first_name) => "Elon", ns(:last_name) => "Musk", ns(:email) => "elon@example.com" # => true
 
 # Fails required key check
-S.explain :person.ns, :first_name.ns => "Elon"
+S.explain ns(:person), ns(:first_name) => "Elon"
 # val: {:"main/first_name"=>"Elon"} fails spec: :"main/person" predicate: [:key?, :"main/last_name"]
 # val: {:"main/first_name"=>"Elon"} fails spec: :"main/person" predicate: [:key?, :"main/email"]
 
 # Fails attribute conformance
-S.explain :person.ns, :first_name.ns => "Elon", :last_name.ns => "Musk", :email.ns => "n/a"
+S.explain ns(:person), ns(:first_name) => "Elon", ns(:last_name) => "Musk", ns(:email) => "n/a"
 # In: [:"main/email"] val: "n/a" fails spec: :"main/email_type" at: [:"main/email"] predicate: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,63}$/
 
 # Let’s take a moment to examine the explain error output on that final example:
@@ -235,8 +235,8 @@ S.explain :person.ns, :first_name.ns => "Elon", :last_name.ns => "Musk", :email.
 # Let’s consider a person map that uses unqualified keys but checks conformance
 # against the namespaced specs we registered earlier:
 
-S.def :"unq/person", S.keys(:req_un => [:first_name.ns, :last_name.ns, :email.ns],
-                            :opt_un => [:phone.ns])
+S.def :"unq/person", S.keys(:req_un => [ns(:first_name), ns(:last_name), ns(:email)],
+                            :opt_un => [ns(:phone)])
 
 S.conform :"unq/person", :first_name => "Elon", :last_name => "Musk", :email => "elon@example.com"
 # => {:first_name=>"Elon", :last_name=>"Musk", :email=>"elon@example.com"}
@@ -262,7 +262,7 @@ S.explain :"unq/person", :first_name => "Elon"
 S.def :"animal/kind", String
 S.def :"animal/says", String
 S.def :"animal/common", S.keys(:req => [:"animal/kind", :"animal/says"])
-S.def :"dog/tail?", :boolean.ns(S)
+S.def :"dog/tail?", ns(S, :boolean)
 S.def :"dog/breed", String
 S.def :"animal/dog", S.merge(:"animal/common", S.keys(:req => [:"dog/tail?", :"dog/breed"]))
 
@@ -293,13 +293,13 @@ S.conform S.coll_of(Numeric), Set[5, 10, 2] # => #<Set: {5, 10, 2}>
 # containing three distinct numbers conformed as a set and some of the errors
 # for different kinds of invalid values:
 
-S.def :vnum3.ns, S.coll_of(Numeric, :kind => Array, :count => 3, :distinct => true, :into => Set[])
-S.conform :vnum3.ns, [1, 2, 3] # => #<Set: {1, 2, 3}>
-S.explain :vnum3.ns, Set[1, 2, 3] # not an array
+S.def ns(:vnum3), S.coll_of(Numeric, :kind => Array, :count => 3, :distinct => true, :into => Set[])
+S.conform ns(:vnum3), [1, 2, 3] # => #<Set: {1, 2, 3}>
+S.explain ns(:vnum3), Set[1, 2, 3] # not an array
 # val: #<Set: {1, 2, 3}> fails spec: :"main/vnum3" predicate: Array
-S.explain :vnum3.ns, [1, 1, 1] # not distinct
+S.explain ns(:vnum3), [1, 1, 1] # not distinct
 # val: [1, 1, 1] fails spec: :"main/vnum3" predicate: "distinct?"
-S.explain :vnum3.ns, [1, 2, :a] # not a number
+S.explain ns(:vnum3), [1, 2, :a] # not a number
 # In: [2] val: :a fails spec: :"main/vnum3" predicate: Numeric
 
 # NOTE: Both coll-of and map-of will conform all of their elements, which may
@@ -310,8 +310,8 @@ S.explain :vnum3.ns, [1, 2, :a] # not a number
 # a fixed-size positional collection with fields of known type at different
 # positions. For that we have tuple.
 
-S.def :point.ns, S.tuple(Float, Float, Float)
-S.conform :point.ns, [1.5, 2.5, -0.5] # => [1.5, 2.5, -0.5]
+S.def ns(:point), S.tuple(Float, Float, Float)
+S.conform ns(:point), [1.5, 2.5, -0.5] # => [1.5, 2.5, -0.5]
 
 # Note that in this case of a "point" structure with x/y/z values we actually
 # had a choice of three possible specs:
@@ -335,8 +335,8 @@ S.conform :point.ns, [1.5, 2.5, -0.5] # => [1.5, 2.5, -0.5]
 # In addition to the support for information hashes via keys, spec also
 # provides hash_of for maps with homogenous key and value predicates.
 
-S.def :scores.ns, S.hash_of(String, Integer)
-S.conform :scores.ns, "Sally" => 1000, "Joe" => 300 # => {"Sally"=>1000, "Joe"=>300}
+S.def ns(:scores), S.hash_of(String, Integer)
+S.conform ns(:scores), "Sally" => 1000, "Joe" => 300 # => {"Sally"=>1000, "Joe"=>300}
 
 # By default hash_of will validate but not conform keys because conformed keys
 # might create key duplicates that would cause entries in the map to be
@@ -368,47 +368,47 @@ S.conform :scores.ns, "Sally" => 1000, "Joe" => 300 # => {"Sally"=>1000, "Joe"=>
 # implicitly converted to specs when passed to functions like conform, valid?,
 # etc.
 
-S.def :ingredient.ns, S.cat(:quantity => Numeric, :unit => Symbol)
-S.conform :ingredient.ns, [2, :teaspoon] # => {:quantity=>2, :unit=>:teaspoon}
+S.def ns(:ingredient), S.cat(:quantity => Numeric, :unit => Symbol)
+S.conform ns(:ingredient), [2, :teaspoon] # => {:quantity=>2, :unit=>:teaspoon}
 
 # The data is conformed as a hash with the tags as keys. We can use explain to
 # examine non-conforming data.
 
 # pass string for unit instead of keyword
-S.explain :ingredient.ns, [11, "peaches"]
+S.explain ns(:ingredient), [11, "peaches"]
 # In: [1] val: "peaches" fails spec: :"main/ingredient" at: [:unit] predicate: Symbol
 
 # leave out the unit
-S.explain :ingredient.ns, [2]
+S.explain ns(:ingredient), [2]
 # val: [] fails spec: :"main/ingredient" at: [:unit] predicate: Symbol, "Insufficient input"
 
 # Let’s now see the various occurence operators zero_or_more, one_or_more, and zero_or_one:
 
-S.def :seq_of_symbols.ns, S.zero_or_more(Symbol)
-S.conform :seq_of_symbols.ns, [:a, :b, :c] # => [:a, :b, :c]
-S.explain :seq_of_symbols.ns, [10, 20]
+S.def ns(:seq_of_symbols), S.zero_or_more(Symbol)
+S.conform ns(:seq_of_symbols), [:a, :b, :c] # => [:a, :b, :c]
+S.explain ns(:seq_of_symbols), [10, 20]
 # In: [0] val: 10 fails spec: :"main/seq_of_symbols" predicate: Symbol
 
-S.def :odds_then_maybe_even.ns, S.cat(:odds => S.one_or_more(:odd?.to_proc),
+S.def ns(:odds_then_maybe_even), S.cat(:odds => S.one_or_more(:odd?.to_proc),
                                       :even => S.zero_or_one(:even?.to_proc))
-S.conform :odds_then_maybe_even.ns, [1, 3, 5, 100] # => {:odds=>[1, 3, 5], :even=>100}
+S.conform ns(:odds_then_maybe_even), [1, 3, 5, 100] # => {:odds=>[1, 3, 5], :even=>100}
 
-S.conform :odds_then_maybe_even.ns, [1] # => {:odds=>[1]}
-S.explain :odds_then_maybe_even.ns, [100]
+S.conform ns(:odds_then_maybe_even), [1] # => {:odds=>[1]}
+S.explain ns(:odds_then_maybe_even), [100]
 # In: [0] val: 100 fails spec: :"main/odds_then_maybe_even" at: [:odds] predicate: #<Proc:0x007fcae40f12c8(&:odd?)>
 
 # opts are alternating symbols and booleans
-S.def :opts.ns, S.zero_or_more(S.cat(:opt => Symbol, :val => :boolean.ns(S)))
-S.conform :opts.ns, [:silent?, false, :verbose, true]
+S.def ns(:opts), S.zero_or_more(S.cat(:opt => Symbol, :val => ns(S, :boolean))))
+S.conform ns(:opts), [:silent?, false, :verbose, true]
 # => [{:opt=>:silent?, :val=>false}, {:opt=>:verbose, :val=>true}]
 
 # Finally, we can use alt to specify alternatives within the sequential data.
 # Like cat, alt requires you to tag each alternative but the conformed data is
 # a vector of tag and value.
 
-S.def :config.ns, S.zero_or_more(S.cat(:prop => String,
-                                       :val => S.alt(:s => String, :b => :boolean.ns(S))))
-S.conform :config.ns, ["-server", "foo", "-verbose", true, "-user", "joe"]
+S.def ns(:config), S.zero_or_more(S.cat(:prop => String,
+                                       :val => S.alt(:s => String, :b => ns(S, :boolean))))
+S.conform ns(:config), ["-server", "foo", "-verbose", true, "-user", "joe"]
 # => [{:prop=>"-server", :val=>[:s, "foo"]},
 #     {:prop=>"-verbose", :val=>[:b, true]},
 #     {:prop=>"-user", :val=>[:s, "joe"]}]
@@ -421,12 +421,12 @@ S.conform :config.ns, ["-server", "foo", "-verbose", true, "-user", "joe"]
 # would otherwise require custom predicates. For example, consider wanting to
 # match only sequences with an even number of strings:
 
-S.def :even_strings.ns, S.constrained(S.zero_or_more(String), ->(coll) { coll.count.even? })
+S.def ns(:even_strings), S.constrained(S.zero_or_more(String), ->(coll) { coll.count.even? })
 
-S.valid? :even_strings.ns, ["a"] # => false
-S.valid? :even_strings.ns, ["a", "b"] # => true
-S.valid? :even_strings.ns, ["a", "b", "c"] # => false
-S.valid? :even_strings.ns, ["a", "b", "c", "d"] # => true
+S.valid? ns(:even_strings), ["a"] # => false
+S.valid? ns(:even_strings), ["a", "b"] # => true
+S.valid? ns(:even_strings), ["a", "b", "c"] # => false
+S.valid? ns(:even_strings), ["a", "b", "c", "d"] # => true
 
 # When regex ops are combined, they describe a single sequence. If you need to
 # spec a nested sequential collection, you must use an explicit call to spec to
@@ -434,12 +434,12 @@ S.valid? :even_strings.ns, ["a", "b", "c", "d"] # => true
 # [:names, ["a", "b"], :nums, [1 2 3]], you need nested regular expressions to
 # describe the inner sequential data:
 
-S.def :nested.ns, S.cat(:names_sym => Set[:names],
+S.def ns(:nested), S.cat(:names_sym => Set[:names],
                         :names => S.spec(S.zero_or_more(String)),
                         :nums_sym => Set[:nums],
                         :nums => S.spec(S.zero_or_more(Numeric)))
 
-S.conform :nested.ns, [:names, ["a", "b"], :nums, [1, 2, 3]]
+S.conform ns(:nested), [:names, ["a", "b"], :nums, [1, 2, 3]]
 # => {:names_sym=>:names,
 #     :names=>["a", "b"],
 #     :nums_sym=>:nums,
@@ -449,12 +449,12 @@ S.conform :nested.ns, [:names, ["a", "b"], :nums, [1, 2, 3]]
 # If the specs were removed this spec would instead match a sequence like
 # [:names, "a", "b", :nums, 1, 2, 3].
 
-S.def :unnested.ns, S.cat(:names_sym => Set[:names],
+S.def ns(:unnested), S.cat(:names_sym => Set[:names],
                           :names => S.zero_or_more(String),
                           :nums_sym => Set[:nums],
                           :nums => S.zero_or_more(Numeric))
 
-S.conform :unnested.ns, [:names, "a", "b", :nums, 1, 2, 3]
+S.conform ns(:unnested), [:names, "a", "b", :nums, 1, 2, 3]
 # => {:names_sym=>:names,
 #     :names=>["a", "b"],
 #     :nums_sym=>:nums,
@@ -470,17 +470,17 @@ S.conform :unnested.ns, [:names, "a", "b", :nums, 1, 2, 3]
 # support built into defn:~~
 
 def self.person_name(person)
-  raise "invalid" unless S.valid? :person.ns, person
-  name = "#{person[:first_name.ns]} #{person[:last_name.ns]}"
+  raise "invalid" unless S.valid? ns(:person), person
+  name = "#{person[ns(:first_name)]} #{person[ns(:last_name)]}"
   raise "invalid" unless S.valid? String, name
   name
 end
 
 person_name 43 rescue $! # => #<RuntimeError: invalid>
-person_name :first_name.ns => "Elon", :last_name.ns => "Musk", :email.ns => "elon@example.com"
+person_name ns(:first_name) => "Elon", ns(:last_name) => "Musk", ns(:email) => "elon@example.com"
 # => "Elon Musk"
 
-# When the function is invoked with something that isn’t valid :person.ns data,
+# When the function is invoked with something that isn’t valid ns(:person) data,
 # the pre-condition fails. Similarly, if there was a bug in our code and the
 # output was not a string, the post-condition would fail.
 
@@ -491,8 +491,8 @@ person_name :first_name.ns => "Elon", :last_name.ns => "Musk", :email.ns => "elo
 # "SPECULATION_CHECK_ASSERTS=true".
 
 def self.person_name(person)
-  p = S.assert :person.ns, person
-  "#{p[:first_name.ns]} #{p[:last_name.ns]}"
+  p = S.assert ns(:person), person
+  "#{p[ns(:first_name)]} #{p[ns(:last_name)]}"
 end
 
 S.check_asserts = true
@@ -521,9 +521,9 @@ def self.set_config(prop, val)
 end
 
 def self.configure(input)
-  parsed = S.conform(:config.ns, input)
-  if parsed == :invalid.ns(S)
-    raise "Invalid input\n#{S.explain_str(:config.ns, input)}"
+  parsed = S.conform(ns(:config), input)
+  if parsed == ns(S, :invalid)
+    raise "Invalid input\n#{S.explain_str(ns(:config), input)}"
   else
     parsed.each do |config|
       prop, val = config.values_at(:prop, :val)
@@ -625,32 +625,32 @@ suit = Set[:club, :diamond, :heart, :spade]
 rank = Set[:jack, :queen, :king, :ace].merge(2..10)
 deck = rank.to_a.product(suit.to_a)
 
-S.def :card.ns, S.tuple(rank, suit)
-S.def :hand.ns, S.zero_or_more(:card.ns)
+S.def ns(:card), S.tuple(rank, suit)
+S.def ns(:hand), S.zero_or_more(ns(:card))
 
-S.def :name.ns, String
-S.def :score.ns, Integer
-S.def :player.ns, S.keys(:req => [:name.ns, :score.ns, :hand.ns])
+S.def ns(:name), String
+S.def ns(:score), Integer
+S.def ns(:player), S.keys(:req => [ns(:name), ns(:score), ns(:hand)])
 
-S.def :players.ns, S.zero_or_more(:player.ns)
-S.def :deck.ns, S.zero_or_more(:card.ns)
-S.def :game.ns, S.keys(:req => [:players.ns, :deck.ns])
+S.def ns(:players), S.zero_or_more(ns(:player))
+S.def ns(:deck), S.zero_or_more(ns(:card))
+S.def ns(:game), S.keys(:req => [ns(:players), ns(:deck)])
 
 # We can validate a piece of this data against the schema:
 
-kenny = { :name.ns => "Kenny Rogers",
-          :score.ns => 100,
-          :hand.ns => [] }
-S.valid? :player.ns, kenny
+kenny = { ns(:name) => "Kenny Rogers",
+          ns(:score) => 100,
+          ns(:hand) => [] }
+S.valid? ns(:player), kenny
 # => true
 
 # Or look at the errors we’ll get from some bad data:
 
-S.explain :game.ns,
-  :deck.ns => deck,
-  :players.ns => [{:name.ns => "Kenny Rogers",
-                   :score.ns => 100,
-                   :hand.ns => [[2, :banana]]}]
+S.explain ns(:game),
+  ns(:deck) => deck,
+  ns(:players) => [{ns(:name) => "Kenny Rogers",
+                   ns(:score) => 100,
+                   ns(:hand) => [[2, :banana]]}]
 # In: [:"main/players", 0, :"main/hand", 0, 1] val: :banana fails spec: :"main/card"
 #   at: [:"main/players", :"main/hand", 1] predicate: #<Set: {:club, :diamond, :heart, :spade}>
 
@@ -664,8 +664,8 @@ S.explain :game.ns,
 # cards in the game before the deal equals the count of cards after the deal.
 
 def self.total_cards(game)
-  game, players = game.values_at(:game.ns, :players.ns)
-  players.map { |player| player[:hand.ns].count }.reduce(deck.count, &:+)
+  game, players = game.values_at(ns(:game), ns(:players))
+  players.map { |player| player[ns(:hand)].count }.reduce(deck.count, &:+)
 end
 
 def self.deal(game)
@@ -673,8 +673,8 @@ def self.deal(game)
 end
 
 S.fdef method(:deal),
-  :args => S.cat(:game => :game.ns),
-  :ret => :game.ns,
+  :args => S.cat(:game => ns(:game)),
+  :ret => ns(:game),
   :fn => ->(fn) { total_cards(fn[:args][:game]) == total_cards(fn[:ret]) }
 
 ## Generators
@@ -755,7 +755,7 @@ Gen.sample S.gen(S.cat(:k => Symbol, :ns => S.one_or_more(Numeric))), 4
 
 # What about generating a random player in our card game?
 
-Gen.generate S.gen(:player.ns)
+Gen.generate S.gen(ns(:player))
 # => {:"main/name"=>
 #      "FDFFELJuqpnUyxBYgiYDCsguDlzVSFDHzxbOGhnRBHsFhaWlldhkTAugAVLVgiKlsZzHjVGqLolGY",
 #     :"main/score"=>-133445635477357014,
@@ -773,7 +773,7 @@ Gen.generate S.gen(:player.ns)
 
 # What about generating a whole game?
 
-Gen.generate S.gen(:game.ns)
+Gen.generate S.gen(ns(:game))
 # it works! but the output is really long, so not including it here
 
 # So we can now start with a spec, extract a generator, and generate some data.
@@ -1012,9 +1012,9 @@ Gen.sample S.gen(S.and(String, ->(s) { s.include?("hello") })) rescue $!
 # First consider a spec with a predicate to specify symbols from a particular
 # namespace:
 
-S.def :syms.ns, S.and(Symbol, ->(s) { s.namespace == "my.domain" })
-S.valid? :syms.ns, :"my.domain/name" # => true
-Gen.sample S.gen(:syms.ns) rescue $! # => #<Rantly::TooManyTries: Exceed gen limit 100: 101 failed guards)>
+S.def ns(:syms), S.and(Symbol, ->(s) { s.namespace == "my.domain" })
+S.valid? ns(:syms), :"my.domain/name" # => true
+Gen.sample S.gen(ns(:syms)) rescue $! # => #<Rantly::TooManyTries: Exceed gen limit 100: 101 failed guards)>
 
 # The simplest way to start generating values for this spec is to have spec
 # create a generator from a fixed set of options. A set is a valid predicate
@@ -1032,10 +1032,10 @@ Gen.sample sym_gen, 5
 # spec and a replacement generator as a block:
 
 gen = S.gen(Set[:"my.domain/name", :"my.domain/occupation", :"my.domain/id"])
-S.def(:syms.ns, S.with_gen(S.and(Symbol, ->(s) { s.namespace == "my.domain" }), gen))
+S.def(ns(:syms), S.with_gen(S.and(Symbol, ->(s) { s.namespace == "my.domain" }), gen))
 
-S.valid? :syms.ns, :"my.domain/name"
-Gen.sample S.gen(:syms.ns), 5
+S.valid? ns(:syms), :"my.domain/name"
+Gen.sample S.gen(ns(:syms)), 5
 # => [:"my.domain/id",
 #     :"my.domain/id",
 #     :"my.domain/id",
@@ -1067,13 +1067,13 @@ Gen.sample sym_gen_2, 5 # => [:"my.domain/BO", :"my.domain/jKfaRRYT", :"my.domai
 # Returning to our "hello" example, we now have the tools to make that
 # generator:
 
-S.def :hello.ns, S.with_gen(->(s) { s.include?("hello") }, ->(rantly) {
+S.def ns(:hello), S.with_gen(->(s) { s.include?("hello") }, ->(rantly) {
   s1 = rantly.sized(rantly.range(0, 10)) { rantly.string(:alpha) }
   s2 = rantly.sized(rantly.range(0, 10)) { rantly.string(:alpha) }
   "#{s1}hello#{s2}"
 })
 
-Gen.sample S.gen(:hello.ns)
+Gen.sample S.gen(ns(:hello))
 # => ["EhhellofYMSR",
 #     "UpKSbUeAvlhelloHEDneAQ",
 #     "ZNdhufhello",
@@ -1096,14 +1096,14 @@ Gen.sample S.gen(:hello.ns)
 # For example, in the case of a range of integer values (for example, a bowling
 # roll), use int_in to spec a range:
 
-S.def :roll.ns, S.int_in(0..10)
-Gen.sample S.gen(:roll.ns)
+S.def ns(:roll), S.int_in(0..10)
+Gen.sample S.gen(ns(:roll))
 # => [1, 5, 3, 7, 8, 7, 3, 3, 7, 9]
 
 # spec also includes date_in for a range of dates:
 
-S.def :the_aughts.ns, S.date_in(Date.new(2000, 1, 1)..Date.new(2010))
-Gen.sample S.gen(:the_aughts.ns), 5
+S.def ns(:the_aughts), S.date_in(Date.new(2000, 1, 1)..Date.new(2010))
+Gen.sample S.gen(ns(:the_aughts)), 5
 # => [#<Date: 2003-04-14 ((2452744j,0s,0n),+0s,2299161j)>,
 #     #<Date: 2002-01-19 ((2452294j,0s,0n),+0s,2299161j)>,
 #     #<Date: 2002-04-24 ((2452389j,0s,0n),+0s,2299161j)>,
@@ -1112,8 +1112,8 @@ Gen.sample S.gen(:the_aughts.ns), 5
 
 # spec also includes time_in for a range of times:
 
-S.def :the_aughts.ns, S.time_in(Time.new(2000)..Time.new(2010))
-Gen.sample S.gen(:the_aughts.ns), 5
+S.def ns(:the_aughts), S.time_in(Time.new(2000)..Time.new(2010))
+Gen.sample S.gen(ns(:the_aughts)), 5
 # => [2002-01-14 07:36:15 -0800,
 #     2005-07-09 22:43:40 -0700,
 #     2009-07-10 17:40:11 -0700,
@@ -1124,10 +1124,10 @@ Gen.sample S.gen(:the_aughts.ns), 5
 # checking special float values like NaN (not a number), Infinity, and
 # -Infinity.
 
-S.def :floats.ns, S.float_in(:min => -100.0, :max => 100.0, :nan => false, :infinite => false)
-S.valid? :floats.ns, 2.9             # => true
-S.valid? :floats.ns, Float::INFINITY # => false
-Gen.sample S.gen(:floats.ns), 5      # => [59.170429959924064, -37.54981289340902, -99.93057937394319, -2.4758516913334887, -59.392247718783466]
+S.def ns(:floats), S.float_in(:min => -100.0, :max => 100.0, :nan => false, :infinite => false)
+S.valid? ns(:floats), 2.9             # => true
+S.valid? ns(:floats), Float::INFINITY # => false
+Gen.sample S.gen(ns(:floats)), 5      # => [59.170429959924064, -37.54981289340902, -99.93057937394319, -2.4758516913334887, -59.392247718783466]
 
 ## Instrumentation and Testing
 
@@ -1256,36 +1256,36 @@ def self.invoke_service(service, request)
 end
 
 def self.run_query(service, query)
-  response = invoke_service(service, :query.ns => query)
-  result, error = response.values_at(:result.ns, :error.ns)
+  response = invoke_service(service, ns(:query) => query)
+  result, error = response.values_at(ns(:result), ns(:error))
   result || error
 end
 
 # We can spec these functions using the following specs:
 
-S.def :query.ns, String
-S.def :request.ns, S.keys(:req => [:query.ns])
-S.def :result.ns, S.coll_of(String, :gen_max => 3)
-S.def :error.ns, Integer
-S.def :response.ns, S.or(:ok => S.keys(:req => [:result.ns]),
-                         :err => S.keys(:req => [:error.ns]))
+S.def ns(:query), String
+S.def ns(:request), S.keys(:req => [ns(:query)])
+S.def ns(:result), S.coll_of(String, :gen_max => 3)
+S.def ns(:error), Integer
+S.def ns(:response), S.or(:ok => S.keys(:req => [ns(:result)]),
+                         :err => S.keys(:req => [ns(:error)]))
 
 S.fdef method(:invoke_service),
-  :args => S.cat(:service => :any.ns(S), :request => :request.ns),
-  :ret => :response.ns
+  :args => S.cat(:service => ns(S, :any), :request => ns(:request)),
+  :ret => ns(:response)
 
 S.fdef method(:run_query),
-  :args => S.cat(:service => :any.ns(S), :query => String),
-  :ret => S.or(:ok => :result.ns, :err => :error.ns)
+  :args => S.cat(:service => ns(S, :any), :query => String),
+  :ret => S.or(:ok => ns(:result), :err => ns(:error))
 
 # And then we want to test the behavior of run_query while stubbing out
 # invoke_service with instrument so that the remote service is not invoked:
 
 STest.instrument method(:invoke_service), :stub => [method(:invoke_service)]
 
-invoke_service nil, :query.ns => "test"
+invoke_service nil, ns(:query) => "test"
 # => {:"main/error"=>530484792032744477}
-invoke_service nil, :query.ns => "test"
+invoke_service nil, ns(:query) => "test"
 # => {:"main/result"=>["lQRaQdKrAAdHgcxDBmaDWG"]}
 STest.summarize_results STest.check(method(:run_query))
 # => {:total=>1, :check_passed=>1}

@@ -35,19 +35,19 @@ S.valid?(/^\d+$/, "123")
 S.valid?(Set[:foo, :bar, :baz], :foo)
 ```
 
-### Namespaced keywords
+### Namespaced keywords/symbols
 
 Namespaced keywords are at the core of `clojure.spec`. Since spec utilises a global spec registry, namespaced keywords allow libraries to register specs with the same names but under different namespaces, thus removing accidental collisions. Ruby's equivalent to Clojure's keywords are Symbols. Ruby Symbol's don't have namespaces.
 
-In order keep the global spec registry architecture in Speculation, we utilise refinements achieve similar behaviour:
+In order keep the global spec registry architecture in Speculation, we utilise a helper method `ns` achieve similar behaviour:
 
 ```rb
-using Speculation::NamespacedSymbols.refine(MyModule)
+extend Speculation::NamespacedSymbols
 
-p :foo.ns
+p ns(:foo)
 # => :"MyModule/foo"
 
-p :foo.ns(AnotherModule)
+p ns(AnotherModule, :foo)
 # => :"AnotherModule/foo"
 ```
 

@@ -7,7 +7,7 @@ module Speculation
     STest = Speculation::Test
     Utils = Speculation::Utils
 
-    using S::NamespacedSymbols.refine(self)
+    include Speculation::NamespacedSymbols
 
     def test_fdef_instrument
       mod = Module.new do
@@ -161,33 +161,33 @@ module Speculation
         end
 
         def self.run_query(service, query)
-          response = invoke_service(service, :query.ns => query)
-          result, error = response.values_at(:result.ns, :error.ns)
+          response = invoke_service(service, ns(:query) => query)
+          result, error = response.values_at(ns(:result), ns(:error))
           result || error
         end
       end
 
-      S.def(:query.ns, String)
-      S.def(:request.ns, S.keys(:req => [:query.ns]))
-      S.def(:result.ns, S.coll_of(String, :gen_max => 3))
-      S.def(:error.ns, Integer)
-      S.def(:response.ns, S.or(:ok  => S.keys(:req => [:result.ns]),
-                               :err => S.keys(:req => [:error.ns])))
+      S.def(ns(:query), String)
+      S.def(ns(:request), S.keys(:req => [ns(:query)]))
+      S.def(ns(:result), S.coll_of(String, :gen_max => 3))
+      S.def(ns(:error), Integer)
+      S.def(ns(:response), S.or(:ok  => S.keys(:req => [ns(:result)]),
+                                :err => S.keys(:req => [ns(:error)])))
 
       S.fdef(mod.method(:invoke_service),
-             :args => S.cat(:service => :any.ns(S), :request => :request.ns),
-             :ret  => :response.ns)
+             :args => S.cat(:service => ns(S, :any), :request => ns(:request)),
+             :ret  => ns(:response))
 
       S.fdef(mod.method(:run_query),
-             :args => S.cat(:service => :any.ns(S), :query => String),
-             :ret  => S.or(:ok => :result.ns, :err => :error.ns))
+             :args => S.cat(:service => ns(S, :any), :query => String),
+             :ret  => S.or(:ok => ns(:result), :err => ns(:error)))
 
       # verify they satisfy spec now instrumented
       STest.instrument(mod.method(:invoke_service), :stub => [mod.method(:invoke_service)])
-      mod.invoke_service(nil, :query.ns => "test")
+      mod.invoke_service(nil, ns(:query) => "test")
 
       results = STest.check(mod.method(:run_query), :num_tests => 50)
-      assert_nil results.first[:failure.ns(STest)]
+      assert_nil results.first[ns(STest, :failure)]
     end
 
     def test_fdef_block_instrument
@@ -201,7 +201,7 @@ module Speculation
              :args  => S.and(S.cat(:start => Integer, :end => Integer),
                              ->(args) { args[:start] < args[:end] }),
              :block => S.fspec(:args => S.cat(:max => Integer),
-                               :ret  => :positive_integer.ns(S),
+                               :ret  => ns(S, :positive_integer),
                                :fn   => ->(x) { x[:ret] < x[:args][:max].abs }))
 
       STest.instrument(mod.method(:ranged_rand))
