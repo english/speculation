@@ -17,10 +17,10 @@ module Speculation
     # @private
     GEN_BUILTINS = {
       Integer    => ->(r) { r.integer },
-      String     => ->(r) { r.sized(r.range(0, 100)) { string(:alpha) } },
+      String     => ->(r) { r.sized(r.range(0, 20)) { string(:alpha) } },
       Float      => ->(_r) { rand(Float::MIN..Float::MAX) },
       Numeric    => ->(r) { r.branch(Gen.gen_for_pred(Integer), Gen.gen_for_pred(Float)) },
-      Symbol     => ->(r) { r.sized(r.range(0, 100)) { string(:alpha).to_sym } },
+      Symbol     => ->(r) { r.sized(r.range(0, 20)) { string(:alpha).to_sym } },
       TrueClass  => ->(_r) { true },
       FalseClass => ->(_r) { false },
       NilClass   => ->(_r) { nil },
