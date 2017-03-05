@@ -66,8 +66,8 @@ S.valid? Set[42], 42                                 # => true
 # Specs are registered using def. It’s up to you to register the specification
 # in a namespace that makes sense (typically a namespace you control).
 
-S.def ns(:date), Date                                 # => :"main/date"
-S.def ns(:suit), Set[:club, :diamond, :heart, :spade] # => :"main/suit"
+S.def ns(:date), Date                                 # => :"Object/date"
+S.def ns(:suit), Set[:club, :diamond, :heart, :spade] # => :"Object/suit"
 
 # A registered spec identifier can be used in place of a spec definition in the
 # operations we’ve seen so far - conform and valid?.
@@ -120,14 +120,14 @@ S.valid? S.nilable(String), nil # => true
 # says about some non-conforming examples we’ve seen so far.
 
 S.explain ns(:suit), 42
-# val: 42 fails spec: :"main/suit" predicate: #<Set: {:club, :diamond, :heart, :spade}>
+# >> val: 42 fails spec: :"Object/suit" predicate: [#<Set: {:club, :diamond, :heart, :spade}>, [42]]
 
 S.explain ns(:big_even), 5
-# val: 5 fails spec: :"main/big_even" predicate: #<Proc:0x007fcae5e95630(&:even?)>
+# >> val: 5 fails spec: :"Object/big_even" predicate: [#<Proc:0x007fb69b1908f8(&:even?)>, [5]]
 
 S.explain ns(:name_or_id), :foo
-# val: :foo fails spec: :"main/name_or_id" at: [:name] predicate: String
-# val: :foo fails spec: :"main/name_or_id" at: [:id] predicate: Integer
+# >> val: :foo fails spec: :"Object/name_or_id" at: [:name] predicate: [String, [:foo]]
+# >> val: :foo fails spec: :"Object/name_or_id" at: [:id] predicate: [Integer, [:foo]]
 
 # Let’s examine the output of the final example more closely. First note that
 # there are two errors being reported - spec will evaluate all possible
@@ -155,12 +155,12 @@ S.explain_data ns(:name_or_id), :foo
 # => {:"Speculation/problems"=>
 #      [{:path=>[:name],
 #        :val=>:foo,
-#        :via=>[:"main/name_or_id"],
+#        :via=>[:"Object/name_or_id"],
 #        :in=>[],
 #        :pred=>[String, [:foo]]},
 #       {:path=>[:id],
 #        :val=>:foo,
-#        :via=>[:"main/name_or_id"],
+#        :via=>[:"Object/name_or_id"],
 #        :in=>[],
 #        :pred=>[Integer, [:foo]]}]}
 
@@ -211,12 +211,12 @@ S.valid? ns(:person), ns(:first_name) => "Elon", ns(:last_name) => "Musk", ns(:e
 
 # Fails required key check
 S.explain ns(:person), ns(:first_name) => "Elon"
-# val: {:"main/first_name"=>"Elon"} fails spec: :"main/person" predicate: [:key?, :"main/last_name"]
-# val: {:"main/first_name"=>"Elon"} fails spec: :"main/person" predicate: [:key?, :"main/email"]
+# >> val: {:"Object/first_name"=>"Elon"} fails spec: :"Object/person" predicate: [#<Method: Speculation::Utils.key?>, [:"Object/last_name"]]
+# >> val: {:"Object/first_name"=>"Elon"} fails spec: :"Object/person" predicate: [#<Method: Speculation::Utils.key?>, [:"Object/email"]]
 
 # Fails attribute conformance
 S.explain ns(:person), ns(:first_name) => "Elon", ns(:last_name) => "Musk", ns(:email) => "n/a"
-# In: [:"main/email"] val: "n/a" fails spec: :"main/email_type" at: [:"main/email"] predicate: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,63}$/
+# >> In: [:"Object/email"] val: "n/a" fails spec: :"Object/email_type" at: [:"Object/email"] predicate: [/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,63}$/, ["n/a"]]
 
 # Let’s take a moment to examine the explain error output on that final example:
 
@@ -242,11 +242,11 @@ S.conform :"unq/person", :first_name => "Elon", :last_name => "Musk", :email => 
 # => {:first_name=>"Elon", :last_name=>"Musk", :email=>"elon@example.com"}
 
 S.explain :"unq/person", :first_name => "Elon", :last_name => "Musk", :email => "n/a"
-# In: [:email] val: "n/a" fails spec: :"main/email_type" at: [:email] predicate: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,63}$/
+# >> In: [:email] val: "n/a" fails spec: :"Object/email_type" at: [:email] predicate: [/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,63}$/, ["n/a"]]
 
 S.explain :"unq/person", :first_name => "Elon"
-# val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: [:key?, :"main/last_nam
-# val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: [:key?, :"main/email"]
+# >> val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: [#<Method: Speculation::Utils.key?>, [:"Object/last_name"]]
+# >> val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: [#<Method: Speculation::Utils.key?>, [:"Object/email"]]
 
 # Unqualified keys can also be used to validate record attributes # TODO for objects/structs
 # Keyword args keys* - don't support
@@ -296,11 +296,11 @@ S.conform S.coll_of(Numeric), Set[5, 10, 2] # => #<Set: {5, 10, 2}>
 S.def ns(:vnum3), S.coll_of(Numeric, :kind => Array, :count => 3, :distinct => true, :into => Set[])
 S.conform ns(:vnum3), [1, 2, 3] # => #<Set: {1, 2, 3}>
 S.explain ns(:vnum3), Set[1, 2, 3] # not an array
-# val: #<Set: {1, 2, 3}> fails spec: :"main/vnum3" predicate: Array
+# >> val: #<Set: {1, 2, 3}> fails spec: :"Object/vnum3" predicate: [Array, [#<Set: {1, 2, 3}>]]
 S.explain ns(:vnum3), [1, 1, 1] # not distinct
-# val: [1, 1, 1] fails spec: :"main/vnum3" predicate: "distinct?"
+# >> val: [1, 1, 1] fails spec: :"Object/vnum3" predicate: [#<Method: Speculation::Utils.distinct?>, [[1, 1, 1]]]
 S.explain ns(:vnum3), [1, 2, :a] # not a number
-# In: [2] val: :a fails spec: :"main/vnum3" predicate: Numeric
+# >> In: [2] val: :a fails spec: :"Object/vnum3" predicate: [Numeric, [:a]]
 
 # NOTE: Both coll-of and map-of will conform all of their elements, which may
 # make them unsuitable for large collections. In that case, consider every or
@@ -376,29 +376,29 @@ S.conform ns(:ingredient), [2, :teaspoon] # => {:quantity=>2, :unit=>:teaspoon}
 
 # pass string for unit instead of keyword
 S.explain ns(:ingredient), [11, "peaches"]
-# In: [1] val: "peaches" fails spec: :"main/ingredient" at: [:unit] predicate: Symbol
+# >> In: [1] val: "peaches" fails spec: :"Object/ingredient" at: [:unit] predicate: [Symbol, ["peaches"]]
 
 # leave out the unit
 S.explain ns(:ingredient), [2]
-# val: [] fails spec: :"main/ingredient" at: [:unit] predicate: Symbol, "Insufficient input"
+# >> val: [] fails spec: :"Object/ingredient" at: [:unit] predicate: [Symbol, []], "Insufficient input"
 
 # Let’s now see the various occurence operators zero_or_more, one_or_more, and zero_or_one:
 
 S.def ns(:seq_of_symbols), S.zero_or_more(Symbol)
 S.conform ns(:seq_of_symbols), [:a, :b, :c] # => [:a, :b, :c]
 S.explain ns(:seq_of_symbols), [10, 20]
-# In: [0] val: 10 fails spec: :"main/seq_of_symbols" predicate: Symbol
+# >> In: [0] val: 10 fails spec: :"Object/seq_of_symbols" predicate: [Symbol, [10]]
 
 S.def ns(:odds_then_maybe_even), S.cat(:odds => S.one_or_more(:odd?.to_proc),
-                                      :even => S.zero_or_one(:even?.to_proc))
+                                       :even => S.zero_or_one(:even?.to_proc))
 S.conform ns(:odds_then_maybe_even), [1, 3, 5, 100] # => {:odds=>[1, 3, 5], :even=>100}
 
 S.conform ns(:odds_then_maybe_even), [1] # => {:odds=>[1]}
 S.explain ns(:odds_then_maybe_even), [100]
-# In: [0] val: 100 fails spec: :"main/odds_then_maybe_even" at: [:odds] predicate: #<Proc:0x007fcae40f12c8(&:odd?)>
+# >> In: [0] val: 100 fails spec: :"Object/odds_then_maybe_even" at: [:odds] predicate: [#<Proc:0x007fb69a186ea8(&:odd?)>, [100]]
 
 # opts are alternating symbols and booleans
-S.def ns(:opts), S.zero_or_more(S.cat(:opt => Symbol, :val => ns(S, :boolean))))
+S.def ns(:opts), S.zero_or_more(S.cat(:opt => Symbol, :val => ns(S, :boolean)))
 S.conform ns(:opts), [:silent?, false, :verbose, true]
 # => [{:opt=>:silent?, :val=>false}, {:opt=>:verbose, :val=>true}]
 
@@ -540,7 +540,8 @@ configure ["-server", "foo", "-verbose", true, "-user", "joe"]
 # set user joe
 
 # Here configure calls conform to destructure the config input. The result is
-# either the special :invalid.n(S) value or a destructured form of the result:
+# either the special :"Speculation/invalid" value or a destructured form of the
+# result:
 
 [{:prop=>"-server", :val=>[:s, "foo"]},
  {:prop=>"-verbose", :val=>[:b, true]},
@@ -649,10 +650,9 @@ S.valid? ns(:player), kenny
 S.explain ns(:game),
   ns(:deck) => deck,
   ns(:players) => [{ns(:name) => "Kenny Rogers",
-                   ns(:score) => 100,
-                   ns(:hand) => [[2, :banana]]}]
-# In: [:"main/players", 0, :"main/hand", 0, 1] val: :banana fails spec: :"main/card"
-#   at: [:"main/players", :"main/hand", 1] predicate: #<Set: {:club, :diamond, :heart, :spade}>
+                    ns(:score) => 100,
+                    ns(:hand) => [[2, :banana]]}]
+# >> In: [:"Object/players", 0, :"Object/hand", 0, 1] val: :banana fails spec: :"Object/card" at: [:"Object/players", :"Object/hand", 1] predicate: [#<Set: {:club, :diamond, :heart, :spade}>, [:banana]]
 
 # The error indicates the key path in the data structure down to the invalid
 # value, the non-matching value, the spec part it’s trying to match, the path
@@ -701,75 +701,90 @@ Gen = S::Gen
 # it. You can generate a single sample value with generate or a series of
 # samples with sample. Let’s see some basic examples:
 
-Gen.generate S.gen(Integer) # => -1968781188547675782
+Gen.generate S.gen(Integer) # => 372495152381320358
 Gen.generate S.gen(NilClass) # => nil
 Gen.sample S.gen(String), 5
-# => ["PGrhxfPAXiTJkvoVAkEoluwmWZWXVYlJLuDbUDqShEGZOQdqNCwL",
-#     "jOVOmXWfHbGJdBJLKbyQNwMoXknBCFnmbgqrCiusNLmAIbibKhZlBmGHXxeGR",
-#     "PpZrDIPtvYUcqmzDQmwYZhCjakjNBVcRvaZPrMxNGQWExrlxermLvwJsUuKM",
-#     "GLtmWvdioWofstbQZtqMLoWcaMcHwZUWDWruEGlpelMbVJVKUwJKPGxnbnRSfBv",
-#     "DrzXlPWhigAlkQhmQnCbHZIvnHsCeSatDHBekxcSnkJNkahbtoOHKNnSyHnVjGzXMcusbGSuhs"]
+# => ["RhzOLQjmSjhWavH", "y", "", "O", "peoPwXHRBBAPjDxzEZQh"]
 Gen.sample S.gen(Set[:club, :diamond, :heart, :spade]), 5
-# => [:heart, :club, :heart, :spade, :spade]
+# => [:heart, :spade, :club, :spade, :spade]
 
 Gen.sample S.gen(S.cat(:k => Symbol, :ns => S.one_or_more(Numeric))), 4
-# => [[:dx,
-#      -2162815026970693883,
-#      1064814270396433082,
-#      1.1710325822185933e+308,
-#      4.0995826102518225e+307],
-#     [:tCcZIJDaLZzldOEtjyAQRFP, 1.16078252407797e+308],
-#     [:yWPuXmFpnTxmEBKtUjIYmKcRYVzQlWneFXjzAnPHvXJKdrnzrdIc,
-#      296452952874390145,
-#      6.06851186723452e+307,
-#      1583148339806299781,
-#      -81287676728413594,
-#      9.236467006922034e+306,
-#      1.4648808402357383e+308,
-#      2029145619144307870,
-#      1196631997546460411,
-#      1.530002593508585e+308,
-#      5.667578474610716e+307,
-#      1136839542761807620,
-#      1.3579982744182103e+307,
-#      -1372852116087422425,
-#      5.365396299479325e+307,
-#      -1253190362478651340,
-#      2003565665757815941,
-#      1600177945592639155,
-#      -861569840381638822],
-#     [:xxhRGJEslBMwtCfwSAijcWDZsvYmLRYxVqmdRldylQmMuUsbVGKAIvHwGXftlEnkzkhhqstLvjrN,
-#      2094192546636413279,
-#      260494542035868357,
-#      8.071872784305549e+307,
-#      -1057830144340469255,
-#      1.4883714317490253e+308,
-#      -294399452177362469,
-#      -1906803836143875331,
-#      5.813946054771322e+307,
-#      1.0191500847465163e+308,
-#      1.3694669385992445e+308,
-#      1.6581390613115863e+307,
-#      1.0106513915390591e+308,
-#      3.494176625943145e+306]]
+# => [[:csWKkimBORwN,
+#      -298753312314306397,
+#      -2303961522202434118,
+#      1679934373136969303,
+#      -262631322747429978,
+#      1.7157706401801108e+308,
+#      1758361237993287532,
+#      712842522394861335,
+#      -883871273503318653,
+#      1283229873044628318,
+#      1.5298057192258154e+308,
+#      1.7789073686150528e+308,
+#      -2281793086040303873,
+#      120746116914138063,
+#      -404134654833569820,
+#      -54740933266507251,
+#      5.01892001701602e+307],
+#     [:RetYrsJr,
+#      1.3391749738917395e+308,
+#      1.0920197216545966e+307,
+#      1.384947546752308e+307,
+#      1.3364975035426882e+308,
+#      327082393035103718,
+#      1.0209866964240673e+308,
+#      512415813150328683],
+#     [:UdDv,
+#      3.0578102207508006e+307,
+#      1.1626478137534508e+308,
+#      1.7939796459941183e+308,
+#      1494374259430455477,
+#      1.342849042383955e+308,
+#      -281429214092326237,
+#      -552507314062007344,
+#      4.1453903880025765e+307,
+#      -973157747452936365,
+#      1.1388886925899274e+308,
+#      2056792483501668313,
+#      999682663796411736,
+#      7.395274944717998e+306,
+#      -1514851160913660499,
+#      -2167762478595098510,
+#      824382210168550458,
+#      1614922845514653160],
+#     [:s,
+#      -234772724560973590,
+#      1.0042104238108253e+308,
+#      1.3942217537031457e+307,
+#      -1553774642616973743,
+#      -360282579504585923]]
 
 # What about generating a random player in our card game?
 
 Gen.generate S.gen(ns(:player))
-# => {:"main/name"=>
-#      "FDFFELJuqpnUyxBYgiYDCsguDlzVSFDHzxbOGhnRBHsFhaWlldhkTAugAVLVgiKlsZzHjVGqLolGY",
-#     :"main/score"=>-133445635477357014,
-#     :"main/hand"=>
-#      [[:ace, :club],
-#       [8, :heart],
-#       [6, :diamond],
+# => {:"Object/name"=>"qrmY",
+#     :"Object/score"=>-188402685781919929,
+#     :"Object/hand"=>
+#      [[10, :heart],
+#       [:king, :heart],
 #       [2, :spade],
-#       [2, :club],
-#       [6, :spade],
-#       [6, :club],
-#       [7, :spade],
-#       [2, :club],
-#       [:queen, :diamond]]}
+#       [7, :heart],
+#       [9, :club],
+#       [7, :club],
+#       [10, :diamond],
+#       [:jack, :spade],
+#       [2, :diamond],
+#       [3, :diamond],
+#       [:king, :spade],
+#       [5, :spade],
+#       [10, :heart],
+#       [:king, :heart],
+#       [:jack, :spade],
+#       [:king, :spade],
+#       [:queen, :club],
+#       [6, :diamond],
+#       [5, :club],
+#       [6, :club]]}
 
 # What about generating a whole game?
 
@@ -790,151 +805,117 @@ Gen.generate S.gen(ns(:game))
 # produce.
 
 S.exercise S.cat(:k => Symbol, :ns => S.one_or_more(Numeric)), :n => 5
-# => [[[:EQWsiRnZtMfQXQXiAjLOzdST,
-#       1.2659712971185498e+308,
-#       2085479247788455189],
-#      {:k=>:EQWsiRnZtMfQXQXiAjLOzdST,
-#       :ns=>[1.2659712971185498e+308, 2085479247788455189]}],
-#     [[:sKwocQmzAMaASp,
-#       -1090374283166080923,
-#       1965697154649846619,
-#       1.503731464848754e+308,
-#       -1075673328830597690,
-#       1298858850199587790,
-#       -1487573036438325236,
-#       117026241707053544,
-#       1.0715016500428205e+307,
-#       2.2270183668450494e+307,
-#       -1673467055124565717,
-#       4.325320169009646e+307,
-#       -995907838382909644,
-#       2.7366793637148644e+307],
-#      {:k=>:sKwocQmzAMaASp,
+# => [[[:AXgNzoRmshVeKju,
+#       -817925373115395462,
+#       1.5359311568381347e+308,
+#       1.1061449248034022e+308,
+#       -235267876425474208,
+#       3.955857252356689e+307,
+#       -889011872905836841,
+#       9.082764829559406e+307,
+#       3.8449893386631863e+307,
+#       1399473921337276004,
+#       1.1035252898212735e+308],
+#      {:k=>:AXgNzoRmshVeKju,
 #       :ns=>
-#        [-1090374283166080923,
-#         1965697154649846619,
-#         1.503731464848754e+308,
-#         -1075673328830597690,
-#         1298858850199587790,
-#         -1487573036438325236,
-#         117026241707053544,
-#         1.0715016500428205e+307,
-#         2.2270183668450494e+307,
-#         -1673467055124565717,
-#         4.325320169009646e+307,
-#         -995907838382909644,
-#         2.7366793637148644e+307]}],
-#     [[:OsTxdtxH,
-#       689302486807258558,
-#       -1050489705698506936,
-#       1.1141546388475957e+308,
-#       -83201640137914218,
-#       -1932884466261204651,
-#       1.269457902610247e+308,
-#       3.1266994556273625e+307,
-#       3.0121458603667766e+307,
-#       1628257618008005176,
-#       63959408852882025,
-#       6.200693261028909e+306,
-#       1814723965079476513,
-#       -1385951189288699781,
-#       1.546789645238744e+308,
-#       637577004852625424,
-#       -1786740744794536913,
-#       -1315877197388880241,
-#       2.2194189441665895e+307,
-#       1.7187038726935505e+307],
-#      {:k=>:OsTxdtxH,
+#        [-817925373115395462,
+#         1.5359311568381347e+308,
+#         1.1061449248034022e+308,
+#         -235267876425474208,
+#         3.955857252356689e+307,
+#         -889011872905836841,
+#         9.082764829559406e+307,
+#         3.8449893386631863e+307,
+#         1399473921337276004,
+#         1.1035252898212735e+308]}],
+#     [[:Nsndjayf,
+#       1.9984725870793707e+307,
+#       1.5323527859487139e+308,
+#       1.0526758425396865e+308,
+#       2187215078751341740,
+#       2000267805737910757,
+#       672724827310048814,
+#       7.353660057508847e+307,
+#       -499603991431322628,
+#       823374880053618568,
+#       988019501395130231,
+#       -85062962445868544,
+#       1208854825028261939,
+#       -239585966232519771],
+#      {:k=>:Nsndjayf,
 #       :ns=>
-#        [689302486807258558,
-#         -1050489705698506936,
-#         1.1141546388475957e+308,
-#         -83201640137914218,
-#         -1932884466261204651,
-#         1.269457902610247e+308,
-#         3.1266994556273625e+307,
-#         3.0121458603667766e+307,
-#         1628257618008005176,
-#         63959408852882025,
-#         6.200693261028909e+306,
-#         1814723965079476513,
-#         -1385951189288699781,
-#         1.546789645238744e+308,
-#         637577004852625424,
-#         -1786740744794536913,
-#         -1315877197388880241,
-#         2.2194189441665895e+307,
-#         1.7187038726935505e+307]}],
-#     [[:VNIeWoJCeLlw,
-#       -1739906344167902746,
-#       841559186790093019,
-#       6.383131945632958e+307,
-#       -1659234916078502642,
-#       -1381000825964413130,
-#       899769753207045990,
-#       -1852426090344875893,
-#       4.389328399130747e+307,
-#       1.06276106614152e+308,
-#       382920158410058324],
-#      {:k=>:VNIeWoJCeLlw,
+#        [1.9984725870793707e+307,
+#         1.5323527859487139e+308,
+#         1.0526758425396865e+308,
+#         2187215078751341740,
+#         2000267805737910757,
+#         672724827310048814,
+#         7.353660057508847e+307,
+#         -499603991431322628,
+#         823374880053618568,
+#         988019501395130231,
+#         -85062962445868544,
+#         1208854825028261939,
+#         -239585966232519771]}],
+#     [[:kKknKqGtQjl, 1.781549997030396e+305, -2255917728752340059],
+#      {:k=>:kKknKqGtQjl,
+#       :ns=>[1.781549997030396e+305, -2255917728752340059]}],
+#     [[:OknzgVGj,
+#       -2263138309988902357,
+#       6.780757328421502e+307,
+#       1159675302983770930,
+#       8.619504625294373e+307,
+#       -102111175606505256,
+#       3.1369602174703924e+307,
+#       714218663950371918,
+#       1072428045010760820,
+#       1.7120457957881442e+308,
+#       1.7220639025345156e+308,
+#       7.318059339504824e+307,
+#       -627281432214439965,
+#       1285330282675190977,
+#       5.624663033422957e+307],
+#      {:k=>:OknzgVGj,
 #       :ns=>
-#        [-1739906344167902746,
-#         841559186790093019,
-#         6.383131945632958e+307,
-#         -1659234916078502642,
-#         -1381000825964413130,
-#         899769753207045990,
-#         -1852426090344875893,
-#         4.389328399130747e+307,
-#         1.06276106614152e+308,
-#         382920158410058324]}],
-#     [[:ydkvreQShIiHpZniZqTBuKZxPLzIhaUgJCKaCxNQxmQkSpdvxmnGEpZYDaGbSuIWtyCVyQocmXAMqGkKJRnoIAt,
-#       719291944600699798,
-#       4.960337288166095e+307,
-#       1727543349247887433,
-#       1.5735269423479103e+308,
-#       350090828924863441,
-#       1.062488888712168e+308,
-#       6.012142066324197e+307,
-#       1.3723744827979336e+308,
-#       1854443965848396837],
-#      {:k=>
-#        :ydkvreQShIiHpZniZqTBuKZxPLzIhaUgJCKaCxNQxmQkSpdvxmnGEpZYDaGbSuIWtyCVyQocmXAMqGkKJRnoIAt,
-#       :ns=>
-#        [719291944600699798,
-#         4.960337288166095e+307,
-#         1727543349247887433,
-#         1.5735269423479103e+308,
-#         350090828924863441,
-#         1.062488888712168e+308,
-#         6.012142066324197e+307,
-#         1.3723744827979336e+308,
-#         1854443965848396837]}]]
+#        [-2263138309988902357,
+#         6.780757328421502e+307,
+#         1159675302983770930,
+#         8.619504625294373e+307,
+#         -102111175606505256,
+#         3.1369602174703924e+307,
+#         714218663950371918,
+#         1072428045010760820,
+#         1.7120457957881442e+308,
+#         1.7220639025345156e+308,
+#         7.318059339504824e+307,
+#         -627281432214439965,
+#         1285330282675190977,
+#         5.624663033422957e+307]}],
+#     [[:mifpKjpS, 3.8475669790437504e+307, 1.5541847940699583e+307],
+#      {:k=>:mifpKjpS,
+#       :ns=>[3.8475669790437504e+307, 1.5541847940699583e+307]}]]
 
 S.exercise S.or(:k => Symbol, :s => String, :n => Numeric), :n => 5
-# => [[1.4274601992121397e+307, [:n, 1.4274601992121397e+307]],
-#     ["nQOofcripJwToteLGjHXHRFsSBcHpjDu",
-#      [:s, "nQOofcripJwToteLGjHXHRFsSBcHpjDu"]],
-#     ["dYxcURqeTCNJWVQpsgYmSyAPouwUwNGoqpSnkXtTSrVxXQMmTKmYgCJOUgjZkMXYQVkBTfIYVKEyVZTSEvcnAGDa",
-#      [:s,
-#       "dYxcURqeTCNJWVQpsgYmSyAPouwUwNGoqpSnkXtTSrVxXQMmTKmYgCJOUgjZkMXYQVkBTfIYVKEyVZTSEvcnAGDa"]],
-#     [1.0507785748954594e+308, [:n, 1.0507785748954594e+308]],
-#     [6.066738700703583e+307, [:n, 6.066738700703583e+307]]]
+# => [[-1310754584514288, [:n, -1310754584514288]],
+#     [872148706486332083, [:n, 872148706486332083]],
+#     [:rHCoqRLZYhzSgOu, [:k, :rHCoqRLZYhzSgOu]],
+#     [-395552003092497804, [:n, -395552003092497804]],
+#     [:WoaPnjB, [:k, :WoaPnjB]]]
 
 # For spec’ed functions we also have exercise_fn, which generates sample args,
 # invokes the spec’ed function and returns the args and the return value.
 
 S.exercise_fn(method(:ranged_rand))
-# => [[[852783666463975496, 1719472354467400750], 1575440339609492240],
-#     [[-193011277324611892, 1276344096460519199], -118829442220835517],
-#     [[211220595472087098, 1267931153113170991], 838571664528780013],
-#     [[-1519986748085224680, 424674749441399870], -50125369784724144],
-#     [[247185748225939546, 473133483096399911], 404955567943858727],
-#     [[-1559082696110206642, 636214739230267512], -706046408742244724],
-#     [[782859373691655530, 1944667655199618495], 1633361757998022965],
-#     [[225206543396920009, 335096561893230301], 297763306630982274],
-#     [[-308899990959385075, 1412462903838945004], 1285562740439745647],
-#     [[-603287735563162887, -475019782648302262], -556111607953991362]]
+# => [[[-2128611012334186431, -1417738444057945122], -1635106169064592441],
+#     [[1514518280943101595, 1786254628919354373], 1739796291756227578],
+#     [[-46749061680797208, 822766248044755470], -7474228458851983],
+#     [[-649513218842008808, 1875894039691321060], -390581384114488816],
+#     [[858361555883341214, 1741658980258358628], 1374077212657449917],
+#     [[-1258388171360603963, -985723099401376708], -1123010455669592843],
+#     [[-1035489322616947034, 1688366643195138662], 441214083022620176],
+#     [[-2229284211372056198, -893085296484913242], -1161469637076511831],
+#     [[819684425123939548, 1044514159372510410], 971678102106589235],
+#     [[366502776249932529, 1318835861470496704], 377553467194155955]]
 
 ## Using S.and Generators
 
@@ -943,7 +924,7 @@ S.exercise_fn(method(:ranged_rand))
 # predicate implicitly presumes values of a particular type but the spec does
 # not specify them:
 
-Gen.generate S.gen(:even?.to_proc) rescue $! # => #<Speculation::Error: unable to construct gen at: [] for: Speculation::Spec(#<Proc:0x007f92a38c3b28(&:even?)>) {:"Speculation/failure"=>:no_gen, :"Speculation/path"=>[]}\n>
+Gen.generate S.gen(:even?.to_proc) rescue $! # => #<Speculation::Error: unable to construct gen at: [] for: Speculation::Spec(#<Proc:0x007fb69b1908f8(&:even?)>) {:"Speculation/failure"=>:no_gen, :"Speculation/path"=>[]}\n>
 
 # In this case spec was not able to find a generator for the even? predicate.
 # Most of the primitive generators in spec are mapped to the common type
@@ -957,7 +938,7 @@ Gen.generate S.gen(:even?.to_proc) rescue $! # => #<Speculation::Error: unable t
 # generator, the even? can be used as a filter for generated values instead:
 
 Gen.generate S.gen(S.and(Integer, :even?.to_proc))
-# => -976723845828927022
+# => 1875527059787064980
 
 # We can use many predicates to further refine the generated values. For
 # example, say we only wanted to generate numbers that were positive multiples
@@ -968,16 +949,16 @@ def self.divisible_by(n)
 end
 
 Gen.sample S.gen(S.and(Integer, :positive?.to_proc, divisible_by(3)))
-# => [1006569779282592693,
-#     1176081275600069928,
-#     1362150721958654211,
-#     874264234601367627,
-#     918847248917701572,
-#     450982889208729660,
-#     623955217093423761,
-#     455250545356103571,
-#     324408338474153901,
-#     1934802901575565338]
+# => [1003257946641857673,
+#     1302633092686504620,
+#     1067379217208623728,
+#     882135641374726149,
+#     1933864978000820676,
+#     235089151558168077,
+#     470438340672134322,
+#     2268668240213030931,
+#     1061519505888350829,
+#     1868667505095337938]
 
 # However, it is possible to go too far with refinement and make something that
 # fails to produce any values. The Rantly `guard` that implements the
@@ -987,7 +968,7 @@ Gen.sample S.gen(S.and(Integer, :positive?.to_proc, divisible_by(3)))
 
 # hello, are you the one I'm looking for?
 Gen.sample S.gen(S.and(String, ->(s) { s.include?("hello") })) rescue $!
-# => #<Rantly::TooManyTries: Exceed gen limit 100: 101 failed guards)>
+# => #<Rantly::TooManyTries: Exceed gen limit 1000: 1001 failed guards)>
 
 # Given enough time (maybe a lot of time), the generator probably would come up
 # with a string like this, but the underlying `guard` will make only 100
@@ -1012,9 +993,9 @@ Gen.sample S.gen(S.and(String, ->(s) { s.include?("hello") })) rescue $!
 # First consider a spec with a predicate to specify symbols from a particular
 # namespace:
 
-S.def ns(:syms), S.and(Symbol, ->(s) { s.namespace == "my.domain" })
+S.def ns(:syms), S.and(Symbol, ->(s) { S::NamespacedSymbols.namespace(s) == "my.domain" })
 S.valid? ns(:syms), :"my.domain/name" # => true
-Gen.sample S.gen(ns(:syms)) rescue $! # => #<Rantly::TooManyTries: Exceed gen limit 100: 101 failed guards)>
+Gen.sample S.gen(ns(:syms)) rescue $! # => #<Rantly::TooManyTries: Exceed gen limit 1000: 1001 failed guards)>
 
 # The simplest way to start generating values for this spec is to have spec
 # create a generator from a fixed set of options. A set is a valid predicate
@@ -1022,25 +1003,25 @@ Gen.sample S.gen(ns(:syms)) rescue $! # => #<Rantly::TooManyTries: Exceed gen li
 
 sym_gen = S.gen(Set[:"my.domain/name", :"my.domain/occupation", :"my.domain/id"])
 Gen.sample sym_gen, 5
-# => [:"my.domain/occupation",
+# => [:"my.domain/id",
+#     :"my.domain/name",
 #     :"my.domain/occupation",
 #     :"my.domain/name",
-#     :"my.domain/name",
-#     :"my.domain/occupation"]
+#     :"my.domain/id"]
 
 # To redefine our spec using this custom generator, use with_gen which takes a
 # spec and a replacement generator as a block:
 
 gen = S.gen(Set[:"my.domain/name", :"my.domain/occupation", :"my.domain/id"])
-S.def(ns(:syms), S.with_gen(S.and(Symbol, ->(s) { s.namespace == "my.domain" }), gen))
+S.def(ns(:syms), S.with_gen(S.and(Symbol, ->(s) { S::NamespacedSymbols.namespace(s) == "my.domain" }), gen))
 
 S.valid? ns(:syms), :"my.domain/name"
 Gen.sample S.gen(ns(:syms)), 5
-# => [:"my.domain/id",
+# => [:"my.domain/name",
 #     :"my.domain/id",
-#     :"my.domain/id",
-#     :"my.domain/name",
-#     :"my.domain/name"]
+#     :"my.domain/occupation",
+#     :"my.domain/occupation",
+#     :"my.domain/id"]
 
 # TODO: make gens no-arg functions???
 # Note that with_gen (and other places that take a custom generator) take a
@@ -1062,7 +1043,7 @@ sym_gen_2 = ->(rantly) do
   string = rantly.sized(size) { rantly.string(:alpha) }
   :"my.domain/#{string}"
 end
-Gen.sample sym_gen_2, 5 # => [:"my.domain/BO", :"my.domain/jKfaRRYT", :"my.domain/ai", :"my.domain/NSWaXNQm", :"my.domain/P"]
+Gen.sample sym_gen_2, 5 # => [:"my.domain/hLZnEpj", :"my.domain/kvy", :"my.domain/VqWbqD", :"my.domain/imq", :"my.domain/eHeZleWzj"]
 
 # Returning to our "hello" example, we now have the tools to make that
 # generator:
@@ -1074,16 +1055,16 @@ S.def ns(:hello), S.with_gen(->(s) { s.include?("hello") }, ->(rantly) {
 })
 
 Gen.sample S.gen(ns(:hello))
-# => ["EhhellofYMSR",
-#     "UpKSbUeAvlhelloHEDneAQ",
-#     "ZNdhufhello",
-#     "qVhhellojt",
-#     "jvACoLhelloJrC",
-#     "sVpZhelloHpPGda",
-#     "hello",
-#     "gBJhellof",
-#     "hellofnAHAPpnLk",
-#     "RhellopHGd"]
+# => ["XRLhtLshelloaY",
+#     "tXxZQHhZOhelloJ",
+#     "ExhellozzlPYz",
+#     "MaiierIhelloel",
+#     "WKZBJprQkhelloGdGToCbI",
+#     "RDFCZhello",
+#     "PXPsYwJLhellosYoYngd",
+#     "SuhelloJ",
+#     "wWhelloodQFFvdW",
+#     "pNhello"]
 
 # Here we generate a tuple of a random prefix and random suffix strings, then
 # insert "hello" bewteen them.
@@ -1098,27 +1079,27 @@ Gen.sample S.gen(ns(:hello))
 
 S.def ns(:roll), S.int_in(0..10)
 Gen.sample S.gen(ns(:roll))
-# => [1, 5, 3, 7, 8, 7, 3, 3, 7, 9]
+# => [10, 0, 8, 2, 6, 10, 1, 10, 10, 0]
 
 # spec also includes date_in for a range of dates:
 
 S.def ns(:the_aughts), S.date_in(Date.new(2000, 1, 1)..Date.new(2010))
 Gen.sample S.gen(ns(:the_aughts)), 5
-# => [#<Date: 2003-04-14 ((2452744j,0s,0n),+0s,2299161j)>,
-#     #<Date: 2002-01-19 ((2452294j,0s,0n),+0s,2299161j)>,
-#     #<Date: 2002-04-24 ((2452389j,0s,0n),+0s,2299161j)>,
-#     #<Date: 2003-12-11 ((2452985j,0s,0n),+0s,2299161j)>,
-#     #<Date: 2003-09-03 ((2452886j,0s,0n),+0s,2299161j)>]
+# => [#<Date: 2003-07-06 ((2452827j,0s,0n),+0s,2299161j)>,
+#     #<Date: 2009-04-13 ((2454935j,0s,0n),+0s,2299161j)>,
+#     #<Date: 2009-08-03 ((2455047j,0s,0n),+0s,2299161j)>,
+#     #<Date: 2006-07-07 ((2453924j,0s,0n),+0s,2299161j)>,
+#     #<Date: 2001-06-12 ((2452073j,0s,0n),+0s,2299161j)>]
 
 # spec also includes time_in for a range of times:
 
 S.def ns(:the_aughts), S.time_in(Time.new(2000)..Time.new(2010))
 Gen.sample S.gen(ns(:the_aughts)), 5
-# => [2002-01-14 07:36:15 -0800,
-#     2005-07-09 22:43:40 -0700,
-#     2009-07-10 17:40:11 -0700,
-#     2009-05-22 09:33:52 -0700,
-#     2003-05-07 22:53:56 -0700]
+# => [2000-03-26 07:01:27 -0800,
+#     2009-03-28 12:00:18 -0700,
+#     2003-09-20 15:33:42 -0700,
+#     2007-06-26 20:07:13 -0700,
+#     2003-11-25 16:59:38 -0800]
 
 # Finally, float_in has support for double ranges and special options for
 # checking special float values like NaN (not a number), Infinity, and
@@ -1127,7 +1108,7 @@ Gen.sample S.gen(ns(:the_aughts)), 5
 S.def ns(:floats), S.float_in(:min => -100.0, :max => 100.0, :nan => false, :infinite => false)
 S.valid? ns(:floats), 2.9             # => true
 S.valid? ns(:floats), Float::INFINITY # => false
-Gen.sample S.gen(ns(:floats)), 5      # => [59.170429959924064, -37.54981289340902, -99.93057937394319, -2.4758516913334887, -59.392247718783466]
+Gen.sample S.gen(ns(:floats)), 5      # => [65.53711851243327, 67.31921045318401, -71.92560111608772, 81.66336359400515, -30.4921955594738]
 
 ## Instrumentation and Testing
 
@@ -1151,22 +1132,22 @@ STest.instrument method(:ranged_rand)
 
 ranged_rand 8, 5 rescue $!
 # => #<Speculation::Error: Call to 'main.ranged_rand' did not conform to spec:
-#     val: {:start=>8, :end=>5} fails at: [:args] predicate: [#<Proc:0x007f92a5823d10@/var/folders/4l/j2mycv0j4rx7z47sp01r93vc3kfxzs/T/seeing_is_believing_temp_dir20170221-24684-1vv92fm/program.rb:546 (lambda)>, [{:start=>8, :end=>5}]]
+#     val: {:start=>8, :end=>5} fails at: [:args] predicate: [#<Proc:0x007fb69a8a0fb8@/var/folders/4l/j2mycv0j4rx7z47sp01r93vc3kfxzs/T/seeing_is_believing_temp_dir20170304-91770-1jtmc1y/program.rb:548 (lambda)>, [{:start=>8, :end=>5}]]
 #    Speculation/args [8, 5]
 #    Speculation/failure :instrument
-#    Speculation::Test/caller "/var/folders/4l/j2mycv0j4rx7z47sp01r93vc3kfxzs/T/seeing_is_believing_temp_dir20170221-24684-1vv92fm/program.rb:900:in `<main>'"
+#    Speculation::Test/caller "/var/folders/4l/j2mycv0j4rx7z47sp01r93vc3kfxzs/T/seeing_is_believing_temp_dir20170304-91770-1jtmc1y/program.rb:901:in `<main>'"
 #     {:"Speculation/problems"=>
 #      [{:path=>[:args],
 #        :val=>{:start=>8, :end=>5},
 #        :via=>[],
 #        :in=>[],
 #        :pred=>
-#         [#<Proc:0x007f92a5823d10@/var/folders/4l/j2mycv0j4rx7z47sp01r93vc3kfxzs/T/seeing_is_believing_temp_dir20170221-24684-1vv92fm/program.rb:546 (lambda)>,
+#         [#<Proc:0x007fb69a8a0fb8@/var/folders/4l/j2mycv0j4rx7z47sp01r93vc3kfxzs/T/seeing_is_believing_temp_dir20170304-91770-1jtmc1y/program.rb:548 (lambda)>,
 #          [{:start=>8, :end=>5}]]}],
 #     :"Speculation/args"=>[8, 5],
 #     :"Speculation/failure"=>:instrument,
 #     :"Speculation::Test/caller"=>
-#      "/var/folders/4l/j2mycv0j4rx7z47sp01r93vc3kfxzs/T/seeing_is_believing_temp_dir20170221-24684-1vv92fm/program.rb:900:in `<main>'"}
+#      "/var/folders/4l/j2mycv0j4rx7z47sp01r93vc3kfxzs/T/seeing_is_believing_temp_dir20170304-91770-1jtmc1y/program.rb:901:in `<main>'"}
 #    >
 
 # The error fails in the second args predicate that checks `start < end`. Note
@@ -1209,18 +1190,21 @@ end
 # expected range. Our :fn spec will detect the problem when checking the var:
 
 STest.abbrev_result STest.check(method(:ranged_rand)).first
-# {:spec=>"Speculation::FSpec(main.ranged_rand)",
-#  :method=>#<Method: main.ranged_rand>,
-#  :failure=>
-#   {:"Speculation/problems"=>
-#     [{:path=>[:fn],
-#       :val=>{:args=>{:start=>-1, :end=>0}, :block=>nil, :ret=>0},
-#       :via=>[],
-#       :in=>[],
-#       :pred=>[#<Proc:0x007fa0629519d8@(pry):264 (lambda)>, [{:args=>{:start=>-1, :end=>0}, :block=>nil, :ret=>0}]]}],
-#    :"Speculation::Test/args"=>[-1, 0],
-#    :"Speculation::Test/val"=>{:args=>{:start=>-1, :end=>0}, :block=>nil, :ret=>0},
-#    :"Speculation/failure"=>:check_failed}}
+# >> {:spec=>"Speculation::FSpec(main.ranged_rand)",
+# >>  :method=>#<Method: main.ranged_rand>,
+# >>  :failure=>
+# >>   {:"Speculation/problems"=>
+# >>     [{:path=>[:fn],
+# >>       :val=>{:args=>{:start=>-1, :end=>0}, :block=>nil, :ret=>0},
+# >>       :via=>[],
+# >>       :in=>[],
+# >>       :pred=>
+# >>        [#<Proc:0x007fb69a8a0c98@/var/folders/4l/j2mycv0j4rx7z47sp01r93vc3kfxzs/T/seeing_is_believing_temp_dir20170304-91770-1jtmc1y/program.rb:551 (lambda)>,
+# >>         [{:args=>{:start=>-1, :end=>0}, :block=>nil, :ret=>0}]]}],
+# >>    :"Speculation::Test/args"=>[-1, 0],
+# >>    :"Speculation::Test/val"=>
+# >>     {:args=>{:start=>-1, :end=>0}, :block=>nil, :ret=>0},
+# >>    :"Speculation/failure"=>:check_failed}}
 
 # check has reported an error in the :fn spec. We can see the arguments passed
 # were -1 and 0 and the return value was -0, which is out of the expected
@@ -1268,7 +1252,7 @@ S.def ns(:request), S.keys(:req => [ns(:query)])
 S.def ns(:result), S.coll_of(String, :gen_max => 3)
 S.def ns(:error), Integer
 S.def ns(:response), S.or(:ok => S.keys(:req => [ns(:result)]),
-                         :err => S.keys(:req => [ns(:error)]))
+                          :err => S.keys(:req => [ns(:error)]))
 
 S.fdef method(:invoke_service),
   :args => S.cat(:service => ns(S, :any), :request => ns(:request)),
@@ -1284,9 +1268,9 @@ S.fdef method(:run_query),
 STest.instrument method(:invoke_service), :stub => [method(:invoke_service)]
 
 invoke_service nil, ns(:query) => "test"
-# => {:"main/error"=>530484792032744477}
+# => {:"Object/result"=>["LtqDYvzOfVzCHWN", "ZASNKhtkwBAXyTF"]}
 invoke_service nil, ns(:query) => "test"
-# => {:"main/result"=>["lQRaQdKrAAdHgcxDBmaDWG"]}
+# => {:"Object/result"=>["yvccRd", "xREXEgc"]}
 STest.summarize_results STest.check(method(:run_query))
 # => {:total=>1, :check_passed=>1}
 
