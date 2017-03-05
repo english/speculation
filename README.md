@@ -1,6 +1,6 @@
 # Speculation [![Build Status](https://travis-ci.org/english/speculation.svg?branch=master)](https://travis-ci.org/english/speculation)
 
-A Ruby port of Clojure's `clojure.spec`. See [clojure.spec - Rationale and Overview](https://clojure.org/about/spec). All advantages/disadvantages for clojure.spec should apply to Speculation too. The `Speculation` library is largely a copy-and-paste from `clojure.spec` so all credit goes to the clojure.spec authors.
+A Ruby port of Clojure's `clojure.spec`. See [clojure.spec - Rationale and Overview](https://clojure.org/about/spec). All advantages/disadvantages for clojure.spec should apply to Speculation too. This library is largely a copy-and-paste from clojure.spec so all credit goes to the clojure.spec authors.
 
 ## Installation
 
@@ -29,7 +29,7 @@ The goal of this project is to match clojure.spec as closely as possible, from d
 
 ## Usage
 
-The API is more-or-less the same as `clojure.spec`. If you're already familiar with `clojure.spec` then you should be write at home with `Speculation`. Clojure and Ruby and quite different languages, so naturally there are some differences:
+The API is more-or-less the same as `clojure.spec`. If you're already familiar with then you should be write at home with Speculation. Clojure and Ruby and quite different languages, so naturally there are some differences:
 
 ### Built in predicates
 
