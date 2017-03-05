@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 # See http://blog.cognitect.com/blog/2016/10/5/interactive-development-with-clojurespec
 
 require "bundler/inline"
@@ -5,8 +6,8 @@ require "set"
 
 gemfile true do
   gem "speculation",
-    :git => "https://github.com/english/speculation.git",
-    :require => ["speculation", "speculation/test", "speculation/gen"]
+      :git     => "https://github.com/english/speculation.git",
+      :require => ["speculation", "speculation/test", "speculation/gen"]
 end
 
 S = Speculation
@@ -22,7 +23,7 @@ S.def ns(:code), S.coll_of(peg, :min_count => 4, :max_count => 6)
 def score; end
 
 S.fdef method(:score),
-  :args => S.cat(:secret => ns(:code), :guess => ns(:code))
+       :args => S.cat(:secret => ns(:code), :guess => ns(:code))
 
 S.exercise S.get_spec(method(:score)).args
 
@@ -32,8 +33,8 @@ S.exercise S.get_spec(method(:score)).args
 #  ...
 
 S.fdef method(:score),
-  :args => S.and(S.cat(:secret => ns(:code), :guess => ns(:code)),
-                 ->(args) { args[:secret].count == args[:guess].count })
+       :args => S.and(S.cat(:secret => ns(:code), :guess => ns(:code)),
+                      ->(args) { args[:secret].count == args[:guess].count })
 
 S.exercise S.get_spec(method(:score)).args
 
@@ -46,9 +47,9 @@ S.def ns(:exact_matches), ns(S, :natural_integer)
 S.def ns(:loose_matches), ns(S, :natural_integer)
 
 S.fdef method(:score),
-  :args => S.and(S.cat(:secret => ns(:code), :guess => ns(:code)),
-                 ->(args) { args[:secret].count == args[:guess].count }),
-  :ret => S.keys(:req => [ns(:exact_matches), ns(:loose_matches)])
+       :args => S.and(S.cat(:secret => ns(:code), :guess => ns(:code)),
+                      ->(args) { args[:secret].count == args[:guess].count }),
+       :ret  => S.keys(:req => [ns(:exact_matches), ns(:loose_matches)])
 
 S.exercise S.get_spec(method(:score)).ret
 # [[{:"main/exact_matches"=>301501626008109845, :"main/loose_matches"=>1592567845535536138},
@@ -58,13 +59,13 @@ S.exercise S.get_spec(method(:score)).ret
 # ...
 
 S.fdef method(:score),
-  :args => S.and(S.cat(:secret => ns(:code), :guess => ns(:code)),
-                 ->(args) { args[:secret].count == args[:guess].count }),
-  :ret => S.keys(:req => [ns(:exact_matches), ns(:loose_matches)]),
-  :fn => ->(fn) {
-    sum_matches = fn[:ret].values.reduce(&:+)
-    sum_matches.between?(0, fn[:args][:secret].count)
-  }
+       :args => S.and(S.cat(:secret => ns(:code), :guess => ns(:code)),
+                      ->(args) { args[:secret].count == args[:guess].count }),
+       :ret  => S.keys(:req => [ns(:exact_matches), ns(:loose_matches)]),
+       :fn   => ->(fn) {
+         sum_matches = fn[:ret].values.reduce(&:+)
+         sum_matches.between?(0, fn[:args][:secret].count)
+       }
 
 def self.score(secret, guess)
   { ns(:exact_matches) => 0,
@@ -121,20 +122,20 @@ def self.exact_matches(secret, guess)
 end
 
 S.def ns(:secret_and_guess), S.and(S.cat(:secret => ns(:code), :guess => ns(:code)),
-                                  ->(args) { args[:secret].count == args[:guess].count })
+                                   ->(args) { args[:secret].count == args[:guess].count })
 
 S.fdef method(:score),
-  :args => ns(:secret_and_guess),
-  :ret => S.keys(:req => [ns(:exact_matches), ns(:loose_matches)]),
-  :fn => ->(fn) {
-    sum_matches = fn[:ret].values.reduce(&:+)
-    sum_matches.between?(0, fn[:args][:secret].count)
-  }
+       :args => ns(:secret_and_guess),
+       :ret  => S.keys(:req => [ns(:exact_matches), ns(:loose_matches)]),
+       :fn   => ->(fn) {
+         sum_matches = fn[:ret].values.reduce(&:+)
+         sum_matches.between?(0, fn[:args][:secret].count)
+       }
 
 S.fdef method(:exact_matches),
-  :args => ns(:secret_and_guess),
-  :ret => ns(S, :natural_integer),
-  :fn => ->(fn) { fn[:ret].between?(0, fn[:args][:secret].count) }
+       :args => ns(:secret_and_guess),
+       :ret  => ns(S, :natural_integer),
+       :fn   => ->(fn) { fn[:ret].between?(0, fn[:args][:secret].count) }
 
 S.exercise_fn method(:exact_matches)
 
@@ -175,9 +176,9 @@ end
 def match_count; end
 
 S.fdef method(:match_count),
-  :args => ns(:secret_and_guess),
-  :ret => ns(S, :natural_integer),
-  :fn => ->(fn) { fn[:ret].between?(0, fn[:args][:secret].count) }
+       :args => ns(:secret_and_guess),
+       :ret  => ns(S, :natural_integer),
+       :fn   => ->(fn) { fn[:ret].between?(0, fn[:args][:secret].count) }
 
 S.exercise_fn method(:exact_matches), :n => 10, :fspec => S.get_spec(method(:match_count))
 
@@ -226,8 +227,8 @@ def self.score(secret, guess)
 end
 
 STest.instrument [method(:exact_matches), method(:all_matches)],
-  :spec => { method(:exact_matches) => S.get_spec(method(:exact_matches)),
-             method(:all_matches) => S.get_spec(method(:exact_matches)) }
+                 :spec => { method(:exact_matches) => S.get_spec(method(:exact_matches)),
+                            method(:all_matches)   => S.get_spec(method(:exact_matches)) }
 
 S.exercise_fn method(:score)
 # [[[[:w, :r, :w, :c, :c, :c], [:r, :y, :r, :w, :c, :b]], {:"main/exact_matches"=>1, :"main/loose_matches"=>2}],
