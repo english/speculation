@@ -1,6 +1,6 @@
-# Speculation
+# Speculation [![Build Status](https://travis-ci.org/english/speculation.svg?branch=master)](https://travis-ci.org/english/speculation)
 
-A Ruby port of Clojure's `clojure.spec`. See [clojure.spec - Rationale and Overview](https://clojure.org/about/spec). The `Speculation` library is largely a copy-and-paste from `clojure.spec`. All credit goes to the clojure.spec authors.
+A Ruby port of Clojure's `clojure.spec`. See [clojure.spec - Rationale and Overview](https://clojure.org/about/spec). All advantages/disadvantages for clojure.spec should apply to Speculation too. The `Speculation` library is largely a copy-and-paste from `clojure.spec` so all credit goes to the clojure.spec authors.
 
 ## Installation
 
@@ -18,10 +18,14 @@ Or install it yourself as:
 
     $ gem install speculation
 
+## Project Goals
+
+The goal of this project is to match clojure.spec as closely as possible, from design to features to API. This decision comes with the trade-off that the library may not necessarily be idiomatic Ruby, however there's nothing stopping other libraries from being built atop Speculation to bring a more Ruby-like feel. This library won't introduce features that do not exist in clojure.spec.
+
 ## Examples
 
-- [Speculation port](examples/spec_guide.rb) of Clojure's [spec guide](https://clojure.org/guides/spec)
-- [Speculation port](examples/codebreaker.rb) of the 'codebreaker' game described in [Interactive development with clojure.spec](http://blog.cognitect.com/blog/2016/10/5/interactive-development-with-clojurespec)
+- [spec_guide.rb](examples/spec_guide.rb): Speculation port of Clojure's [spec guide](https://clojure.org/guides/spec)
+- [codebreaker.rb](examples/codebreaker.rb): Speculation port of the 'codebreaker' game described in [Interactive development with clojure.spec](http://blog.cognitect.com/blog/2016/10/5/interactive-development-with-clojurespec)
 
 ## Usage
 
@@ -89,10 +93,6 @@ S.fdef(method(:hello), :args => S.cat(:name => String),
 Speculation uses [`Rantly`](https://github.com/abargnesi/rantly) for random data generation. Generator functions in Speculation are Procs that take one argument (Rantly instance) and return random value. While clojure's test.check generators generate values that start small and continue to grow and get more complex as a property holds true, Rantly always generates random values.
 
 Rantly gives Speculation the ability to shrink a failing test case down to a its smallest failing case, however in Speculation we limit this to Integers and Strings. This is an area where Speculation may currently be significantly weaker than clojure.spec.
-
-## Project Goals
-
-The goal of this project is to match clojure.spec as closely as possible, from design to features to API. This decision comes with the trade-off that the library may not necessarily be idiomatic Ruby, however there's nothing stopping other libraries from being built atop Speculation to bring a more Ruby-like feel. This library won't introduce features that do not exist in clojure.spec.
 
 ## Development
 
