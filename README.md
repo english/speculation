@@ -2,25 +2,9 @@
 
 A Ruby port of Clojure's `clojure.spec`. See [clojure.spec - Rationale and Overview](https://clojure.org/about/spec). All advantages/disadvantages for clojure.spec should apply to Speculation too. This library is largely a copy-and-paste from clojure.spec so all credit goes to the clojure.spec authors.
 
-## Installation
-
-Add this line to your application's Gemfile:
-
-```ruby
-gem 'speculation'
-```
-
-And then execute:
-
-    $ bundle
-
-Or install it yourself as:
-
-    $ gem install speculation
-
 ## Project Goals
 
-The goal of this project is to match clojure.spec as closely as possible, from design to features to API. This decision comes with the trade-off that the library may not necessarily be idiomatic Ruby, however there's nothing stopping other libraries from being built atop Speculation to bring a more Ruby-like feel. This library won't introduce features that do not exist in clojure.spec.
+The goal of this project is to match clojure.spec as closely as possible, from design to features to API. This decision comes with the trade-off that the library may not necessarily be idiomatic Ruby, however there's nothing stopping other libraries from being built on top of Speculation to bring a more Ruby-like feel. This library won't introduce features that do not exist in clojure.spec.
 
 ## Examples
 
@@ -29,7 +13,7 @@ The goal of this project is to match clojure.spec as closely as possible, from d
 
 ## Usage
 
-The API is more-or-less the same as `clojure.spec`. If you're already familiar with then you should be write at home with Speculation. Clojure and Ruby and quite different languages, so naturally there are some differences:
+The API is more-or-less the same as `clojure.spec`. If you're already familiar clojure.spec with then you should feel at home with Speculation. Clojure and Ruby and quite different languages, so naturally there are some differences:
 
 ### Built in predicates
 
@@ -46,18 +30,20 @@ S.valid?(Set[:foo, :bar, :baz], :foo)
 
 ### Namespaced keywords/symbols
 
-Namespaced keywords are at the core of `clojure.spec`. Since spec utilises a global spec registry, namespaced keywords allow libraries to register specs with the same names but under different namespaces, thus removing accidental collisions. Ruby's equivalent to Clojure's keywords are Symbols. Ruby Symbol's don't have namespaces.
+Namespaced keywords are at the core of `clojure.spec`. Since clojure.spec utilises a global spec registry, namespaced keywords allow libraries to register specs with the same names but under different namespaces, thus removing accidental collisions. Ruby's equivalent to Clojure's keywords are Symbols. Ruby Symbol's don't have namespaces.
 
-In order keep the global spec registry architecture in Speculation, we utilise a helper method `ns` achieve similar behaviour:
+In order keep the global spec registry architecture in Speculation, we utilise a helper method `ns` to achieve similar behaviour:
 
 ```rb
-extend Speculation::NamespacedSymbols
+module MyModule
+  extend Speculation::NamespacedSymbols
 
-p ns(:foo)
-# => :"MyModule/foo"
+  p ns(:foo)
+  # => :"MyModule/foo"
 
-p ns(AnotherModule, :foo)
-# => :"AnotherModule/foo"
+  p ns(AnotherModule, :foo)
+  # => :"AnotherModule/foo"
+end
 ```
 
 ### FSpecs
@@ -90,9 +76,9 @@ S.fdef(method(:hello), :args => S.cat(:name => String),
 
 #### Generators and quick check
 
-Speculation uses [`Rantly`](https://github.com/abargnesi/rantly) for random data generation. Generator functions in Speculation are Procs that take one argument (Rantly instance) and return random value. While clojure's test.check generators generate values that start small and continue to grow and get more complex as a property holds true, Rantly always generates random values.
+Speculation uses [`Rantly`](https://github.com/abargnesi/rantly) for random data generation. Generator functions in Speculation are Procs that take one argument (Rantly instance) and return a random value. While clojure's test.check generators generate values that start small and continue to grow and get more complex as a property holds true, Rantly always generates random values.
 
-Rantly gives Speculation the ability to shrink a failing test case down to a its smallest failing case, however in Speculation we limit this to Integers and Strings. This is an area where Speculation may currently be significantly weaker than clojure.spec.
+Rantly gives Speculation the ability to shrink a failing test case down to its smallest failing case, however in Speculation we limit this to Integers and Strings. This is an area where Speculation may currently be significantly weaker than clojure.spec.
 
 ## Development
 
