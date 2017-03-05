@@ -9,17 +9,13 @@ task :rubocop do
 end
 
 task :test do
-  if RUBY_PLATFORM == "java"
-    $LOAD_PATH.unshift(File.expand_path("../test", __FILE__))
+  $LOAD_PATH.unshift(File.expand_path("../test", __FILE__))
 
-    FileList["test/**/*.rb"].each do |test_file|
-      require "./#{test_file}"
-    end
-
-    raise unless Minitest.run
-  else
-    sh "TEST_QUEUE_SPLIT_GROUPS=1 bundle exec ruby -r minitest/autorun -I test -S minitest-queue $(find test -name *_test.rb)"
+  FileList["test/**/*.rb"].each do |test_file|
+    require "./#{test_file}"
   end
+
+  raise unless Minitest.run
 end
 
 task :doc do
