@@ -134,29 +134,6 @@ module Speculation
 
     private
 
-    def sexp_to_rb(sexp, level = 0)
-      if sexp.is_a?(Array)
-        op, *keys = sexp
-        rb_string = String.new
-
-        rb_string << "(" unless level.zero?
-
-        keys.each_with_index do |key, i|
-          unless i.zero?
-            rb_string << " #{NamespacedSymbols.name(op)} "
-          end
-
-          rb_string << sexp_to_rb(key, level + 1).to_s
-        end
-
-        rb_string << ")" unless level.zero?
-
-        rb_string
-      else
-        sexp
-      end
-    end
-
     def extract_keys(symbol_or_arr)
       if symbol_or_arr.is_a?(Array)
         symbol_or_arr[1..-1].flat_map(&method(:extract_keys))
