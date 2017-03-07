@@ -1286,22 +1286,15 @@ module Speculation
         raise "Unexpected #{ns(:op)} #{p[ns(:op)]}"
       end
     end
-
-    # Resets the spec registry to only builtin specs
-    def reset_registry!
-      builtins = {
-        ns(:any)              => with_gen(Utils.constantly(true), ->(r) { r.branch(*Gen::GEN_BUILTINS.values) }),
-        ns(:boolean)          => Set[true, false],
-        ns(:positive_integer) => with_gen(self.and(Integer, ->(x) { x > 0 }), ->(r) { r.range(1) }),
-        # Rantly#positive_integer is actually a natural integer
-        ns(:natural_integer)  => with_gen(self.and(Integer, ->(x) { x >= 0 }), :positive_integer.to_proc),
-        ns(:negative_integer) => with_gen(self.and(Integer, ->(x) { x < 0 }), ->(r) { r.range(nil, -1) }),
-        ns(:empty)            => with_gen(Utils.method(:empty?), Utils.constantly([]))
-      }.freeze
-
-      @registry_ref.reset(builtins)
-    end
   end
 
-  reset_registry!
+  @registry_ref.reset(
+    ns(:any)              => with_gen(Utils.constantly(true), ->(r) { r.branch(*Gen::GEN_BUILTINS.values) }),
+    ns(:boolean)          => Set[true, false],
+    ns(:positive_integer) => with_gen(self.and(Integer, ->(x) { x > 0 }), ->(r) { r.range(1) }),
+    # Rantly#positive_integer is actually a natural integer
+    ns(:natural_integer)  => with_gen(self.and(Integer, ->(x) { x >= 0 }), :positive_integer.to_proc),
+    ns(:negative_integer) => with_gen(self.and(Integer, ->(x) { x < 0 }), ->(r) { r.range(nil, -1) }),
+    ns(:empty)            => with_gen(Utils.method(:empty?), Utils.constantly([]))
+  )
 end
