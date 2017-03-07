@@ -74,8 +74,7 @@ module Speculation
         failures = parse_req(@req, value, Utils.method(:itself))
 
         failures.each do |failure_sexp|
-          # eww
-          pred = [Utils.method(:key?), [sexp_to_rb(failure_sexp)]]
+          pred = [Utils.method(:key?), [*failure_sexp]]
           problems << { :path => path, :pred => pred, :val => value, :via => via, :in => inn }
         end
       end
@@ -84,7 +83,7 @@ module Speculation
         failures = parse_req(@req_un, value, method(:unqualify_key))
 
         failures.each do |failure_sexp|
-          pred = [Utils.method(:key?), [sexp_to_rb(failure_sexp)]]
+          pred = [Utils.method(:key?), [*failure_sexp]]
           problems << { :path => path, :pred => pred, :val => value, :via => via, :in => inn }
         end
       end

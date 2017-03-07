@@ -4,6 +4,7 @@ require "test_helper"
 module Speculation
   class HashSpecTest < Minitest::Test
     S = Speculation
+    Utils = S::Utils
     include S::NamespacedSymbols
 
     def test_hash_keys
@@ -53,8 +54,14 @@ module Speculation
             S.keys(:req_un => [S.or_keys(S.and_keys(ns(:first_name), ns(:last_name)), ns(:email))],
                    :opt_un => [ns(:phone)]))
 
+      ed = S.explain_data ns(:unq, :person), :first_name => "Elon"
+      problems = ed[ns(S, :problems)]
+      pred = problems.first[:pred]
+
+      assert_equal [Utils.method(:key?), S.or_keys(S.and_keys(ns(:first_name), ns(:last_name)), ns(:email))], pred
+
       assert_equal <<-EOS, S.explain_str(ns(:unq, :person), :first_name => "Elon")
-val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: [#{Utils.method(:key?)}, ["(Speculation::HashSpecTest/first_name and Speculation::HashSpecTest/last_name) or Speculation::HashSpecTest/email"]]
+val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: [#{Utils.method(:key?)}, [:"Speculation/or", [:"Speculation/and", :"Speculation::HashSpecTest/first_name", :"Speculation::HashSpecTest/last_name"], :"Speculation::HashSpecTest/email"]]
       EOS
     end
 
