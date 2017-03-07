@@ -2,7 +2,7 @@
 
 module Speculation
   # @private
-  class FSpec < SpecImpl
+  class FSpec < Spec
     include NamespacedSymbols
     S = Speculation
 

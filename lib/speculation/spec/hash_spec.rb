@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 module Speculation
   # @private
-  class HashSpec < SpecImpl
+  class HashSpec < Spec
     include NamespacedSymbols
     S = Speculation
 

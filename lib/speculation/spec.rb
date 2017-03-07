@@ -2,7 +2,7 @@
 
 module Speculation
   # @private
-  class SpecImpl
+  class Spec
     attr_accessor :name, :gen
     attr_reader :id
 
@@ -24,13 +24,13 @@ module Speculation
   end
 end
 
-require_relative "spec_impl/hash_spec"
-require_relative "spec_impl/spec"
-require_relative "spec_impl/tuple_spec"
-require_relative "spec_impl/or_spec"
-require_relative "spec_impl/and_spec"
-require_relative "spec_impl/merge_spec"
-require_relative "spec_impl/every_spec"
-require_relative "spec_impl/regex_spec"
-require_relative "spec_impl/f_spec"
-require_relative "spec_impl/nilable_spec"
+require_relative "spec/hash_spec"
+require_relative "spec/predicate_spec"
+require_relative "spec/tuple_spec"
+require_relative "spec/or_spec"
+require_relative "spec/and_spec"
+require_relative "spec/merge_spec"
+require_relative "spec/every_spec"
+require_relative "spec/regex_spec"
+require_relative "spec/f_spec"
+require_relative "spec/nilable_spec"

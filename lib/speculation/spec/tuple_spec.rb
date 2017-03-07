@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 module Speculation
   # @private
-  class TupleSpec < SpecImpl
+  class TupleSpec < Spec
     include NamespacedSymbols
     S = Speculation
 

@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 module Speculation
   # @private
-  class MergeSpec < SpecImpl
+  class MergeSpec < Spec
     include NamespacedSymbols
     S = Speculation
 

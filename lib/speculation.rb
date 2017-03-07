@@ -7,7 +7,7 @@ require "speculation/version"
 require "speculation/namespaced_symbols"
 require "speculation/identifier"
 require "speculation/utils"
-require "speculation/spec_impl"
+require "speculation/spec"
 require "speculation/error"
 
 module Speculation
@@ -108,7 +108,7 @@ module Speculation
   # @param x [Spec, Object]
   # @return [Spec, false] x if x is a spec, else false
   def self.spec?(x)
-    x if x.is_a?(SpecImpl)
+    x if x.is_a?(Spec)
   end
 
   # @param x [Hash, Object]
@@ -700,7 +700,7 @@ module Speculation
     elsif Utils.ident?(pred)
       the_spec(pred)
     else
-      Spec.new(pred, should_conform)
+      PredicateSpec.new(pred, should_conform)
     end
   end
 

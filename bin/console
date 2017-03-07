@@ -23,9 +23,9 @@ def reload!
   load "./lib/speculation/utils.rb"
   load "./lib/speculation/error.rb"
 
-  load "./lib/speculation/spec_impl.rb"
+  load "./lib/speculation/spec.rb"
 
-  Dir["lib/speculation/spec_impl/*.rb"].each do |f|
+  Dir["lib/speculation/spec/*.rb"].each do |f|
     load f
   end
 

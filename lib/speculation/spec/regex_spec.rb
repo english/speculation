@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 module Speculation
   # @private
-  class RegexSpec < SpecImpl
+  class RegexSpec < Spec
     include NamespacedSymbols
     S = Speculation
 

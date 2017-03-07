@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 module Speculation
   # @private
-  class NilableSpec < SpecImpl
+  class NilableSpec < Spec
     include NamespacedSymbols
     S = Speculation
 
