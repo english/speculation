@@ -13,7 +13,7 @@ module Speculation
       ms = @preds.map { |pred| S.dt(pred, x) }
 
       if ms.any?(&S.method(:invalid?))
-        ns(S, :invalid)
+        S::INVALID
       else
         ms.reduce(&:merge)
       end

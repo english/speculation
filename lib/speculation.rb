@@ -42,6 +42,8 @@ module Speculation
 
   @registry_ref = Concurrent::Atom.new({})
 
+  INVALID = ns(:invalid)
+
   # Can be enabled or disabled at runtime:
   # - enabled/disabled by setting `check_asserts`.
   # - enabled by setting environment variable SPECULATION_CHECK_ASSERTS to the
@@ -120,7 +122,7 @@ module Speculation
   # @param value return value of a `conform` call
   # @return [Boolean] true if value is the result of an unsuccessful conform
   def self.invalid?(value)
-    value.equal?(ns(:invalid))
+    value.equal?(INVALID)
   end
 
   # @param spec [Spec]
@@ -661,11 +663,11 @@ module Speculation
     if spec
       conform(spec, x)
     elsif pred.is_a?(Module) || pred.is_a?(::Regexp)
-      pred === x ? x : ns(:invalid)
+      pred === x ? x : INVALID
     elsif pred.is_a?(Set)
-      pred.include?(x) ? x : ns(:invalid)
+      pred.include?(x) ? x : INVALID
     elsif pred.respond_to?(:call)
-      pred.call(x) ? x : ns(:invalid)
+      pred.call(x) ? x : INVALID
     else
       raise "#{pred} is not a class, proc, set or regexp"
     end
@@ -810,7 +812,7 @@ module Speculation
     x, *xs = data
 
     if data.empty?
-      return ns(:invalid) unless accept_nil?(regex)
+      return INVALID unless accept_nil?(regex)
 
       return_value = preturn(regex)
 
@@ -825,7 +827,7 @@ module Speculation
       if dp
         re_conform(dp, xs)
       else
-        ns(:invalid)
+        INVALID
       end
     end
   end
@@ -953,7 +955,7 @@ module Speculation
       x = dt(pred, x)
 
       if invalid?(x)
-        ns(:invalid)
+        INVALID
       elsif preds.empty?
         x
       else

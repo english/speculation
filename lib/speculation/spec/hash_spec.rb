@@ -38,7 +38,7 @@ module Speculation
     end
 
     def conform(value)
-      return ns(S, :invalid) unless @keys_pred.call(value)
+      return S::INVALID unless @keys_pred.call(value)
 
       reg = S.registry
       ret = value
@@ -52,7 +52,7 @@ module Speculation
         conformed_value = S.conform(spec, v)
 
         if S.invalid?(conformed_value)
-          return ns(S, :invalid)
+          return S::INVALID
         else
           unless conformed_value.equal?(v)
             ret = ret.merge(key => conformed_value)

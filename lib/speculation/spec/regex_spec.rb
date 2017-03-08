@@ -13,7 +13,7 @@ module Speculation
       if value.nil? || Utils.collection?(value)
         S.re_conform(@regex, value)
       else
-        ns(S, :invalid)
+        S::INVALID
       end
     end
 

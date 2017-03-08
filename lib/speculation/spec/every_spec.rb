@@ -55,7 +55,7 @@ module Speculation
     end
 
     def conform(value)
-      return ns(S, :invalid) unless @collection_predicate.call(value)
+      return S::INVALID unless @collection_predicate.call(value)
 
       spec = @delayed_spec.value!
 
@@ -68,7 +68,7 @@ module Speculation
           conformed_value = spec.conform(val)
 
           if S.invalid?(conformed_value)
-            return ns(S, :invalid)
+            return S::INVALID
           else
             return_value = add.call(return_value, index, val, conformed_value)
           end
@@ -81,7 +81,7 @@ module Speculation
 
         value.each_with_index do |item, index|
           return value if index == limit
-          return ns(S, :invalid) unless S.valid?(spec, item)
+          return S::INVALID unless S.valid?(spec, item)
         end
 
         value

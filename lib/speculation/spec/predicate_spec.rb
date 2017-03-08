@@ -20,7 +20,7 @@ module Speculation
       if @should_conform
         ret
       else
-        ret ? value : ns(S, :invalid)
+        ret ? value : S::INVALID
       end
     end
 

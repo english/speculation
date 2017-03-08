@@ -17,7 +17,7 @@ module Speculation
       specs = @delayed_specs.value!
 
       unless Utils.array?(collection) && collection.count == specs.count
-        return ns(S, :invalid)
+        return S::INVALID
       end
 
       return_value = collection.class.new
@@ -26,7 +26,7 @@ module Speculation
         conformed_value = spec.conform(value)
 
         if S.invalid?(conformed_value)
-          return ns(S, :invalid)
+          return S::INVALID
         else
           return_value += [conformed_value]
         end

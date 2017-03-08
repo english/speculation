@@ -27,7 +27,7 @@ module Speculation
         end
       end
 
-      ns(S, :invalid)
+      S::INVALID
     end
 
     def explain(path, via, inn, value)

@@ -218,7 +218,7 @@ module Speculation
           conformed_args = S.conform(fspec.args, args)
           conformed_block = S.conform(fspec.block, block) if fspec.block
 
-          if conformed_args == ns(S, :invalid)
+          if conformed_args == S::INVALID
             backtrace = backtrace_relevant_to_instrument(caller)
 
             ed = S.
@@ -230,7 +230,7 @@ module Speculation
             msg = io.string
 
             raise Speculation::Error.new("Call to '#{ident}' did not conform to spec:\n #{msg}", ed)
-          elsif conformed_block == ns(S, :invalid)
+          elsif conformed_block == S::INVALID
             backtrace = backtrace_relevant_to_instrument(caller)
 
             ed = S.
@@ -354,13 +354,13 @@ module Speculation
       def check_call(method, spec, args, block)
         conformed_args = S.conform(spec.args, args) if spec.args
 
-        if conformed_args == ns(S, :invalid)
+        if conformed_args == S::INVALID
           return explain_check(args, spec.args, args, :args)
         end
 
         conformed_block = S.conform(spec.block, block) if spec.block
 
-        if conformed_block == ns(S, :invalid)
+        if conformed_block == S::INVALID
           return explain_check(block, spec.block, block, :block)
         end
 
@@ -368,7 +368,7 @@ module Speculation
 
         conformed_ret = S.conform(spec.ret, ret) if spec.ret
 
-        if conformed_ret == ns(S, :invalid)
+        if conformed_ret == S::INVALID
           return explain_check(args, spec.ret, ret, :ret)
         end
 
