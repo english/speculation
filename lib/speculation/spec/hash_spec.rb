@@ -34,7 +34,7 @@ module Speculation
       @opt_keys        = opt + opt_un.map(&method(:unqualify_key))
       @opt_specs       = opt + opt_un
       @keys_pred       = ->(v) { pred_exprs.all? { |p| p.call(v) } }
-      @key_to_spec_map = Hash[req_keys.concat(@opt_keys).zip(req_specs.concat(@opt_specs))]
+      @key_to_spec_map = Hash[Utils.conj(req_keys, @opt_keys).zip(Utils.conj(req_specs, @opt_specs))]
     end
 
     def conform(value)
