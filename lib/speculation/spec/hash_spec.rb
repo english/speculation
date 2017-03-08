@@ -153,7 +153,7 @@ module Speculation
               op, *kks = key
               case op
               when ns(S, :or)
-                if kks.one? { |k| parse_req([k], v, f).empty? }
+                if kks.any? { |k| parse_req([k], v, f).empty? }
                   []
                 else
                   [key]
