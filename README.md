@@ -8,6 +8,7 @@ The goal of this project is to match clojure.spec as closely as possible, from d
 
 ## Examples
 
+- [sinatra-web-app](examples/sinatra-web-app): A small sinatra web application demonstrating model validation and API error message generation.
 - [spec_guide.rb](examples/spec_guide.rb): Speculation port of Clojure's [spec guide](https://clojure.org/guides/spec)
 - [codebreaker.rb](examples/codebreaker.rb): Speculation port of the 'codebreaker' game described in [Interactive development with clojure.spec](http://blog.cognitect.com/blog/2016/10/5/interactive-development-with-clojurespec)
 

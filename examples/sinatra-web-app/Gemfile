@@ -1,0 +1,7 @@
+source 'https://rubygems.org'
+gem 'sinatra'
+gem 'sequel'
+gem 'bcrypt'
+gem 'sqlite3'
+gem 'speculation', :git => "https://github.com/english/speculation.git", :ref => "ae3ee09"
+gem 'pry'

@@ -1,0 +1,16 @@
+set -o xtrace
+
+curl -s -X POST -d 'user[email]=someone@example.com&user[psasword]=abc123!@ASD' http://localhost:4567/users | jq -c .
+# => [{"error":"password is required"}]
+
+curl -s -X POST -d 'user[email]=someone@example.com&user[password]=abc123' http://localhost:4567/users | jq -c .
+# => [{"error":"password must be between 8 and 50 characters"}]
+
+curl -s -X POST -d 'user[username]=anonymous&user[password]=test123456' http://localhost:4567/users | jq -c .
+# => [{"error":"password must contain at least one of each: upper case, lower case, numeric and special characters"}]
+
+curl -s -X POST -d 'user[username]=anonymous&user[password]=abc123!_ASD' http://localhost:4567/users
+# => success!
+
+curl -s http://localhost:4567/users | jq -c .
+# => [{"id":1,"username":"anonymous","email":null,"hashed_password":"$2a$10$TMLSJNNj4K4YtpMmx.4hTOxh0lg0WsIQbFkY6v8ssuMBtMoJ2oCG6"}]

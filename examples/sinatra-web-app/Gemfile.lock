@@ -1,0 +1,46 @@
+GIT
+  remote: https://github.com/english/speculation.git
+  revision: ae3ee095765816a8d5bfa5b29c808439f04633b0
+  ref: ae3ee09
+  specs:
+    speculation (0.2.0)
+      concurrent-ruby (~> 1.0)
+      rantly (~> 1.0)
+
+GEM
+  remote: https://rubygems.org/
+  specs:
+    bcrypt (3.1.11)
+    coderay (1.1.1)
+    concurrent-ruby (1.0.5)
+    method_source (0.8.2)
+    pry (0.10.4)
+      coderay (~> 1.1.0)
+      method_source (~> 0.8.1)
+      slop (~> 3.4)
+    rack (1.6.5)
+    rack-protection (1.5.3)
+      rack
+    rantly (1.0.0)
+    sequel (4.44.0)
+    sinatra (1.4.8)
+      rack (~> 1.5)
+      rack-protection (~> 1.4)
+      tilt (>= 1.3, < 3)
+    slop (3.6.0)
+    sqlite3 (1.3.13)
+    tilt (2.0.6)
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  bcrypt
+  pry
+  sequel
+  sinatra
+  speculation!
+  sqlite3
+
+BUNDLED WITH
+   1.14.6
