@@ -58,10 +58,10 @@ module Speculation
       problems = ed[ns(S, :problems)]
       pred = problems.first[:pred]
 
-      assert_equal [Utils.method(:key?), [S.or_keys(S.and_keys(ns(:first_name), ns(:last_name)), ns(:email))]], pred
+      assert_equal [Utils.method(:key?), [S.or_keys(S.and_keys(:first_name, :last_name), :email)]], pred
 
       assert_equal <<-EOS, S.explain_str(ns(:unq, :person), :first_name => "Elon")
-val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: [#{Utils.method(:key?)}, [[:"Speculation/or", [:"Speculation/and", :"Speculation::HashSpecTest/first_name", :"Speculation::HashSpecTest/last_name"], :"Speculation::HashSpecTest/email"]]]
+val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: [#{Utils.method(:key?)}, [[:"Speculation/or", [:"Speculation/and", :first_name, :last_name], :email]]]
       EOS
     end
 
@@ -103,8 +103,8 @@ val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: [#{Utils.method(
                    :opt_un => [ns(:phone)]))
 
       assert_equal <<-EOS, S.explain_str(ns(:unq, :person), :first_name => "Elon")
-val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: [#{Utils.method(:key?)}, [:"Speculation::HashSpecTest/last_name"]]
-val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: [#{Utils.method(:key?)}, [:"Speculation::HashSpecTest/email"]]
+val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: [#{Utils.method(:key?)}, [:last_name]]
+val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: [#{Utils.method(:key?)}, [:email]]
       EOS
 
       email_regex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,63}$/
@@ -123,7 +123,7 @@ In: [:email] val: "elon" fails spec: :"Speculation::HashSpecTest/email" at: [:em
       S.def(ns(:hash), S.keys(:req_un => [ns(:foo), ns(:bar), ns(:baz)]))
 
       expected = { :"Speculation/problems" => [{ :path => [],
-                                                 :pred => [Utils.method(:key?), [ns(:bar)]],
+                                                 :pred => [Utils.method(:key?), [:bar]],
                                                  :val  => { :foo => "bar", :baz => "baz" },
                                                  :via  => [ns(:hash)],
                                                  :in   => [] }] }

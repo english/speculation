@@ -156,13 +156,13 @@ module Speculation
                 if kks.any? { |k| parse_req([k], v, f).empty? }
                   []
                 else
-                  [key]
+                  transform_keys([key], f)
                 end
               when ns(S, :and)
                 if kks.all? { |k| parse_req([k], v, f).empty? }
                   []
                 else
-                  [key]
+                  transform_keys([key], f)
                 end
               else
                 raise "Expected or, and, got #{op}"
@@ -170,7 +170,7 @@ module Speculation
             elsif v.key?(f.call(key))
               []
             else
-              [key]
+              [f.call(key)]
             end
 
       if ks.any?
@@ -178,6 +178,16 @@ module Speculation
       else
         ret
       end
+    end
+
+    def transform_keys(keys, f)
+      keys.map { |key|
+        case key
+        when Array then transform_keys(key, f)
+        when ns(S, :and), ns(S, :or) then key
+        else f.call(key)
+        end
+      }
     end
   end
 end
