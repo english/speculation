@@ -14,7 +14,9 @@ The goal of this project is to match clojure.spec as closely as possible, from d
 
 ## Usage
 
-The API is more-or-less the same as `clojure.spec`. If you're already familiar clojure.spec with then you should feel at home with Speculation. Clojure and Ruby and quite different languages, so naturally there are some differences:
+Documentation is available at [RubyDoc](http://www.rubydoc.info/github/english/speculation). The API is more-or-less the same as `clojure.spec`. If you're already familiar clojure.spec with then you should feel at home with Speculation. Most guides, talks and discussion around clojure.spec should apply equally well to Speculation. Clojure and Ruby and quite different languages, so naturally there are some differences:
+
+## Differences with clojure.spec
 
 ### Built in predicates
 
