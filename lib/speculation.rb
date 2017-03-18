@@ -1261,7 +1261,7 @@ module Speculation
           end
         end
       when ns(:pcat)
-        pks = p[:predicates].zip(p[:keys] || [])
+        pks = p[:predicates].zip(Array(p[:keys]))
         pred, k = if pks.count == 1
                     pks.first
                   else
