@@ -1277,7 +1277,7 @@ module Speculation
       when ns(:alt)
         return insufficient(p, path, via, inn) if input.empty?
 
-        probs = p[:predicates].zip(p[:keys]).flat_map { |(predicate, key)|
+        probs = p[:predicates].zip(Array(p[:keys])).flat_map { |(predicate, key)|
           op_explain(predicate, key ? Utils.conj(path, key) : path, via, inn, input)
         }
 
