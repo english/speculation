@@ -1027,21 +1027,17 @@ module Speculation
       end
     end
 
-    def filter_alt(ps, ks, &block)
+    def filter_alt(ps, ks)
       if ks
-        pks = ps.zip(ks).select { |xs| yield(xs.first) }
+        pks = ps.zip(ks).select { |(p, k)| yield(p) }
         [pks.map(&:first), pks.map(&:last)]
       else
-        [ps.select(&block), ks]
+        [ps.select { |p| yield(p) }, ks]
       end
     end
 
     def _alt(predicates, keys)
-      predicates, keys = filter_alt(predicates, keys, &Utils.method(:itself))
-      return unless predicates
-
-      predicate, *rest_predicates = predicates
-      key, *_rest_keys = keys
+      predicates, keys = filter_alt(predicates, keys) { |p| p }
 
       return_value = { ns(:op) => ns(:alt), :predicates => predicates, :keys => keys }
       return return_value unless rest_predicates.empty?
@@ -1110,7 +1106,7 @@ module Speculation
           and_preds(pret, regex[:predicates])
         end
       when ns(:alt)
-        ps, ks = filter_alt(regex[:predicates], regex[:keys], &method(:accept_nil?))
+        ps, ks = filter_alt(regex[:predicates], regex[:keys]) { |pred| accept_nil?(pred) }
 
         r = if ps.first.nil?
               ns(:nil)
