@@ -44,6 +44,27 @@ module Speculation
 
   INVALID = ns(:invalid)
 
+  # @private
+  OP = ns(:op)
+  # @private
+  ALT = ns(:alt)
+  # @private
+  AMP = ns(:amp)
+  # @private
+  PCAT = ns(:pcat)
+  # @private
+  REP = ns(:rep)
+  # @private
+  ACCEPT = ns(:accept)
+  # @private
+  NIL = ns(:nil)
+  # @private
+  RECURSION_LIMIT = ns(:recursion_limit)
+  # @private
+  GEN = ns(:gen)
+  # @private
+  NAME = ns(:name)
+
   # Can be enabled or disabled at runtime:
   # - enabled/disabled by setting `check_asserts`.
   # - enabled by setting environment variable SPECULATION_CHECK_ASSERTS to the
@@ -116,7 +137,7 @@ module Speculation
   # @param x [Hash, Object]
   # @return [Hash, false] x if x is a (Speculation) regex op, else logical false
   def self.regex?(x)
-    Utils.hash?(x) && x[ns(:op)] && x
+    Utils.hash?(x) && x[OP] && x
   end
 
   # @param value return value of a `conform` call
@@ -250,7 +271,7 @@ module Speculation
   # @return [Proc]
   def self.gen(spec, overrides = nil)
     spec = Identifier(spec)
-    gensub(spec, overrides, [], ns(:recursion_limit) => recursion_limit)
+    gensub(spec, overrides, [], RECURSION_LIMIT => recursion_limit)
   end
 
   # @private
@@ -500,7 +521,7 @@ module Speculation
   # @return [Hash] regex op that matches zero or one value matching pred. Produces a
   # single value (not a collection) if matched.
   def self.zero_or_one(pred)
-    _alt([pred, accept(ns(:nil))], nil)
+    _alt([pred, accept(NIL)], nil)
   end
 
   # @param kv_specs [Hash] key+pred pairs
@@ -531,7 +552,7 @@ module Speculation
   #   resulting value to the conjunction of the predicates, and any conforming
   #   they might perform.
   def self.constrained(re, *preds)
-    { ns(:op) => ns(:amp), :p1 => re, :predicates => preds }
+    { OP => AMP, :p1 => re, :predicates => preds }
   end
 
   # @yield [value] predicate function with the semantics of conform i.e. it should
@@ -555,7 +576,8 @@ module Speculation
   # @param gen [Proc] generator proc, which must be a proc of one arg (Rantly
   #   instance) that generates a valid value.
   # @return [Spec]
-  # @see fdef See 'fdef' for a single operation that creates an fspec and registers it, as well as a full description of :args, :block, :ret and :fn
+  # @see fdef See 'fdef' for a single operation that creates an fspec and registers it, as well as a
+  #   full description of :args, :block, :ret and :fn
   def self.fspec(args: nil, ret: nil, fn: nil, block: nil, gen: nil)
     FSpec.new(:args => spec(args), :ret => spec(ret), :fn => spec(fn), :block => spec(block)).tap do |spec|
       spec.gen = gen
@@ -645,7 +667,7 @@ module Speculation
 
   # @private
   def self.recur_limit?(rmap, id, path, k)
-    rmap[id] > rmap[ns(:recursion_limit)] &&
+    rmap[id] > rmap[RECURSION_LIMIT] &&
       path.include?(k)
   end
 
@@ -731,7 +753,7 @@ module Speculation
     p = reg_resolve!(p)
 
     id, op, ps, ks, p1, p2, ret, id, gen = p.values_at(
-      :id, ns(:op), :predicates, :keys, :p1, :p2, :return_value, :id, ns(:gen)
+      :id, OP, :predicates, :keys, :p1, :p2, :return_value, :id, GEN
     ) if regex?(p)
 
     id = p.id if spec?(p)
@@ -767,8 +789,8 @@ module Speculation
 
     if p
       case op
-      when ns(:accept)
-        if ret == ns(:nil)
+      when ACCEPT
+        if ret == NIL
           ->(_rantly) { [] }
         else
           ->(_rantly) { [ret] }
@@ -777,9 +799,9 @@ module Speculation
         g = gensub(p, overrides, path, rmap)
 
         ->(rantly) { [g.call(rantly)] }
-      when ns(:amp)
+      when AMP
         re_gen(p1, overrides, path, rmap)
-      when ns(:pcat)
+      when PCAT
         gens = ggens.call(ps, ks)
 
         if gens.all?
@@ -787,11 +809,11 @@ module Speculation
             gens.flat_map { |gg| gg.call(rantly) }
           end
         end
-      when ns(:alt)
+      when ALT
         gens = ggens.call(ps, ks).compact
 
         ->(rantly) { rantly.branch(*gens) } unless gens.empty?
-      when ns(:rep)
+      when REP
         if recur_limit?(rmap, id, [id], id)
           ->(_rantly) { [] }
         else
@@ -816,7 +838,7 @@ module Speculation
 
       return_value = preturn(regex)
 
-      if return_value == ns(:nil)
+      if return_value == NIL
         nil
       else
         return_value
@@ -845,7 +867,7 @@ module Speculation
       end
 
       if accept?(p)
-        if p[ns(:op)] == ns(:pcat)
+        if p[OP] == PCAT
           return op_explain(p, path, via, Utils.conj(inn, index), input[index..-1])
         else
           return [{ :path   => path,
@@ -908,7 +930,7 @@ module Speculation
       if Utils.ident?(spec)
         spec
       elsif regex?(spec)
-        spec.merge(ns(:name) => name)
+        spec.merge(NAME => name)
       else
         spec.tap { |s| s.name = name }
       end
@@ -918,7 +940,7 @@ module Speculation
       if Utils.ident?(spec)
         spec
       elsif regex?(spec)
-        spec[ns(:name)]
+        spec[NAME]
       elsif spec.respond_to?(:name)
         spec.name
       end
@@ -979,12 +1001,12 @@ module Speculation
     ### regex ###
 
     def accept(x)
-      { ns(:op) => ns(:accept), :return_value => x }
+      { OP => ACCEPT, :return_value => x }
     end
 
     def accept?(hash)
       if hash.is_a?(Hash)
-        hash[ns(:op)] == ns(:accept)
+        hash[OP] == ACCEPT
       end
     end
 
@@ -997,7 +1019,7 @@ module Speculation
       return unless regex[:predicates].all?
 
       unless accept?(predicate)
-        return { ns(:op)       => ns(:pcat),
+        return { OP            => PCAT,
                  :predicates   => regex[:predicates],
                  :keys         => keys,
                  :return_value => regex[:return_value] }
@@ -1018,7 +1040,7 @@ module Speculation
     def rep(p1, p2, return_value, splice)
       return unless p1
 
-      regex = { ns(:op) => ns(:rep), :p2 => p2, :splice => splice, :id => SecureRandom.uuid }
+      regex = { OP => REP, :p2 => p2, :splice => splice, :id => SecureRandom.uuid }
 
       if accept?(p1)
         regex.merge(:p1 => p2, :return_value => Utils.conj(return_value, p1[:return_value]))
@@ -1038,8 +1060,12 @@ module Speculation
 
     def _alt(predicates, keys)
       predicates, keys = filter_alt(predicates, keys) { |p| p }
+      return unless predicates
 
-      return_value = { ns(:op) => ns(:alt), :predicates => predicates, :keys => keys }
+      predicate, *rest_predicates = predicates
+      key, *_rest_keys = keys
+
+      return_value = { OP => ALT, :predicates => predicates, :keys => keys }
       return return_value unless rest_predicates.empty?
 
       return predicate unless key
@@ -1057,24 +1083,24 @@ module Speculation
     end
 
     def no_ret?(p1, pret)
-      return true if pret == ns(:nil)
+      return true if pret == NIL
 
       regex = reg_resolve!(p1)
-      op = regex[ns(:op)]
+      op = regex[OP]
 
-      [ns(:rep), ns(:pcat)].include?(op) && pret.empty? || nil
+      [REP, PCAT].include?(op) && pret.empty? || nil
     end
 
     def accept_nil?(regex)
       regex = reg_resolve!(regex)
       return unless regex?(regex)
 
-      case regex[ns(:op)]
-      when ns(:accept) then true
-      when ns(:pcat)   then regex[:predicates].all?(&method(:accept_nil?))
-      when ns(:alt)    then regex[:predicates].any?(&method(:accept_nil?))
-      when ns(:rep)    then (regex[:p1] == regex[:p2]) || accept_nil?(regex[:p1])
-      when ns(:amp)
+      case regex[OP]
+      when ACCEPT then true
+      when PCAT   then regex[:predicates].all? { |p| accept_nil?(p) }
+      when ALT    then regex[:predicates].any? { |p| accept_nil?(p) }
+      when REP    then (regex[:p1] == regex[:p2]) || accept_nil?(regex[:p1])
+      when AMP
         p1 = regex[:p1]
 
         return false unless accept_nil?(p1)
@@ -1082,7 +1108,7 @@ module Speculation
         no_ret?(p1, preturn(p1)) ||
           !invalid?(and_preds(preturn(p1), regex[:predicates]))
       else
-        raise "Unexpected #{ns(:op)} #{regex[ns(:op)]}"
+        raise "Unexpected #{OP} #{regex[OP]}"
       end
     end
 
@@ -1093,23 +1119,23 @@ module Speculation
       p0, *_pr = regex[:predicates]
       k, *ks = regex[:keys]
 
-      case regex[ns(:op)]
-      when ns(:accept) then regex[:return_value]
-      when ns(:pcat)   then add_ret(p0, regex[:return_value], k)
-      when ns(:rep)    then add_ret(regex[:p1], regex[:return_value], k)
-      when ns(:amp)
+      case regex[OP]
+      when ACCEPT then regex[:return_value]
+      when PCAT   then add_ret(p0, regex[:return_value], k)
+      when REP    then add_ret(regex[:p1], regex[:return_value], k)
+      when AMP
         pret = preturn(regex[:p1])
 
         if no_ret?(regex[:p1], pret)
-          ns(:nil)
+          NIL
         else
           and_preds(pret, regex[:predicates])
         end
-      when ns(:alt)
+      when ALT
         ps, ks = filter_alt(regex[:predicates], regex[:keys]) { |pred| accept_nil?(pred) }
 
         r = if ps.first.nil?
-              ns(:nil)
+              NIL
             else
               preturn(ps.first)
             end
@@ -1120,7 +1146,7 @@ module Speculation
           r
         end
       else
-        raise "Unexpected #{ns(:op)} #{regex[ns(:op)]}"
+        raise "Unexpected #{OP} #{regex[OP]}"
       end
     end
 
@@ -1128,7 +1154,16 @@ module Speculation
       regex = reg_resolve!(regex)
       return r unless regex?(regex)
 
-      prop = -> do
+      case regex[OP]
+      when ACCEPT, ALT, AMP
+        return_value = preturn(regex)
+
+        if return_value == NIL
+          r
+        else
+          Utils.conj(r, key ? { key => return_value } : return_value)
+        end
+      when PCAT, REP
         return_value = preturn(regex)
 
         if return_value.empty?
@@ -1138,20 +1173,8 @@ module Speculation
 
           regex[:splice] ? Utils.into(r, val) : Utils.conj(r, val)
         end
-      end
-
-      case regex[ns(:op)]
-      when ns(:accept), ns(:alt), ns(:amp)
-        return_value = preturn(regex)
-
-        if return_value == ns(:nil)
-          r
-        else
-          Utils.conj(r, key ? { key => return_value } : return_value)
-        end
-      when ns(:pcat), ns(:rep) then prop.call
       else
-        raise "Unexpected #{ns(:op)} #{regex[ns(:op)]}"
+        raise "Unexpected #{OP} #{regex[OP]}"
       end
     end
 
@@ -1174,9 +1197,9 @@ module Speculation
       pred, *rest_preds = predicates
       key, *rest_keys = keys
 
-      case regex[ns(:op)]
-      when ns(:accept) then nil
-      when ns(:pcat)
+      case regex[OP]
+      when ACCEPT then nil
+      when PCAT
         regex1 = pcat(:predicates => [deriv(pred, value), *rest_preds], :keys => keys, :return_value => return_value)
         regex2 = nil
 
@@ -1188,9 +1211,9 @@ module Speculation
         end
 
         alt2(regex1, regex2)
-      when ns(:alt)
+      when ALT
         _alt(predicates.map { |p| deriv(p, value) }, keys)
-      when ns(:rep)
+      when REP
         regex1 = rep(deriv(p1, value), p2, return_value, splice)
         regex2 = nil
 
@@ -1199,18 +1222,18 @@ module Speculation
         end
 
         alt2(regex1, regex2)
-      when ns(:amp)
+      when AMP
         p1 = deriv(p1, value)
         return unless p1
 
-        if p1[ns(:op)] == ns(:accept)
+        if p1[OP] == ACCEPT
           ret = and_preds(preturn(p1), predicates)
           accept(ret) unless invalid?(ret)
         else
           constrained(p1, *predicates)
         end
       else
-        raise "Unexpected #{ns(:op)} #{regex[ns(:op)]}"
+        raise "Unexpected #{OP} #{regex[OP]}"
       end
     end
 
@@ -1238,9 +1261,9 @@ module Speculation
         end
       end
 
-      case p[ns(:op)]
-      when ns(:accept) then nil
-      when ns(:amp)
+      case p[OP]
+      when ACCEPT then nil
+      when AMP
         if input.empty?
           if accept_nil?(p[:p1])
             explain_pred_list(p[:predicates], path, via, inn, preturn(p[:p1]))
@@ -1256,7 +1279,7 @@ module Speculation
             op_explain(p[:p1], path, via, inn, input)
           end
         end
-      when ns(:pcat)
+      when PCAT
         pks = p[:predicates].zip(Array(p[:keys]))
         pred, k = if pks.count == 1
                     pks.first
@@ -1270,7 +1293,7 @@ module Speculation
         else
           op_explain(pred, path, via, inn, input)
         end
-      when ns(:alt)
+      when ALT
         return insufficient(p, path, via, inn) if input.empty?
 
         probs = p[:predicates].zip(Array(p[:keys])).flat_map { |(predicate, key)|
@@ -1278,10 +1301,10 @@ module Speculation
         }
 
         probs.compact
-      when ns(:rep)
+      when REP
         op_explain(p[:p1], path, via, inn, input)
       else
-        raise "Unexpected #{ns(:op)} #{p[ns(:op)]}"
+        raise "Unexpected #{OP} #{p[OP]}"
       end
     end
   end
