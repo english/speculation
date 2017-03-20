@@ -839,9 +839,7 @@ module Speculation
     if accept_nil?(regex)
       return_value = preturn(regex)
 
-      return_value == NIL ?
-        nil :
-        return_value
+      return_value == NIL ? nil : return_value
     else
       INVALID
     end
@@ -1039,7 +1037,7 @@ module Speculation
 
     def filter_alt(ps, ks)
       if ks
-        pks = ps.zip(ks).select { |(p, k)| yield(p) }
+        pks = ps.zip(ks).select { |(p, _k)| yield(p) }
         [pks.map(&:first), pks.map(&:last)]
       else
         [ps.select { |p| yield(p) }, ks]
