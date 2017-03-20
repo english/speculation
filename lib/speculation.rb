@@ -831,26 +831,19 @@ module Speculation
 
   # @private
   def self.re_conform(regex, data)
-    x, *xs = data
+    data.each do |x|
+      regex = deriv(regex, x)
+      return INVALID unless regex
+    end
 
-    if data.empty?
-      return INVALID unless accept_nil?(regex)
-
+    if accept_nil?(regex)
       return_value = preturn(regex)
 
-      if return_value == NIL
-        nil
-      else
+      return_value == NIL ?
+        nil :
         return_value
-      end
     else
-      dp = deriv(regex, x)
-
-      if dp
-        re_conform(dp, xs)
-      else
-        INVALID
-      end
+      INVALID
     end
   end
 
@@ -972,17 +965,12 @@ module Speculation
     end
 
     def and_preds(x, preds)
-      pred, *preds = preds
-
-      x = dt(pred, x)
-
-      if invalid?(x)
-        INVALID
-      elsif preds.empty?
-        x
-      else
-        and_preds(x, preds)
+      preds.each do |pred|
+        x = dt(pred, x)
+        return INVALID if invalid?(x)
       end
+
+      x
     end
 
     def specize(spec)
