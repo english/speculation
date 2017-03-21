@@ -1014,7 +1014,7 @@ module Speculation
       val = keys ? { key => predicate[:return_value] } : predicate[:return_value]
       return_value = Utils.conj(regex[:return_value], val)
 
-      if rest_predicates
+      if rest_predicates.any?
         pcat(:predicates   => rest_predicates,
              :keys         => rest_keys,
              :return_value => return_value)
