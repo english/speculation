@@ -1118,19 +1118,16 @@ module Speculation
           and_preds(pret, regex[:predicates])
         end
       when ALT
-        ps, ks = filter_alt(regex[:predicates], regex[:keys]) { |pred| accept_nil?(pred) }
+        ps, ks = regex.values_at(:predicates, :keys)
+        p, k = ps.zip(Array(ks)).find { |(p, k)| accept_nil?(p) }
 
-        r = if ps.first.nil?
+        r = if p.nil?
               NIL
             else
-              preturn(ps.first)
+              preturn(p)
             end
 
-        if ks && ks.first
-          [ks.first, r]
-        else
-          r
-        end
+        k ? [k, r] : r
       else
         raise "Unexpected #{OP} #{regex[OP]}"
       end
