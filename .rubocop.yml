@@ -4,7 +4,7 @@ AllCops:
     - '*.*'
     - 'vendor/**/*'
     - 'examples/**/*'
-  TargetRubyVersion: 2.4
+  TargetRubyVersion: 2.0
 
 Metrics/ClassLength:
   Enabled: false
@@ -100,4 +100,10 @@ Style/MethodName:
   Enabled: false
 
 Style/SymbolArray:
+  Enabled: false
+
+Style/IndentHeredoc:
+  Enabled: false
+
+Style/EmptyLiteral:
   Enabled: false
