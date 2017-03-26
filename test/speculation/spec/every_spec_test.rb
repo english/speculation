@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+
 require "test_helper"
 
 module Speculation
@@ -63,7 +64,7 @@ module Speculation
 
       assert_equal expected, S.explain_data(ns(:point), [1, 2, 3.0])
 
-      assert Gen.generate(S.gen(ns(:point))).all? { |x| x.is_a?(Integer) }
+      assert(Gen.generate(S.gen(ns(:point))).all? { |x| x.is_a?(Integer) })
     end
 
     def test_hash_of

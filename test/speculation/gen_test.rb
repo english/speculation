@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+
 require "test_helper"
 
 module Speculation
@@ -82,8 +83,8 @@ module Speculation
       assert_kind_of Symbol, nums_sym
       assert_kind_of Array, nums
 
-      assert names.all? { |n| n.is_a?(String) }
-      assert nums.all? { |n| n.is_a?(Numeric) }
+      assert(names.all? { |n| n.is_a?(String) })
+      assert(nums.all? { |n| n.is_a?(Numeric) })
 
       S.def(ns(:non_nested), S.cat(:names_sym => Set[:names],
                                    :names     => S.zero_or_more(String),
@@ -93,7 +94,7 @@ module Speculation
       non_nested = Gen.generate(S.gen(ns(:non_nested)))
       syms, names_and_nums = non_nested.partition { |x| x.is_a?(Symbol) }
       assert_equal [:names, :nums], syms.sort
-      assert names_and_nums.all? { |x| x.is_a?(String) || x.is_a?(Numeric) }
+      assert(names_and_nums.all? { |x| x.is_a?(String) || x.is_a?(Numeric) })
 
       S.def(ns(:config), S.cat(:prop => String, :val => S.alt(:s => String, :b => Set[true, false])))
 

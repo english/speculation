@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+
 require "concurrent"
 require "set"
 require "securerandom"
@@ -92,10 +93,11 @@ module Speculation
   # @return [Spec] that validates floats
   def self.float_in(min: nil, max: nil, infinite: true, nan: true)
     preds = [Float]
-    preds << ->(x) { !x.nan? } unless nan
-    preds << ->(x) { !x.infinite? } unless infinite
-    preds << ->(x) { x <= max } if max
-    preds << ->(x) { x >= min } if min
+
+    preds.push(->(x) { !x.nan? })      unless nan
+    preds.push(->(x) { !x.infinite? }) unless infinite
+    preds.push(->(x) { x <= max })     if max
+    preds.push(->(x) { x >= min })     if min
 
     min ||= Float::MIN
     max ||= Float::MAX

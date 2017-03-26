@@ -98,3 +98,6 @@ Performance/RedundantBlockCall:
 
 Style/MethodName:
   Enabled: false
+
+Style/SymbolArray:
+  Enabled: false
