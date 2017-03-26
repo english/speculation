@@ -1046,7 +1046,7 @@ module Speculation
 
     def _alt(predicates, keys)
       predicates, keys = filter_alt(predicates, keys) { |p| p }
-      return unless predicates
+      return if predicates.empty?
 
       predicate, *rest_predicates = predicates
       key, *_rest_keys = keys
@@ -1267,8 +1267,9 @@ module Speculation
         pred, k = if pks.count == 1
                     pks.first
                   else
-                    pks.lazy.reject { |(predicate, _)| accept_nil?(predicate) }.first
+                    pks.find { |(predicate, _)| !accept_nil?(predicate) }
                   end
+
         path = Utils.conj(path, k) if k
 
         if input.empty? && !pred
