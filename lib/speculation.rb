@@ -1103,7 +1103,7 @@ module Speculation
       return unless regex?(regex)
 
       p0, *_pr = regex[:predicates]
-      k, *ks = regex[:keys]
+      k, *_ks = regex[:keys]
 
       case regex[OP]
       when ACCEPT then regex[:return_value]
@@ -1118,16 +1118,15 @@ module Speculation
           and_preds(pret, regex[:predicates])
         end
       when ALT
-        ps, ks = regex.values_at(:predicates, :keys)
-        p, k = ps.zip(Array(ks)).find { |(p, k)| accept_nil?(p) }
+        pred, key = regex[:predicates].zip(Array(regex[:keys])).find { |(p, _k)| accept_nil?(p) }
 
-        r = if p.nil?
+        r = if pred.nil?
               NIL
             else
-              preturn(p)
+              preturn(pred)
             end
 
-        k ? [k, r] : r
+        key ? [key, r] : r
       else
         raise "Unexpected #{OP} #{regex[OP]}"
       end
