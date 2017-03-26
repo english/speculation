@@ -5,7 +5,7 @@ require "rubocop"
 require "yard"
 
 task :rubocop do
-  status = RuboCop::CLI.new.run([])
+  status = RuboCop::CLI.new.run(["--display-cop-names"])
   raise "failed with status #{status}" unless status.zero?
 end
 
