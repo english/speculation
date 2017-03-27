@@ -110,7 +110,3 @@ Bug reports and pull requests are welcome on GitHub at https://github.com/englis
 - Generate documentation from specs
   - perhaps integrating with [Pry's documentation browsing](https://github.com/pry/pry/wiki/Documentation-browsing)?
 - Profile and optimise
-
-## License
-
-The gem is available as open source under the terms of the [MIT License](http://opensource.org/licenses/MIT).
