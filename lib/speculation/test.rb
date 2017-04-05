@@ -32,7 +32,7 @@ module Speculation
     # Given an opts hash as per instrument, returns the set of methods that can
     # be instrumented.
     # @param opts [Hash]
-    # @return [Array<Identifier>]
+    # @return [Array<Method>]
     def self.instrumentable_methods(opts = {})
       if opts[:gen]
         unless opts[:gen].keys.all? { |k| k.is_a?(Method) || k.is_a?(Symbol) }
@@ -137,7 +137,7 @@ module Speculation
     # @option opts :num_tests [Integer] (1000) number of times to generatively test each method
     # @option opts :gen [Hash] map from spec names to generator overrides.
     #   Generator overrides are passed to Speculation.gen when generating method args.
-    # @return [Array<Identifier>] an array of check result hashes with the following keys:
+    # @return [Array<Hash>] an array of check result hashes with the following keys:
     #   * :spec       the spec tested
     #   * :method     optional method tested
     #   * :failure    optional test failure
