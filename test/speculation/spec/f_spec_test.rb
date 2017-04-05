@@ -30,7 +30,7 @@ module Speculation
       expected = { :path => [:ret], :via => [identifier], :in => [], :pred => [Integer, ["0"]] }
 
       ed = S.explain_data(mod.method(:foo), :to_s.to_proc)
-      assert_equal expected, ed.fetch(ns(S, :problems)).first.reject { |k, _v| k == :val }
+      assert_equal(expected, ed.fetch(ns(S, :problems)).first.reject { |k, _v| k == :val })
       assert_kind_of String, ed.fetch(ns(S, :problems)).first[:val]
 
       S.def(ns(:foo), S.fspec(:args => S.cat(:x => String), :ret => Integer))
@@ -62,7 +62,7 @@ module Speculation
       refute S.valid?(mod.method(:foo), "not-a-method")
 
       val = Gen.generate(S.gen(mod.method(:foo)))
-      assert_kind_of Integer, val.call { |_x| 1 }
+      assert_kind_of(Integer, val.call { |_x| 1 })
 
       identifier = S.Identifier(mod.method(:foo))
       f = ->(&b) { b.call("1") }
