@@ -657,12 +657,15 @@ module Speculation
   # @param method [Method]
   # @param n [Integer]
   # @param fspec [Spec]
-  # @return [Array] an arrray of tuples of [args, ret].
-  def self.exercise_fn(method, n: 10, fspec: nil)
+  # @return [Array] an array of triples of [args, block, ret].
+  def self.exercise_fn(method, n = 10, fspec = nil)
     fspec ||= get_spec(method)
     raise ArgumentError, "No fspec found for #{method}" unless fspec
 
-    Gen.sample(gen(fspec.args), n).map { |args| [args, method.call(*args)] }
+    block_gen = fspec.block ? gen(fspec.block) : Utils.constantly(nil)
+    gen = Gen.tuple(gen(fspec.args), block_gen)
+
+    Gen.sample(gen, n).map { |(args, block)| [args, block, method.call(*args, &block)] }
   end
 
   ### impl ###

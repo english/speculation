@@ -82,5 +82,28 @@ module Speculation
       assert_equal [identifier], ed[:via]
       assert_equal [], ed[:in]
     end
+
+    def test_exercise_fn
+      mod = Module.new do
+        def self.foo(x)
+          yield(x + 1)
+        end
+      end
+
+      S.fdef(mod.method(:foo),
+             :args  => S.cat(:x => Integer),
+             :block => S.fspec(:args => S.cat(:x => Integer), :ret => Integer),
+             :ret   => Integer)
+
+      exercised = S.exercise_fn(mod.method(:foo), 1)
+      assert_equal 1, exercised.count
+
+      args, block, ret = exercised.first
+
+      assert_equal 1, args.count
+      assert_kind_of Integer, args.first
+      assert_kind_of Proc, block
+      assert_kind_of Integer, ret
+    end
   end
 end
