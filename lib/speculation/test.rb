@@ -402,7 +402,7 @@ module Speculation
                       Utils.constantly(nil)
                     end
 
-        arg_block_gen = ->(r) { [args_gen.call(r), block_gen.call(r)] }
+        arg_block_gen = Gen.tuple(args_gen, block_gen)
 
         generator_guard = ->(genned_val) { S.valid?(spec.args, genned_val) }
         rantly_quick_check(arg_block_gen, num_tests, generator_guard) do |(args, block)|

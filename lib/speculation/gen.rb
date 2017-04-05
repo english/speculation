@@ -64,6 +64,13 @@ module Speculation
     end
 
     # @private
+    def self.tuple(*generators)
+      ->(r) do
+        generators.map { |g| g.call(r) }
+      end
+    end
+
+    # @private
     GEN_BUILTINS = {
       Integer    => ->(r) { r.integer },
       String     => ->(r) { r.sized(r.range(0, 20)) { string(:alpha) } },
