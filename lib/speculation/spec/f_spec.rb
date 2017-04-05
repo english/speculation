@@ -77,18 +77,13 @@ module Speculation
     # @private
     # returns f if valid, else smallest
     def self.validate_fn(f, specs, iterations)
-      args_gen = S.gen(specs[:args])
-
-      block_gen = if specs[:block]
-                    S.gen(specs[:block])
-                  else
-                    Utils.constantly(nil)
-                  end
-
-      combined = ->(r) { [args_gen.call(r), block_gen.call(r)] }
+      args_gen      = S.gen(specs[:args])
+      block_gen     = specs[:block] ? S.gen(specs[:block]) : Utils.constantly(nil)
+      arg_block_gen = Gen.tuple(args_gen, block_gen)
 
       generator_guard = ->(genned_val) { S.valid?(specs[:args], genned_val) }
-      ret = S::Test.send(:rantly_quick_check, combined, iterations, generator_guard) { |(args, block)|
+
+      ret = S::Test.send(:rantly_quick_check, arg_block_gen, iterations, generator_guard) { |(args, block)|
         call_valid?(f, specs, args, block)
       }
 
