@@ -6,7 +6,9 @@ module Speculation
     include NamespacedSymbols
     S = Speculation
 
-    def initialize(spec)
+    def initialize(spec, gen = nil)
+      @spec = spec
+      @gen = gen
       @delayed_spec = Concurrent::Delay.new { S.send(:specize, spec) }
     end
 
@@ -20,8 +22,8 @@ module Speculation
       @delayed_spec.value!.explain(path, via, inn, value)
     end
 
-    def gen=(new_gen)
-      @delayed_spec.value!.gen = new_gen
+    def with_gen(gen)
+      self.class.new(@spec, gen)
     end
 
     def gen(overrides, path, rmap)

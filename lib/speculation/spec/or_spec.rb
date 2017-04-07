@@ -8,11 +8,12 @@ module Speculation
 
     attr_reader :id
 
-    def initialize(named_specs)
+    def initialize(named_specs, gen = nil)
       @id = SecureRandom.uuid
       @named_specs = named_specs
       @keys = named_specs.keys
       @preds = preds = named_specs.values
+      @gen = gen
 
       @delayed_specs = Concurrent::Delay.new do
         preds.map { |spec| S.send(:specize, spec) }
@@ -38,6 +39,10 @@ module Speculation
         next if S.pvalid?(pred, value)
         S.explain1(pred, Utils.conj(path, key), via, inn, value)
       end
+    end
+
+    def with_gen(gen)
+      self.class.new(@named_specs, gen)
     end
 
     def gen(overrides, path, rmap)

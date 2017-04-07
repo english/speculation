@@ -8,12 +8,13 @@ module Speculation
 
     attr_reader :id
 
-    def initialize(req, opt, req_un, opt_un)
+    def initialize(req, opt, req_un, opt_un, gen = nil)
       @id = SecureRandom.uuid
       @req = req
       @opt = opt
       @req_un = req_un
       @opt_un = opt_un
+      @gen = gen
 
       req_keys     = req.flat_map(&method(:extract_keys))
       req_un_specs = req_un.flat_map(&method(:extract_keys))
@@ -98,6 +99,10 @@ module Speculation
       }
 
       problems.compact
+    end
+
+    def with_gen(gen)
+      self.class.new(@req, @opt, @req_un, @opt_un, gen)
     end
 
     def gen(overrides, path, rmap)

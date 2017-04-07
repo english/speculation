@@ -3,7 +3,7 @@
 module Speculation
   # @private
   class Spec
-    attr_accessor :name, :gen
+    attr_accessor :name
     attr_reader :id
 
     def conform(_x)

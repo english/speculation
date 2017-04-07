@@ -6,8 +6,9 @@ module Speculation
     include NamespacedSymbols
     S = Speculation
 
-    def initialize(preds)
+    def initialize(preds, gen = nil)
       @preds = preds
+      @gen   = gen
     end
 
     def conform(x)
@@ -24,6 +25,10 @@ module Speculation
       @preds.
         flat_map { |pred| S.explain1(pred, path, via, inn, x) }.
         compact
+    end
+
+    def with_gen(gen)
+      self.class.new(@preds, gen)
     end
 
     def gen(overrides, path, rmap)

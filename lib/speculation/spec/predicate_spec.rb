@@ -6,9 +6,10 @@ module Speculation
     include NamespacedSymbols
     S = Speculation
 
-    def initialize(predicate, should_conform)
+    def initialize(predicate, should_conform, gen = nil)
       @predicate = predicate
       @should_conform = should_conform
+      @gen = gen
     end
 
     def conform(value)
@@ -29,6 +30,10 @@ module Speculation
       if S.invalid?(S.dt(@predicate, value))
         [{ :path => path, :val => value, :via => via, :in => inn, :pred => [@predicate, [value]] }]
       end
+    end
+
+    def with_gen(gen)
+      self.class.new(@predicate, @should_conform, gen)
     end
 
     def gen(_, _, _)

@@ -8,11 +8,12 @@ module Speculation
 
     attr_reader :args, :ret, :fn, :block
 
-    def initialize(args: nil, ret: nil, fn: nil, block: nil)
-      @args = args
-      @ret = ret
-      @fn = fn
+    def initialize(args: nil, ret: nil, fn: nil, block: nil, gen: nil)
+      @args  = args
+      @ret   = ret
+      @fn    = fn
       @block = block
+      @gen   = gen
     end
 
     def conform(f)
@@ -54,6 +55,10 @@ module Speculation
         cargs = S.conform(@args, args)
         S.explain1(@fn, Utils.conj(path, :fn), via, inn, :args => cargs, :ret => cret)
       end
+    end
+
+    def with_gen(gen)
+      self.class.new(:args => @args, :ret => @ret, :fn => @fn, :block => @block, :gen => gen)
     end
 
     def gen(overrides, _path, _rmap)

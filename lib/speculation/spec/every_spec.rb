@@ -6,9 +6,10 @@ module Speculation
     include NamespacedSymbols
     S = Speculation
 
-    def initialize(predicate, options)
+    def initialize(predicate, options, gen = nil)
       @predicate = predicate
       @options = options
+      @gen = gen
 
       collection_predicates = [options.fetch(:kind, Enumerable)]
 
@@ -105,6 +106,10 @@ module Speculation
 
       probs = @conform_all ? probs.to_a : probs.take(S.coll_error_limit)
       probs.compact
+    end
+
+    def with_gen(gen)
+      self.class.new(@predicate, @options, gen)
     end
 
     def gen(overrides, path, rmap)

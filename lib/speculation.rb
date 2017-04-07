@@ -164,7 +164,7 @@ module Speculation
     if regex?(spec)
       spec.merge(ns(:gfn) => gen)
     else
-      specize(spec).tap { |s| s.gen = gen }
+      specize(spec).with_gen(gen)
     end
   end
 
@@ -300,7 +300,7 @@ module Speculation
     spec = if spec?(spec) || regex?(spec) || registry[spec]
              spec
            else
-             spec_impl(spec, false)
+             spec_impl(spec, nil, false)
            end
 
     @registry_ref.swap do |reg|
@@ -346,11 +346,7 @@ module Speculation
   #   arg (Rantly instance) that generates a valid value.
   # @return [Spec]
   def self.spec(pred, gen: nil)
-    if pred
-      spec_impl(pred, false).tap do |spec|
-        spec.gen = gen if gen
-      end
-    end
+    spec_impl(pred, gen, false) if pred
   end
 
   # Creates and returns a hash validating spec. :req and :opt are both arrays of
@@ -384,9 +380,7 @@ module Speculation
   # @param gen [Proc] generator function, which must be a proc of one arg
   #   (Rantly instance) that generates a valid value
   def self.keys(req: [], opt: [], req_un: [], opt_un: [], gen: nil)
-    HashSpec.new(req, opt, req_un, opt_un).tap do |spec|
-      spec.gen = gen
-    end
+    HashSpec.new(req, opt, req_un, opt_un, gen)
   end
 
   # @see keys
@@ -450,9 +444,7 @@ module Speculation
   def self.every(pred, opts = {})
     gen = opts.delete(:gen)
 
-    EverySpec.new(pred, opts).tap do |spec|
-      spec.gen = gen
-    end
+    EverySpec.new(pred, opts, gen)
   end
 
   # Like 'every' but takes separate key and val preds and works on associative collections.
@@ -561,7 +553,7 @@ module Speculation
   #   return either a (possibly converted) value or :"Speculation/invalid"
   # @return [Spec] a spec that uses pred as a predicate/conformer.
   def self.conformer(f)
-    spec_impl(f, true)
+    spec_impl(f, nil, true)
   end
 
   # Takes :args :ret and (optional) :block and :fn kwargs whose values are preds and returns a spec
@@ -581,9 +573,7 @@ module Speculation
   # @see fdef See 'fdef' for a single operation that creates an fspec and registers it, as well as a
   #   full description of :args, :block, :ret and :fn
   def self.fspec(args: nil, ret: nil, fn: nil, block: nil, gen: nil)
-    FSpec.new(:args => spec(args), :ret => spec(ret), :fn => spec(fn), :block => spec(block)).tap do |spec|
-      spec.gen = gen
-    end
+    FSpec.new(:args => spec(args), :ret => spec(ret), :fn => spec(fn), :block => spec(block), :gen => gen)
   end
 
   # @param preds [Array] one or more preds
@@ -729,15 +719,16 @@ module Speculation
   end
 
   # @private
-  def self.spec_impl(pred, should_conform)
+  def self.spec_impl(pred, gen, should_conform)
     if spec?(pred)
-      pred
+      with_gen(pred, gen)
     elsif regex?(pred)
-      RegexSpec.new(pred)
+      RegexSpec.new(pred, gen)
     elsif Utils.ident?(pred)
-      the_spec(pred)
+      spec = the_spec(pred)
+      gen ? with_gen(spec, gen) : spec
     else
-      PredicateSpec.new(pred, should_conform)
+      PredicateSpec.new(pred, should_conform, gen)
     end
   end
 
@@ -992,7 +983,7 @@ module Speculation
         when Symbol, Identifier
           specize(reg_resolve!(spec))
         else
-          spec_impl(spec, false)
+          spec_impl(spec, nil, false)
         end
       end
     end
