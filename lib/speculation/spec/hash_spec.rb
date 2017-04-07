@@ -100,10 +100,6 @@ module Speculation
       problems.compact
     end
 
-    def specize
-      self
-    end
-
     def gen(overrides, path, rmap)
       return @gen if @gen
 

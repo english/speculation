@@ -638,6 +638,14 @@ module Speculation
     NilableSpec.new(pred)
   end
 
+  # @param spec
+  # @return [Spec] a spec that has the same properies as the given spec, except
+  #   `conform` will return the original (not the conformed) value. Note, will
+  #   specize regex ops.
+  def self.nonconforming(spec)
+    NonconformingSpec.new(spec)
+  end
+
   # Generates a number (default 10) of values compatible with spec and maps
   # conform over them, returning a sequence of [val conformed-val] tuples.
   # @param spec

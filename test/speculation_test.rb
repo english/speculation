@@ -51,6 +51,12 @@ module Speculation
                    S.conform(ns(:will_conform_keys), :foo => 1.0, :bar => 2.0)
     end
 
+    def test_nonconforming
+      name_or_id = S.or(:name => String, :id => Integer)
+      assert_equal [:name, "foo"], S.conform(name_or_id, "foo")
+      assert_equal "foo", S.conform(S.nonconforming(name_or_id), "foo")
+    end
+
     def test_explain_data
       S.def(ns(:integer), Integer)
       S.def(ns(:even), ->(x) { x.even? })
