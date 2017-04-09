@@ -249,7 +249,7 @@ S.explain :"unq/person", :first_name => "Elon"
 # >> val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: [#<Method: Speculation::Utils.key?>, [:"Object/last_name"]]
 # >> val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: [#<Method: Speculation::Utils.key?>, [:"Object/email"]]
 
-# Unqualified keys can also be used to validate record attributes # TODO for objects/structs
+# Unqualified keys can also be used to validate record attributes - don't support
 # Keyword args keys* - don't support
 
 # Sometimes it will be convenient to declare entity maps in parts, either
@@ -905,16 +905,16 @@ S.exercise S.or(:k => Symbol, :s => String, :n => Numeric), :n => 5
 # invokes the spec’ed function and returns the args and the return value.
 
 S.exercise_fn(method(:ranged_rand))
-# => [[[-2128611012334186431, -1417738444057945122], -1635106169064592441],
-#     [[1514518280943101595, 1786254628919354373], 1739796291756227578],
-#     [[-46749061680797208, 822766248044755470], -7474228458851983],
-#     [[-649513218842008808, 1875894039691321060], -390581384114488816],
-#     [[858361555883341214, 1741658980258358628], 1374077212657449917],
-#     [[-1258388171360603963, -985723099401376708], -1123010455669592843],
-#     [[-1035489322616947034, 1688366643195138662], 441214083022620176],
-#     [[-2229284211372056198, -893085296484913242], -1161469637076511831],
-#     [[819684425123939548, 1044514159372510410], 971678102106589235],
-#     [[366502776249932529, 1318835861470496704], 377553467194155955]]
+# => [[[-700291252660959460, 1315380256022004247], nil, -169059138562218507],
+#     [[-574949810996775321, -378316617969347527], nil, -540044395410145946],
+#     [[-760338081857905380, 484821106293575090], nil, 34570709564512062],
+#     [[-992673786379804322, 1487953925990349054], nil, -422423278764959748],
+#     [[-247390476258570074, 772122472766305147], nil, 397399655705976787],
+#     [[-1690412389556301777, -759316596276798578], nil, -1369751846456512938],
+#     [[1784449723230598375, 2047557531834071249], nil, 1819590014631499324],
+#     [[1116688093572002660, 1455424852058678548], nil, 1197557588479387983],
+#     [[-355113538297959975, 665164320042412170], nil, 195897461527121732],
+#     [[-631825347800361288, 2171238312189431384], nil, 885825441795070534]]
 
 ## Using S.and Generators
 
@@ -1022,7 +1022,6 @@ Gen.sample S.gen(ns(:syms)), 5
 #     :"my.domain/occupation",
 #     :"my.domain/id"]
 
-# TODO: make gens no-arg functions???
 # Note that with_gen (and other places that take a custom generator) take a
 # one-arg function that returns the generator, allowing it to be lazily
 # realized.

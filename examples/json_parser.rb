@@ -14,19 +14,15 @@ STest = S::Test
 module JSONParser
   extend S::NamespacedSymbols
 
-  def self.re_literal(string, conformed)
+  def self.re_literal(string)
     kvs = string.each_char.each_with_index.reduce({}) { |h, (v, i)| h.merge(i => Set[v]) }
     S.cat(kvs)
   end
 
   S.def ns(:maybe_spaces), S.zero_or_more(Set[" "])
 
-  S.def ns(:null), re_literal("null", nil)
-  S.def ns(:true), re_literal("true", true)
-  S.def ns(:false), re_literal("false", false)
-
-  S.def ns(:boolean), S.alt(:true  => ns(:true),
-                            :false => ns(:false))
+  S.def ns(:boolean), S.alt(:true  => re_literal("true"),
+                            :false => re_literal("false"))
 
   S.def ns(:number), S.alt(:integer => ns(:integer),
                            :float   => ns(:float))
@@ -134,7 +130,7 @@ module JSONParser
                                                    :tail  => ns(:object_contents)))
 
   S.def ns(:json), S.cat(:pre => ns(:maybe_spaces),
-                         :val => S.alt(:null    => ns(:null),
+                         :val => S.alt(:null    => re_literal("null"),
                                        :boolean => ns(:boolean),
                                        :number  => ns(:number),
                                        :string  => ns(:string),

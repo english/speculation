@@ -103,10 +103,10 @@ end
 
 S.exercise_fn method(:score)
 
-# [[[[:c, :w, :r, :c, :c, :b], [:c, :y, :y, :r, :c, :b]], {:"main/exact_matches"=>3, :"main/loose_matches"=>0}],
-#  [[[:r, :g, :w, :c, :y], [:y, :w, :r, :w, :r]], {:"main/exact_matches"=>0, :"main/loose_matches"=>0}],
-#  [[[:b, :b, :r, :b, :r], [:b, :g, :c, :c, :g]], {:"main/exact_matches"=>1, :"main/loose_matches"=>0}],
-#  [[[:g, :r, :b, :y], [:g, :c, :r, :w]], {:"main/exact_matches"=>1, :"main/loose_matches"=>0}],
+# [[[[:y, :b, :b, :b, :b, :c], [:y, :y, :g, :r, :y, :b]], nil, {:"Object/exact_matches"=>1, :"Object/loose_matches"=>0}],
+#  [[[:b, :c, :w, :w, :w, :g], [:r, :w, :c, :c, :b, :w]], nil, {:"Object/exact_matches"=>0, :"Object/loose_matches"=>0}],
+#  [[[:c, :c, :g, :w, :r], [:g, :g, :g, :c, :w]], nil, {:"Object/exact_matches"=>1, :"Object/loose_matches"=>0}],
+#  [[[:b, :y, :g, :y, :b, :y], [:g, :w, :b, :y, :r, :c]], nil, {:"Object/exact_matches"=>1, :"Object/loose_matches"=>0}],
 
 STest.check method(:score)
 
@@ -139,10 +139,10 @@ S.fdef method(:exact_matches),
 
 S.exercise_fn method(:exact_matches)
 
-# [[[[:g, :b, :b, :b, :c], [:w, :y, :c, :y, :b]], 0],
-#  [[[:c, :w, :r, :c], [:y, :r, :y, :g]], 0],
-#  [[[:g, :c, :g, :g, :y], [:g, :g, :c, :c, :r]], 1],
-#  [[[:g, :r, :y, :g, :g], [:g, :y, :y, :r, :w]], 2],
+# [[[[:y, :y, :c, :g, :b], [:c, :w, :g, :b, :y]], nil, 0],
+#  [[[:y, :c, :w, :y, :b], [:y, :w, :c, :c, :r]], nil, 1],
+#  [[[:r, :g, :r, :y, :y], [:c, :r, :c, :c, :w]], nil, 0],
+#  [[[:r, :b, :r, :c], [:y, :r, :g, :b]], nil, 0],
 
 STest.check method(:exact_matches)
 # [{:spec=>Speculation::FSpec(main.exact_matches), :"Speculation::Test/ret"=>{:num_tests=>1000, :result=>true}, :method=>#<Method: main.exact_matches>}]
@@ -150,10 +150,11 @@ STest.check method(:exact_matches)
 STest.instrument method(:exact_matches)
 S.exercise_fn method(:score)
 
-# [[[[:y, :r, :y, :r], [:g, :w, :b, :g]], {:"main/exact_matches"=>0, :"main/loose_matches"=>0}],
-#  [[[:c, :g, :g, :y, :b, :c], [:w, :y, :g, :b, :y, :c]], {:"main/exact_matches"=>2, :"main/loose_matches"=>0}],
-#  [[[:r, :b, :r, :g, :w, :r], [:c, :w, :y, :g, :g, :y]], {:"main/exact_matches"=>1, :"main/loose_matches"=>0}],
-#  [[[:r, :y, :c, :y, :y, :b], [:g, :r, :b, :c, :r, :y]], {:"main/exact_matches"=>0, :"main/loose_matches"=>0}],
+# [[[[:b, :g, :w, :b, :r], [:b, :g, :y, :g, :g]], nil, {:"Object/exact_matches"=>2, :"Object/loose_matches"=>0}],
+#  [[[:c, :w, :g, :b, :y], [:g, :r, :g, :y, :c]], nil, {:"Object/exact_matches"=>1, :"Object/loose_matches"=>0}],
+#  [[[:c, :b, :c, :y, :r], [:r, :c, :y, :r, :b]], nil, {:"Object/exact_matches"=>0, :"Object/loose_matches"=>0}],
+#  [[[:y, :c, :y, :g, :c, :c], [:w, :r, :b, :w, :b, :w]], nil, {:"Object/exact_matches"=>0, :"Object/loose_matches"=>0}],
+#  [[[:b, :b, :w, :c, :g, :c], [:r, :b, :y, :r, :c, :r]], nil, {:"Object/exact_matches"=>1, :"Object/loose_matches"=>0}],
 
 def self.score(secret, guess)
   { ns(:exact_matches) => exact_matches(secret, guess.take(3)),
@@ -180,11 +181,12 @@ S.fdef method(:match_count),
        :ret  => ns(S, :natural_integer),
        :fn   => ->(fn) { fn[:ret].between?(0, fn[:args][:secret].count) }
 
-S.exercise_fn method(:exact_matches), :n => 10, :fspec => S.get_spec(method(:match_count))
+S.exercise_fn method(:exact_matches), 10, S.get_spec(method(:match_count))
 
-# [[[[:r, :b, :g, :w, :b], [:b, :c, :c, :r, :w]], 0],
-#  [[[:c, :r, :c, :g, :g, :y], [:y, :c, :b, :y, :y, :r]], 0],
-#  [[[:c, :g, :r, :y, :y], [:w, :y, :y, :c, :w]], 0],
+# [[[[:w, :c, :w, :b, :b], [:r, :r, :c, :c, :r]], nil, 0],
+#  [[[:y, :b, :g, :y, :y], [:w, :b, :g, :y, :w]], nil, 3],
+#  [[[:y, :r, :r, :r, :b], [:b, :w, :b, :c, :r]], nil, 0],
+#  [[[:w, :g, :r, :b, :b, :b], [:y, :c, :g, :b, :c, :b]], nil, 2],
 
 STest.check_method method(:exact_matches), S.get_spec(method(:match_count))
 
@@ -194,9 +196,10 @@ STest.instrument method(:exact_matches), :spec => { method(:exact_matches) => S.
 
 S.exercise_fn method(:score)
 
-# [[[[:y, :r, :y, :c, :y], [:b, :w, :c, :g, :b]], {:"main/exact_matches"=>0, :"main/loose_matches"=>0}],
-#  [[[:r, :b, :w, :c, :w, :y], [:w, :r, :w, :g, :b, :r]], {:"main/exact_matches"=>1, :"main/loose_matches"=>0}],
-#  [[[:c, :w, :r, :w, :g, :c], [:g, :g, :c, :c, :c, :b]], {:"main/exact_matches"=>0, :"main/loose_matches"=>0}],
+# [[[[:y, :y, :r, :b, :c, :c], [:b, :b, :b, :w, :w, :r]], nil, {:"Object/exact_matches"=>0, :"Object/loose_matches"=>0}],
+#  [[[:r, :b, :r, :b, :b], [:r, :y, :c, :y, :y]], nil, {:"Object/exact_matches"=>1, :"Object/loose_matches"=>0}],
+#  [[[:c, :y, :y, :w], [:y, :c, :y, :r]], nil, {:"Object/exact_matches"=>1, :"Object/loose_matches"=>0}],
+#  [[[:w, :g, :w, :g, :b, :g], [:r, :y, :r, :y, :c, :b]], nil, {:"Object/exact_matches"=>0, :"Object/loose_matches"=>0}],
 
 STest.check method(:score)
 
@@ -212,11 +215,12 @@ def self.all_matches(secret, guess)
     reduce(0, &:+)
 end
 
-S.exercise_fn method(:all_matches), :n => 10, :fspec => S.get_spec(method(:match_count))
+S.exercise_fn method(:all_matches), 10, S.get_spec(method(:match_count))
 
-# [[[[:c, :b, :w, :w], [:b, :c, :g, :y]], 2],
-#  [[[:y, :r, :g, :r, :b], [:r, :g, :w, :b, :r]], 4],
-#  [[[:r, :g, :r, :g, :g], [:r, :g, :g, :b, :c]], 3],
+# [[[[:b, :r, :c, :r, :y, :w], [:r, :r, :c, :w, :y, :w]], nil, 5],
+#  [[[:c, :y, :g, :c, :r, :c], [:b, :w, :b, :b, :w, :b]], nil, 0],
+#  [[[:w, :g, :y, :r, :y], [:g, :y, :w, :r, :w]], nil, 4],
+#  [[[:g, :c, :c, :g], [:w, :g, :y, :w]], nil, 1],
 
 def self.score(secret, guess)
   exact = exact_matches(secret, guess)
@@ -231,10 +235,10 @@ STest.instrument [method(:exact_matches), method(:all_matches)],
                             method(:all_matches)   => S.get_spec(method(:exact_matches)) }
 
 S.exercise_fn method(:score)
-# [[[[:w, :r, :w, :c, :c, :c], [:r, :y, :r, :w, :c, :b]], {:"main/exact_matches"=>1, :"main/loose_matches"=>2}],
-#  [[[:r, :c, :w, :y, :c], [:g, :c, :y, :y, :y]], {:"main/exact_matches"=>2, :"main/loose_matches"=>0}],
-#  [[[:y, :y, :b, :g, :b], [:g, :w, :b, :c, :g]], {:"main/exact_matches"=>1, :"main/loose_matches"=>1}],
-#  [[[:c, :b, :r, :y, :g], [:g, :w, :r, :y, :y]], {:"main/exact_matches"=>2, :"main/loose_matches"=>1}],
+# [[[[:w, :g, :y, :y], [:w, :c, :c, :r]], nil, {:"Object/exact_matches"=>1, :"Object/loose_matches"=>0}],
+#  [[[:y, :w, :g, :b, :b], [:y, :w, :g, :y, :b]], nil, {:"Object/exact_matches"=>4, :"Object/loose_matches"=>0}],
+#  [[[:b, :b, :c, :b], [:b, :y, :w, :y]], nil, {:"Object/exact_matches"=>1, :"Object/loose_matches"=>0}],
+#  [[[:y, :w, :c, :y, :c], [:y, :g, :w, :w, :r]], nil, {:"Object/exact_matches"=>1, :"Object/loose_matches"=>1}],
 
 STest.summarize_results STest.check method(:score)
 
