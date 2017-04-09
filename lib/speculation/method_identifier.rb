@@ -2,7 +2,7 @@
 
 module Speculation
   # @private
-  class Identifier
+  class MethodIdentifier
     attr_reader :namespace, :name
 
     def initialize(namespace, name, is_instance_method)

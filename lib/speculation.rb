@@ -10,7 +10,7 @@ require "securerandom"
 
 require "speculation/version"
 require "speculation/namespaced_symbols"
-require "speculation/identifier"
+require "speculation/method_identifier"
 require "speculation/utils"
 require "speculation/spec"
 require "speculation/error"
@@ -156,7 +156,7 @@ module Speculation
   # @param value value to conform
   # @return [Symbol, Object] :Speculation/invalid if value does not match spec, else the (possibly destructured) value
   def self.conform(spec, value)
-    spec = Identifier(spec)
+    spec = MethodIdentifier(spec)
     specize(spec).conform(value)
   end
 
@@ -193,7 +193,7 @@ module Speculation
   #   where problem-hash has at least :path :pred and :val keys describing the
   #   predicate and the value that failed at that path.
   def self.explain_data(spec, x)
-    spec = Identifier(spec)
+    spec = MethodIdentifier(spec)
     name = spec_name(spec)
     _explain_data(spec, [], Array(name), [], x)
   end
@@ -276,15 +276,15 @@ module Speculation
   # @param overrides <Hash>
   # @return [Proc]
   def self.gen(spec, overrides = nil)
-    spec = Identifier(spec)
+    spec = MethodIdentifier(spec)
     gensub(spec, overrides, [], RECURSION_LIMIT => recursion_limit)
   end
 
   # @private
-  def self.Identifier(x)
+  def self.MethodIdentifier(x)
     case x
-    when Method        then Identifier.new(x.receiver, x.name, false)
-    when UnboundMethod then Identifier.new(x.owner, x.name, true)
+    when Method        then MethodIdentifier.new(x.receiver, x.name, false)
+    when UnboundMethod then MethodIdentifier.new(x.owner, x.name, true)
     else x
     end
   end
@@ -295,7 +295,7 @@ module Speculation
   # @param spec [Spec, Symbol, Proc, Hash] a spec, spec name, predicate or regex-op
   # @return [Symbol, Method]
   def self.def(key, spec)
-    key = Identifier(key)
+    key = MethodIdentifier(key)
 
     unless Utils.ident?(key) && (!key.is_a?(Symbol) || NamespacedSymbols.namespace(key))
       raise ArgumentError, "key must be a namespaced Symbol, e.g. #{ns(:my_spec)}, or a Method"
@@ -311,7 +311,7 @@ module Speculation
       reg.merge(key => with_name(spec, key)).freeze
     end
 
-    key.is_a?(Identifier) ? key.get_method : key
+    key.is_a?(MethodIdentifier) ? key.get_method : key
   end
 
   # @return [Hash] the registry hash
@@ -323,7 +323,7 @@ module Speculation
   # @param key [Symbol, Method]
   # @return [Spec, nil] spec registered for key, or nil
   def self.get_spec(key)
-    registry[Identifier(key)]
+    registry[MethodIdentifier(key)]
   end
 
   # NOTE: it is not generally necessary to wrap predicates in spec when using
@@ -612,7 +612,7 @@ module Speculation
   # @note Note that :fn specs require the presence of :args and :ret specs to conform values, and so :fn
   #   specs will be ignored if :args or :ret are missing.
   def self.fdef(method, spec)
-    self.def(Identifier(method), fspec(spec))
+    self.def(MethodIdentifier(method), fspec(spec))
     method
   end
 
@@ -620,7 +620,7 @@ module Speculation
   # @param x
   # @return [Boolean] true when x is valid for spec.
   def self.valid?(spec, x)
-    spec = Identifier(spec)
+    spec = MethodIdentifier(spec)
     spec = specize(spec)
 
     !invalid?(spec.conform(x))
@@ -984,7 +984,7 @@ module Speculation
         spec
       else
         case spec
-        when Symbol, Identifier
+        when Symbol, MethodIdentifier
           specize(reg_resolve!(spec))
         else
           spec_impl(spec, nil, false)

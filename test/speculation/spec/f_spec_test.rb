@@ -26,7 +26,7 @@ module Speculation
 
       Gen.generate(S.gen(mod.method(:foo)))
 
-      identifier = S.send(:Identifier, mod.method(:foo))
+      identifier = S.send(:MethodIdentifier, mod.method(:foo))
       expected = { :path => [:ret], :via => [identifier], :in => [], :pred => [Integer, ["0"]] }
 
       ed = S.explain_data(mod.method(:foo), :to_s.to_proc)
@@ -64,7 +64,7 @@ module Speculation
       val = Gen.generate(S.gen(mod.method(:foo)))
       assert_kind_of(Integer, val.call { |_x| 1 })
 
-      identifier = S.Identifier(mod.method(:foo))
+      identifier = S.MethodIdentifier(mod.method(:foo))
       f = ->(&b) { b.call("1") }
       ed = S.explain_data(mod.method(:foo), f)
       ed = ed.fetch(ns(S, :problems)).first

@@ -44,7 +44,7 @@ module Speculation
     end
 
     def self.ident?(x)
-      x.is_a?(Symbol) || x.is_a?(Identifier)
+      x.is_a?(Symbol) || x.is_a?(MethodIdentifier)
     end
 
     def self.method?(x)

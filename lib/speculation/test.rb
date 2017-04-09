@@ -83,12 +83,12 @@ module Speculation
     # @return [Array<Method>] a collection of methods instrumented.
     def self.instrument(method_or_methods = instrumentable_methods, opts = {})
       if opts[:gen]
-        gens = opts[:gen].reduce({}) { |h, (k, v)| h.merge(S.Identifier(k) => v) }
+        gens = opts[:gen].reduce({}) { |h, (k, v)| h.merge(S.MethodIdentifier(k) => v) }
         opts = opts.merge(:gen => gens)
       end
 
       Array(method_or_methods).
-        map { |method| S.Identifier(method) }.
+        map { |method| S.MethodIdentifier(method) }.
         uniq.
         map { |ident| instrument1(ident, opts) }.
         compact.
@@ -103,7 +103,7 @@ module Speculation
       method_or_methods ||= @instrumented_methods.value.keys
 
       Array(method_or_methods).
-        map { |method| S.Identifier(method) }.
+        map { |method| S.MethodIdentifier(method) }.
         map { |ident| unstrument1(ident) }.
         compact.
         map(&method(:Method))
@@ -117,7 +117,7 @@ module Speculation
     # @see check see check for options and return
     def self.check_method(method, spec, opts = {})
       validate_check_opts(opts)
-      check1(S.Identifier(method), spec, opts)
+      check1(S.MethodIdentifier(method), spec, opts)
     end
 
     # @param opts [Hash] an opts hash as per `check`
@@ -159,10 +159,10 @@ module Speculation
       method_or_methods ||= checkable_methods
 
       checkable = Set(checkable_methods(opts))
-      checkable.map!(&S.method(:Identifier))
+      checkable.map!(&S.method(:MethodIdentifier))
 
       methods = Set(method_or_methods)
-      methods.map!(&S.method(:Identifier))
+      methods.map!(&S.method(:MethodIdentifier))
 
       pmap(methods.intersection(checkable)) { |ident|
         check1(ident, S.get_spec(ident), opts)
@@ -304,9 +304,9 @@ module Speculation
       end
 
       def instrument_choose_fn(f, spec, ident, opts)
-        stubs   = (opts[:stub] || []).map(&S.method(:Identifier))
+        stubs   = (opts[:stub] || []).map(&S.method(:MethodIdentifier))
         over    = opts[:gen] || {}
-        replace = (opts[:replace] || {}).reduce({}) { |h, (k, v)| h.merge(S.Identifier(k) => v) }
+        replace = (opts[:replace] || {}).reduce({}) { |h, (k, v)| h.merge(S.MethodIdentifier(k) => v) }
 
         if stubs.include?(ident)
           Gen.generate(S.gen(spec, over))
@@ -317,7 +317,7 @@ module Speculation
 
       def instrument_choose_spec(spec, ident, overrides)
         (overrides || {}).
-          reduce({}) { |h, (k, v)| h.merge(S.Identifier(k) => v) }.
+          reduce({}) { |h, (k, v)| h.merge(S.MethodIdentifier(k) => v) }.
           fetch(ident, spec)
       end
 
@@ -464,7 +464,7 @@ module Speculation
       end
 
       def fn_spec_name?(spec_name)
-        spec_name.is_a?(S::Identifier)
+        spec_name.is_a?(S::MethodIdentifier)
       end
 
       # Reimplementation of Rantly's `check` since it does not provide direct access to results
@@ -562,10 +562,10 @@ module Speculation
         end
       end
 
-      # if x is an Identifier, return its method
+      # if x is an MethodIdentifier, return its method
       def Method(x)
         case x
-        when Identifier then x.get_method
+        when MethodIdentifier      then x.get_method
         when Method, UnboundMethod then x
         else raise ArgumentError, "unexpected method-like object #{x}"
         end
