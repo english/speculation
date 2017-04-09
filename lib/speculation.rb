@@ -254,7 +254,7 @@ module Speculation
     g = gfn || spec.gen(overrides, path, rmap)
 
     if g
-      Gen.such_that(->(x) { valid?(spec, x) }, g)
+      Gen.such_that(g) { |x| valid?(spec, x) }
     else
       raise Speculation::Error.new("unable to construct gen at: #{path.inspect} for: #{spec.inspect}",
                                    ns(:failure) => :no_gen, ns(:path) => path)

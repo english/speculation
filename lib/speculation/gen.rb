@@ -17,14 +17,16 @@ require "time"
 
 module Speculation
   module Gen
-    # Adds `pred` as a Rantly `guard` to generator `gen`.
-    # @param pred
+    # Adds pred block as a Rantly `guard` to generator `gen`.
     # @param gen [Proc]
+    # @yield generated value
     # @return [Proc]
     # @see https://github.com/abargnesi/rantly Rantly
-    def self.such_that(pred, gen)
+    def self.such_that(gen)
+      raise ArgumentError, "block required" unless block_given?
+
       ->(rantly) do
-        gen.call(rantly).tap { |val| rantly.guard(pred.call(val)) }
+        gen.call(rantly).tap { |val| rantly.guard(yield(val)) }
       end
     end
 
