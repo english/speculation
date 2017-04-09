@@ -1,10 +1,10 @@
 # Speculation [![Build Status](https://travis-ci.org/english/speculation.svg?branch=master)](https://travis-ci.org/english/speculation)
 
-A Ruby port of Clojure's `clojure.spec`. See [clojure.spec - Rationale and Overview](https://clojure.org/about/spec). All advantages/disadvantages for clojure.spec should apply to Speculation too. This library is largely a copy-and-paste from clojure.spec so all credit goes to the clojure.spec authors.
+A Ruby port of Clojure's `clojure.spec`. See [clojure.spec - Rationale and Overview](https://clojure.org/about/spec). All advantages/disadvantages for clojure.spec should apply to Speculation too. This library is largely a copy-and-paste from clojure.spec so all credit goes to Rich Hickey and contributors for their original work.
 
 ## Project Goals
 
-The goal of this project is to match clojure.spec as closely as possible, from design to features to API. This decision comes with the trade-off that the library may not necessarily be idiomatic Ruby, however there's nothing stopping other libraries from being built on top of Speculation to bring a more Ruby-like feel. This library won't introduce features that do not exist in clojure.spec.
+The goal of this project is to match clojure.spec as closely as possible, from design to features to API. This library won't introduce features that do not exist in clojure.spec. This decision comes with the trade-off that the library may not necessarily be idiomatic Ruby, however there's nothing stopping other libraries from being built on top of Speculation to bring a more Ruby-like feel.
 
 ## Examples
 

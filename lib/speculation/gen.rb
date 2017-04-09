@@ -1,5 +1,9 @@
 # frozen_string_literal: true
 
+# This is a Ruby translation of clojure.spec.gen:
+#   https://github.com/clojure/clojure/blob/master/src/clj/clojure/spec/gen.clj
+# All credit belongs with Rich Hickey and contributors for their original work.
+
 require "set"
 require "rantly"
 require "rantly/property"

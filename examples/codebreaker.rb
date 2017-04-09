@@ -1,14 +1,13 @@
 # frozen_string_literal: true
-# See http://blog.cognitect.com/blog/2016/10/5/interactive-development-with-clojurespec
 
-require "bundler/inline"
-require "set"
+# Speculation version of
+# http://blog.cognitect.com/blog/2016/10/5/interactive-development-with-clojurespec by David
+# Chelimsky.
 
-gemfile true do
-  gem "speculation",
-      :git     => "https://github.com/english/speculation.git",
-      :require => ["speculation", "speculation/test", "speculation/gen"]
-end
+require "bundler/setup"
+require "speculation"
+require "speculation/gen"
+require "speculation/test"
 
 S = Speculation
 Gen = S::Gen

@@ -1,5 +1,9 @@
 # frozen_string_literal: true
 
+# This is a Ruby translation of clojure.spec:
+#   https://github.com/clojure/clojure/blob/master/src/clj/clojure/spec.clj
+# All credit belongs with Rich Hickey and contributors for their original work.
+
 module Speculation
   # @private
   class MergeSpec < Spec
