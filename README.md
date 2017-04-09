@@ -84,6 +84,27 @@ Speculation uses [`Rantly`](https://github.com/abargnesi/rantly) for random data
 
 Rantly gives Speculation the ability to shrink a failing test case down to its smallest failing case, however in Speculation we limit this to Integers and Strings. This is an area where Speculation may currently be significantly weaker than clojure.spec.
 
+## Project status
+
+Speculation will mirror any changes made to clojure.spec. clojure.spec is still in alpha so breaking changes should be expected.
+
+While most of features of clojure.spec are implemented in Speculation, a few remain:
+
+- [`unform`](https://clojuredocs.org/clojure.spec/unform)
+- [`form`](https://clojuredocs.org/clojure.spec/form)
+- [`abbrev`](https://clojuredocs.org/clojure.spec/abbrev)
+- [`describe`](https://clojuredocs.org/clojure.spec/describe)
+
+## Improvements
+
+Some things I hope to focus on in the near future:
+
+- Explore alternative generator library
+  - Build up a library of generators around Rantly in the meantime?
+- Generate documentation from specs
+  - perhaps integrating with [Pry's documentation browsing](https://github.com/pry/pry/wiki/Documentation-browsing)?
+- Profile and optimise
+
 ## Development
 
 After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake` to run rubocop and the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
@@ -91,23 +112,6 @@ After checking out the repo, run `bin/setup` to install dependencies. Then, run 
 ## Contributing
 
 Bug reports and pull requests are welcome on GitHub at https://github.com/english/speculation.
-
-## TODO
-
-### clojure.spec features
-
-- [`unform`](https://clojuredocs.org/clojure.spec/unform)
-- [`form`](https://clojuredocs.org/clojure.spec/form)
-- [`abbrev`](https://clojuredocs.org/clojure.spec/abbrev)
-- [`describe`](https://clojuredocs.org/clojure.spec/describe)
-
-### Improvements
-
-- Explore alternative generator library
-  - Build up a library of generators around Rantly in the meantime?
-- Generate documentation from specs
-  - perhaps integrating with [Pry's documentation browsing](https://github.com/pry/pry/wiki/Documentation-browsing)?
-- Profile and optimise
 
 ## License
 
