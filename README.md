@@ -4,11 +4,11 @@ A Ruby port of Clojure's `clojure.spec`. See [clojure.spec - Rationale and Overv
 
 ## Project Goals
 
-The goal of this project is to match clojure.spec as closely as possible, from design to features to API. This library won't introduce features that do not exist in clojure.spec. This decision comes with the trade-off that the library may not necessarily be idiomatic Ruby, however there's nothing stopping other libraries from being built on top of Speculation to bring a more Ruby-like feel.
+The goal of this project is to match clojure.spec as closely as possible, from design to features to API. There aren't, and won't be any, significant departures from clojure.spec.
 
 ## Examples
 
-- [sinatra-web-app](examples/sinatra-web-app): A small sinatra web application demonstrating model validation and API error message generation.
+- [sinatra-web-app](examples/sinatra-web-app): A small Sinatra web application demonstrating parameter validation and API error message generation.
 - [spec_guide.rb](examples/spec_guide.rb): Speculation port of Clojure's [spec guide](https://clojure.org/guides/spec)
 - [codebreaker.rb](examples/codebreaker.rb): Speculation port of the 'codebreaker' game described in [Interactive development with clojure.spec](http://blog.cognitect.com/blog/2016/10/5/interactive-development-with-clojurespec)
 - [json_parser.rb](examples/json_parser.rb): JSON parser using Speculation.
@@ -21,7 +21,7 @@ Documentation is available at [RubyDoc](http://www.rubydoc.info/github/english/s
 
 ### Built in predicates
 
-clojure.spec leans on its macro system and rich standard library of predicate functions when writing specs. Ruby has neither of those, so we must be creative with what we define as a 'predicate' in Speculation. Each of the following are valid Speculation predicates:
+clojure.spec utilises its rich standard library of predicate functions and data structures when writing specs. Ruby has neither of those, so we must be creative with what we define as a 'predicate' in Speculation. Each of the following are valid Speculation predicates:
 
 ```rb
 S.valid?(->(x) { x > 0 }, 2)
@@ -93,8 +93,6 @@ After checking out the repo, run `bin/setup` to install dependencies. Then, run 
 Bug reports and pull requests are welcome on GitHub at https://github.com/english/speculation.
 
 ## TODO
-
-- tidy up tests
 
 ### clojure.spec features
 
