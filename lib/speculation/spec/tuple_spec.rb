@@ -22,7 +22,7 @@ module Speculation
     def conform(collection)
       specs = @delayed_specs.value!
 
-      unless Utils.array?(collection) && collection.count == specs.count
+      unless Predicates.array?(collection) && collection.count == specs.count
         return S::INVALID
       end
 
@@ -42,8 +42,8 @@ module Speculation
     end
 
     def explain(path, via, inn, value)
-      if !Utils.array?(value)
-        [{ :path => path, :val => value, :via => via, :in => inn, :pred => [Utils.method(:array?), [value]] }]
+      if !Predicates.array?(value)
+        [{ :path => path, :val => value, :via => via, :in => inn, :pred => [Predicates.method(:array?), [value]] }]
       elsif @preds.count != value.count
         [{ :path => path, :val => value, :via => via, :in => inn, :pred => [Utils.method(:count_eq), [@preds, value.count]] }]
       else

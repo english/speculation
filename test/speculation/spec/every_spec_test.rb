@@ -38,7 +38,7 @@ module Speculation
 
       coll = Gen.generate(S.gen(S.coll_of(Integer, :min_count => 3, :max_count => 4, :distinct => true, :into => Set[])))
       assert coll.count.between?(3, 4)
-      assert Utils.distinct?(coll)
+      assert Predicates.distinct?(coll)
       coll.each do |x|
         assert_kind_of Integer, x
       end

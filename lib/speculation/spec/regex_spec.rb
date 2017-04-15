@@ -16,7 +16,7 @@ module Speculation
     end
 
     def conform(value)
-      if value.nil? || Utils.collection?(value)
+      if value.nil? || Predicates.collection?(value)
         S.re_conform(@regex, value)
       else
         S::INVALID
@@ -24,7 +24,7 @@ module Speculation
     end
 
     def explain(path, via, inn, value)
-      if value.nil? || Utils.collection?(value)
+      if value.nil? || Predicates.collection?(value)
         S.re_explain(path, via, inn, @regex, value || [])
       else
         [{ :path => path, :val => value, :via => via, :in => inn }]

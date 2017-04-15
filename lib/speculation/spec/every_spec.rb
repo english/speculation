@@ -38,11 +38,11 @@ module Speculation
 
       # returns a tuple of [init add complete] fns
       @cfns = ->(x) do
-        if Utils.array?(x) && (!@conform_into || Utils.array?(@conform_into))
+        if Predicates.array?(x) && (!@conform_into || Predicates.array?(@conform_into))
           [Utils.method(:itself),
            ->(ret, i, v, cv) { v.equal?(cv) ? ret : ret.tap { |r| r[i] = cv } },
            Utils.method(:itself)]
-        elsif Utils.hash?(x) && ((@kind && !@conform_into) || Utils.hash?(@conform_into))
+        elsif Predicates.hash?(x) && ((@kind && !@conform_into) || Predicates.hash?(@conform_into))
           [@conform_keys ? Utils.method(:empty) : Utils.method(:itself),
            ->(ret, _i, v, cv) {
              if v.equal?(cv) && !@conform_keys
@@ -132,13 +132,13 @@ module Speculation
 
         val = if @distinct
                 if @count
-                  rantly.array(@count, &pgen).tap { |arr| rantly.guard(Utils.distinct?(arr)) }
+                  rantly.array(@count, &pgen).tap { |arr| rantly.guard(Predicates.distinct?(arr)) }
                 else
                   min = @min_count || 0
                   max = @max_count || [@gen_max, 2 * min].max
                   count = rantly.range(min, max)
 
-                  rantly.array(count, &pgen).tap { |arr| rantly.guard(Utils.distinct?(arr)) }
+                  rantly.array(count, &pgen).tap { |arr| rantly.guard(Predicates.distinct?(arr)) }
                 end
               elsif @count
                 rantly.array(@count, &pgen)
@@ -160,26 +160,26 @@ module Speculation
     private
 
     def collection_problems(x, kfn, distinct, count, min_count, max_count, path, via, inn)
-      pred = kfn || Utils.method(:collection?)
+      pred = kfn || Predicates.method(:collection?)
 
       unless S.pvalid?(pred, x)
         return S.explain1(pred, path, via, inn, x)
       end
 
-      if count && !Utils.count_eq?(x, count)
-        return [{ :path => path, :pred => [Utils.method(:count_eq?), [x, count]], :val => x, :via => via, :in => inn }]
+      if count && !Predicates.count_eq?(x, count)
+        return [{ :path => path, :pred => [Predicates.method(:count_eq?), [x, count]], :val => x, :via => via, :in => inn }]
       end
 
       if min_count || max_count
         min_count ||= 0
         max_count ||= Float::INFINITY
-        unless Utils.count_between?(x, min_count, max_count)
-          return [{ :path => path, :pred => [Utils.method(:count_between?), [x, min_count, max_count]], :val => x, :via => via, :in => inn }]
+        unless Predicates.count_between?(x, min_count, max_count)
+          return [{ :path => path, :pred => [Predicates.method(:count_between?), [x, min_count, max_count]], :val => x, :via => via, :in => inn }]
         end
       end
 
-      if distinct && !x.empty? && !Utils.distinct?(x)
-        [{ :path => path, :pred => [Utils.method(:distinct?), [x]], :val => x, :via => via, :in => inn }]
+      if distinct && !x.empty? && !Predicates.distinct?(x)
+        [{ :path => path, :pred => [Predicates.method(:distinct?), [x]], :val => x, :via => via, :in => inn }]
       end
     end
   end

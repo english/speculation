@@ -121,7 +121,7 @@ module User
 
     USER_ERROR_MESSAGE_MAP = {
       [] => {
-        S::Utils.method(:key?) => ->(args) {
+        S::Predicates.method(:key?) => ->(args) {
           key = args.first
           if key == S.or_keys(:email, :username)
             "email or username is required"

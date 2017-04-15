@@ -12,6 +12,7 @@ require "speculation/version"
 require "speculation/namespaced_symbols"
 require "speculation/method_identifier"
 require "speculation/utils"
+require "speculation/predicates"
 require "speculation/spec"
 require "speculation/error"
 
@@ -143,7 +144,7 @@ module Speculation
   # @param x [Hash, Object]
   # @return [Hash, false] x if x is a (Speculation) regex op, else logical false
   def self.regex?(x)
-    Utils.hash?(x) && x[OP] && x
+    Predicates.hash?(x) && x[OP] && x
   end
 
   # @param value return value of a `conform` call
@@ -485,7 +486,7 @@ module Speculation
   # Returns a spec for a hash whose keys satisfy kpred and vals satisfy vpred.
   # Unlike 'every_kv', hash_of will exhaustively conform every value.
   #
-  # Same options as 'every', :kind defaults to `Speculation::Utils.hash?`, with
+  # Same options as 'every', :kind defaults to `Speculation::Predicates.hash?`, with
   # the addition of:
   #
   # :conform_keys - conform keys as well as values (default false)
@@ -496,7 +497,7 @@ module Speculation
   # @param options [Hash]
   # @return [Spec]
   def self.hash_of(kpred, vpred, options = {})
-    every_kv(kpred, vpred, :kind            => Utils.method(:hash?),
+    every_kv(kpred, vpred, :kind            => Predicates.method(:hash?),
                            ns(:conform_all) => true,
                            **options)
   end
@@ -1307,6 +1308,6 @@ module Speculation
     # Rantly#positive_integer is actually a natural integer
     ns(:natural_integer)  => with_gen(self.and(Integer, ->(x) { x >= 0 }), :positive_integer.to_proc),
     ns(:negative_integer) => with_gen(self.and(Integer, ->(x) { x < 0 }), ->(r) { r.range(nil, -1) }),
-    ns(:empty)            => with_gen(Utils.method(:empty?), Utils.constantly([]))
+    ns(:empty)            => with_gen(Predicates.method(:empty?), Utils.constantly([]))
   )
 end

@@ -31,7 +31,7 @@ module Speculation
       req_specs = req_keys + req_un_specs
       req_keys += req_un_specs.map(&method(:unqualify_key))
 
-      pred_exprs = [Utils.method(:hash?)]
+      pred_exprs = [Predicates.method(:hash?)]
       pred_exprs.push(->(v) { parse_req(req, v, Utils.method(:itself)).empty? }) if req.any?
       pred_exprs.push(->(v) { parse_req(req_un, v, method(:unqualify_key)).empty? }) if req_un.any?
 
@@ -70,8 +70,8 @@ module Speculation
     end
 
     def explain(path, via, inn, value)
-      unless Utils.hash?(value)
-        return [{ :path => path, :pred => [Utils.method(:hash?), [value]], :val => value, :via => via, :in => inn }]
+      unless Predicates.hash?(value)
+        return [{ :path => path, :pred => [Predicates.method(:hash?), [value]], :val => value, :via => via, :in => inn }]
       end
 
       problems = []
@@ -80,7 +80,7 @@ module Speculation
         failures = parse_req(@req, value, Utils.method(:itself))
 
         failures.each do |failure_sexp|
-          pred = [Utils.method(:key?), [failure_sexp]]
+          pred = [Predicates.method(:key?), [failure_sexp]]
           problems << { :path => path, :pred => pred, :val => value, :via => via, :in => inn }
         end
       end
@@ -89,7 +89,7 @@ module Speculation
         failures = parse_req(@req_un, value, method(:unqualify_key))
 
         failures.each do |failure_sexp|
-          pred = [Utils.method(:key?), [failure_sexp]]
+          pred = [Predicates.method(:key?), [failure_sexp]]
           problems << { :path => path, :pred => pred, :val => value, :via => via, :in => inn }
         end
       end

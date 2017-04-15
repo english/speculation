@@ -214,8 +214,8 @@ S.valid? ns(:person), ns(:first_name) => "Elon", ns(:last_name) => "Musk", ns(:e
 
 # Fails required key check
 S.explain ns(:person), ns(:first_name) => "Elon"
-# >> val: {:"Object/first_name"=>"Elon"} fails spec: :"Object/person" predicate: [#<Method: Speculation::Utils.key?>, [:"Object/last_name"]]
-# >> val: {:"Object/first_name"=>"Elon"} fails spec: :"Object/person" predicate: [#<Method: Speculation::Utils.key?>, [:"Object/email"]]
+# >> val: {:"Object/first_name"=>"Elon"} fails spec: :"Object/person" predicate: [#<Method: Speculation::Predicates.key?>, [:"Object/last_name"]]
+# >> val: {:"Object/first_name"=>"Elon"} fails spec: :"Object/person" predicate: [#<Method: Speculation::Predicates.key?>, [:"Object/email"]]
 
 # Fails attribute conformance
 S.explain ns(:person), ns(:first_name) => "Elon", ns(:last_name) => "Musk", ns(:email) => "n/a"
@@ -248,8 +248,8 @@ S.explain :"unq/person", :first_name => "Elon", :last_name => "Musk", :email => 
 # >> In: [:email] val: "n/a" fails spec: :"Object/email_type" at: [:email] predicate: [/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,63}$/, ["n/a"]]
 
 S.explain :"unq/person", :first_name => "Elon"
-# >> val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: [#<Method: Speculation::Utils.key?>, [:"Object/last_name"]]
-# >> val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: [#<Method: Speculation::Utils.key?>, [:"Object/email"]]
+# >> val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: [#<Method: Speculation::Predicates.key?>, [:"Object/last_name"]]
+# >> val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: [#<Method: Speculation::Predicates.key?>, [:"Object/email"]]
 
 # Unqualified keys can also be used to validate record attributes - don't support
 # Keyword args keys* - don't support
@@ -301,7 +301,7 @@ S.conform ns(:vnum3), [1, 2, 3] # => #<Set: {1, 2, 3}>
 S.explain ns(:vnum3), Set[1, 2, 3] # not an array
 # >> val: #<Set: {1, 2, 3}> fails spec: :"Object/vnum3" predicate: [Array, [#<Set: {1, 2, 3}>]]
 S.explain ns(:vnum3), [1, 1, 1] # not distinct
-# >> val: [1, 1, 1] fails spec: :"Object/vnum3" predicate: [#<Method: Speculation::Utils.distinct?>, [[1, 1, 1]]]
+# >> val: [1, 1, 1] fails spec: :"Object/vnum3" predicate: [#<Method: Speculation::Predicates.distinct?>, [[1, 1, 1]]]
 S.explain ns(:vnum3), [1, 2, :a] # not a number
 # >> In: [2] val: :a fails spec: :"Object/vnum3" predicate: [Numeric, [:a]]
 
@@ -499,11 +499,11 @@ end
 S.check_asserts = true
 person_name 100 rescue $!
 # => #<Speculation::Error: Spec assertion failed
-#    val: 100 fails predicate: [#<Method: Speculation::Utils.hash?>, [100]]
+#    val: 100 fails predicate: [#<Method: Speculation::Predicates.hash?>, [100]]
 #    Speculation/failure :assertion_failed
 #     {:"Speculation/problems"=>
 #      [{:path=>[],
-#        :pred=>[#<Method: Speculation::Utils.hash?>, [100]],
+#        :pred=>[#<Method: Speculation::Predicates.hash?>, [100]],
 #        :val=>100,
 #        :via=>[],
 #        :in=>[]}],

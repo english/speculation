@@ -21,6 +21,7 @@ def reload!
   load "./lib/speculation/pmap.rb"
   load "./lib/speculation/method_identifier.rb"
   load "./lib/speculation/utils.rb"
+  load "./lib/speculation/predicates.rb"
   load "./lib/speculation/error.rb"
 
   load "./lib/speculation/spec.rb"
@@ -63,15 +64,15 @@ def self.assertions=(_x); end
 extend Speculation::NamespacedSymbols
 
 def self.test_check_utils
-  S.fdef(U.method(:hash?),
+  S.fdef(S::Predicates.method(:hash?),
          :args => S.tuple(ns(S, :any)),
          :ret  => ns(S, :boolean))
 
-  S.fdef(U.method(:array?),
+  S.fdef(S::Predicates.method(:array?),
          :args => S.tuple(ns(S, :any)),
          :ret  => ns(S, :boolean))
 
-  S.fdef(U.method(:collection?),
+  S.fdef(S::Predicates.method(:collection?),
          :args => S.tuple(ns(S, :any)),
          :ret  => ns(S, :boolean))
 
@@ -80,19 +81,12 @@ def self.test_check_utils
          :ret  => ns(S, :any),
          :fn   => ->(x) { x[:args][:x].equal?(x[:ret]) })
 
-  # S.fdef(U.method(:complement),
-  #        :args  => ns(S, :empty),
-  #        :block => S.fspec(:args => S.zero_or_more(ns(S, :any)),
-  #                          :ret  => ns(S, :any)),
-  #        :ret   => S.fspec(:args => S.zero_or_more(ns(S, :any)),
-  #                          :ret  => ns(S, :boolean)))
-
   S.fdef(U.method(:constantly),
          :args => S.cat(:x => ns(S, :any)),
          :ret  => Proc,
          :fn   => ->(x) { x[:args][:x].equal?(x[:ret].call) })
 
-  S.fdef(U.method(:distinct?),
+  S.fdef(S::Predicates.method(:distinct?),
          :args => S.cat(:coll => Enumerable),
          :ret  => ns(S, :boolean))
 
@@ -109,7 +103,8 @@ def self.test_check_utils
          :ret  => S.and(Enumerable, ->(coll) { coll.empty? }),
          :fn   => ->(x) { x[:args][:coll].class == x[:ret].class })
 
-  STest.summarize_results(STest.check(STest.enumerate_methods(Speculation::Utils), :num_tests => 50))
+  methods = STest.enumerate_methods(Speculation::Utils) + STest.enumerate_methods(Speculation::Predicates)
+  STest.summarize_results(STest.check(methods, :num_tests => 1000))
 end
 
 reload!
