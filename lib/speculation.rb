@@ -788,7 +788,7 @@ module Speculation
 
     if ogen
       if [:accept, nil].include?(op)
-        return ->(rantly) { [*ogen.call(rantly)] }
+        return ->(rantly) { [ogen.call(rantly)] }
       else
         return ->(rantly) { ogen.call(rantly) }
       end
