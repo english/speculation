@@ -3,5 +3,5 @@ gem 'sinatra'
 gem 'sequel'
 gem 'bcrypt'
 gem 'sqlite3'
-gem 'speculation', :git => "https://github.com/english/speculation.git", :ref => "ae3ee09"
+gem 'speculation', :path => File.expand_path('../../..', __FILE__)
 gem 'pry'

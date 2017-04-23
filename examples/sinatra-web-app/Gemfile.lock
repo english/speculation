@@ -1,9 +1,7 @@
-GIT
-  remote: https://github.com/english/speculation.git
-  revision: ae3ee095765816a8d5bfa5b29c808439f04633b0
-  ref: ae3ee09
+PATH
+  remote: /Users/jamie/Projects/speculation
   specs:
-    speculation (0.2.0)
+    speculation (0.4.1)
       concurrent-ruby (~> 1.0)
       rantly (~> 1.0)
 
