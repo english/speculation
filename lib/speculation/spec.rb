@@ -10,6 +10,10 @@ module Speculation
       raise NotImplementedError
     end
 
+    def unform(_x)
+      raise NotImplementedError
+    end
+
     def explain(_path, _via, _inn, _value)
       raise NotImplementedError
     end

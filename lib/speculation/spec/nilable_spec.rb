@@ -20,6 +20,10 @@ module Speculation
       value.nil? ? value : @delayed_spec.value!.conform(value)
     end
 
+    def unform(value)
+      value.nil? ? nil : @delayed_spec.value!.unform(value)
+    end
+
     def explain(path, via, inn, value)
       return if S.pvalid?(@delayed_spec.value!, value) || value.nil?
 

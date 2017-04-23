@@ -47,26 +47,43 @@ module Speculation
       return S::INVALID unless @keys_pred.call(value)
 
       reg = S.registry
-      ret = value
 
-      value.each do |key, v|
+      value.reduce(value) do |ret, (key, v)|
         spec_name = @key_to_spec_map.fetch(key, key)
         spec = reg[spec_name]
 
-        next unless spec
+        if spec
+          conformed_value = S.conform(spec, v)
 
-        conformed_value = S.conform(spec, v)
-
-        if S.invalid?(conformed_value)
-          return S::INVALID
-        else
-          unless conformed_value.equal?(v)
-            ret = ret.merge(key => conformed_value)
+          if S.invalid?(conformed_value)
+            break S::INVALID
+          elsif conformed_value.equal?(v)
+            ret
+          else
+            ret.merge(key => conformed_value)
           end
+        else
+          ret
         end
       end
+    end
 
-      ret
+    def unform(value)
+      reg = S.registry
+
+      value.reduce(value) do |ret, (key, conformed_value)|
+        if reg.key?(@key_to_spec_map[key])
+          unformed_value = S.unform(@key_to_spec_map.fetch(key), conformed_value)
+
+          if conformed_value.equal?(unformed_value)
+            ret
+          else
+            ret.merge(key => unformed_value)
+          end
+        else
+          ret
+        end
+      end
     end
 
     def explain(path, via, inn, value)

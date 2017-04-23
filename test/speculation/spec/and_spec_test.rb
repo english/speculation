@@ -20,5 +20,15 @@ module Speculation
       refute S.valid?(ns(:big_even), 10)
       assert S.valid?(ns(:big_even), 1_000_000)
     end
+
+    def test_conform_unform
+      spec = S.and(String,
+                   S.conformer(method(:Integer), method(:String)),
+                   Integer,
+                   :even?.to_proc)
+
+      assert_equal 1_000_000, S.conform(spec, "1_000_000")
+      assert_equal "1000000", S.unform(spec, S.conform(spec, "1_000_000"))
+    end
   end
 end

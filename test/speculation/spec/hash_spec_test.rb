@@ -80,22 +80,34 @@ val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: [#{Predicates.me
 
     def test_merge
       S.def(:"animal/kind", String)
-      S.def(:"animal/says", String)
+      S.def(:"animal/says", S.and(String, S.conformer(:upcase.to_proc, :downcase.to_proc)))
       S.def(:"animal/common", S.keys(:req => [:"animal/kind", :"animal/says"]))
       S.def(:"dog/tail?", ns(S, :boolean))
       S.def(:"dog/breed", String)
       S.def(:"animal/dog", S.merge(:"animal/common", S.keys(:req => [:"dog/tail?", :"dog/breed"])))
 
-      assert S.valid?(:"animal/dog",
-                      :"animal/kind" => "dog",
-                      :"animal/says" => "woof",
-                      :"dog/tail?"   => true,
-                      :"dog/breed"   => "retriever")
+      good_dog = { :"animal/kind" => "dog",
+                   :"animal/says" => "woof",
+                   :"dog/tail?"   => true,
+                   :"dog/breed"   => "retriever" }
 
-      S.explain_str(:"animal/dog",
-                    :"animal/kind" => "dog",
-                    :"dog/tail?"   => "why yes",
-                    :"dog/breed"   => "retriever")
+      assert_equal Hash[:"animal/kind" => "dog",
+                        :"animal/says" => "WOOF",
+                        :"dog/tail?"   => true,
+                        :"dog/breed"   => "retriever"], S.conform(:"animal/dog", good_dog)
+
+      assert_equal good_dog, S.unform(:"animal/dog", S.conform(:"animal/dog", good_dog))
+
+      bad_dog = { :"animal/kind" => "dog",
+                  :"dog/tail?"   => "why yes",
+                  :"dog/breed"   => "retriever" }
+
+      expected = <<EOS
+val: {:"animal/kind"=>"dog", :"dog/tail?"=>"why yes", :"dog/breed"=>"retriever"} fails spec: :"animal/common" predicate: [#<Method: Speculation::Predicates.key?>, [:"animal/says"]]
+In: [:"dog/tail?"] val: "why yes" fails spec: :"animal/dog" at: [:"dog/tail?"] predicate: [:"dog/tail?", ["why yes"]]
+EOS
+
+      assert_equal expected, S.explain_str(:"animal/dog", bad_dog)
     end
 
     def test_explain
@@ -166,6 +178,26 @@ In: [:email] val: "elon" fails spec: :"Speculation::HashSpecTest/email" at: [:em
       }
 
       assert_equal expected, S.explain_data(ns(:person), input)
+    end
+
+    def test_conform_unform
+      email_regex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,63}$/
+      S.def(ns(:email_type), S.and(String, email_regex))
+
+      S.def(ns(:acctid), Integer)
+      S.def(ns(:first_name), String)
+      S.def(ns(:last_name), String)
+      S.def(ns(:email), ns(:email_type))
+
+      S.def(ns(:person),
+            S.keys(:req => [ns(:first_name), ns(:last_name), ns(:email)],
+                   :opt => [ns(:phone)]))
+
+      val = { ns(:first_name) => "Elon",
+              ns(:last_name)  => "Musk",
+              ns(:email)      => "elon@example.com" }
+
+      assert_equal val, S.unform(ns(:person), S.conform(ns(:person), val))
     end
   end
 end

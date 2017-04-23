@@ -68,10 +68,15 @@ module Speculation
     end
 
     def test_one_or_more
-      S.def(ns(:seq_of_symbols), S.one_or_more(Symbol))
+      spec = S.one_or_more(Symbol)
 
-      assert_equal [:a, :b, :c], S.conform(ns(:seq_of_symbols), [:a, :b, :c])
-      assert_equal :"Speculation/invalid", S.conform(ns(:seq_of_symbols), [])
+      input = [:a, :b, :c]
+      expected_conformed = [:a, :b, :c]
+
+      assert_equal expected_conformed, S.conform(spec, [:a, :b, :c])
+      assert_equal input, S.unform(spec, expected_conformed)
+
+      assert_equal :"Speculation/invalid", S.conform(spec, [])
     end
 
     def test_zero_or_one
@@ -87,8 +92,11 @@ module Speculation
       S.def(ns(:odds_then_maybe_even), S.cat(:odds => S.one_or_more(ns(:odd)),
                                              :even => S.zero_or_one(ns(:even))))
 
-      expected = { :odds => [1, 3, 5], :even => 100 }
-      assert_equal expected, S.conform(ns(:odds_then_maybe_even), [1, 3, 5, 100])
+      input = [1, 3, 5, 100]
+      expected_conformed = { :odds => [1, 3, 5], :even => 100 }
+
+      assert_equal expected_conformed, S.conform(ns(:odds_then_maybe_even), input)
+      assert_equal input, S.unform(ns(:odds_then_maybe_even), expected_conformed)
     end
 
     def test_alt_zero_or_more
@@ -177,6 +185,26 @@ module Speculation
       }
 
       assert_equal expected, S.explain_data(ns(:nested), [:names, ["a", "b"], :nums, ["1"]])
+    end
+
+    def test_unform
+      S.def(ns(:config),
+            S.zero_or_more(S.cat(:prop => String,
+                                 :val  => S.alt(:s => String,
+                                                :b => ->(x) { [true, false].include?(x) }))))
+
+      input = ["-server", "foo", "-verbose", true, "-user", "joe"]
+      conformed = S.conform(ns(:config), input)
+      unformed = S.unform(ns(:config), conformed)
+
+      expected = [{ :prop => "-server",  :val => [:s, "foo"] },
+                  { :prop => "-verbose", :val => [:b, true] },
+                  { :prop => "-user",    :val => [:s, "joe"] }]
+
+      assert_equal expected, conformed
+      assert_equal input, unformed
+
+      assert_equal expected, conformed
     end
   end
 end

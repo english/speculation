@@ -28,6 +28,10 @@ module Speculation
       value
     end
 
+    def unform(value)
+      @preds.reverse.reduce(value) { |val, pred| S.unform(pred, val) }
+    end
+
     def explain(path, via, inn, value)
       S.explain_pred_list(@preds, path, via, inn, value)
     end

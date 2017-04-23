@@ -94,6 +94,10 @@ module Speculation
       end
     end
 
+    def unform(value)
+      value
+    end
+
     def explain(path, via, inn, value)
       probs = collection_problems(value, @kind, @distinct, @count, @min_count, @max_count, path, via, inn)
       return probs if probs

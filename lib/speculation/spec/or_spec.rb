@@ -36,10 +36,17 @@ module Speculation
       S::INVALID
     end
 
+    def unform(value)
+      spec_name, conformed_val = value
+      spec = @named_specs.fetch(spec_name)
+
+      S.unform(spec, conformed_val)
+    end
+
     def explain(path, via, inn, value)
       return if S.pvalid?(self, value)
 
-      @keys.zip(@preds).flat_map do |(key, pred)|
+      @named_specs.flat_map do |(key, pred)|
         next if S.pvalid?(pred, value)
         S.explain1(pred, Utils.conj(path, key), via, inn, value)
       end

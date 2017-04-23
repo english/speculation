@@ -10,10 +10,11 @@ module Speculation
     include NamespacedSymbols
     S = Speculation
 
-    def initialize(predicate, should_conform, gen = nil)
+    def initialize(predicate, should_conform, gen, unconformer)
       @predicate = predicate
       @should_conform = should_conform
       @gen = gen
+      @unconformer = unconformer
     end
 
     def conform(value)
@@ -30,6 +31,16 @@ module Speculation
       end
     end
 
+    def unform(value)
+      return value unless @should_conform
+
+      if @unconformer
+        @unconformer.call(value)
+      else
+        raise "no unformer for conformer"
+      end
+    end
+
     def explain(path, via, inn, value)
       if S.invalid?(S.dt(@predicate, value))
         [{ :path => path, :val => value, :via => via, :in => inn, :pred => [@predicate, [value]] }]
@@ -37,7 +48,7 @@ module Speculation
     end
 
     def with_gen(gen)
-      self.class.new(@predicate, @should_conform, gen)
+      self.class.new(@predicate, @should_conform, gen, @unconformer)
     end
 
     def gen(_, _, _)

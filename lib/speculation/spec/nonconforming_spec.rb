@@ -22,6 +22,10 @@ module Speculation
       S.invalid?(ret) ? S::INVALID : value
     end
 
+    def unform(value)
+      value
+    end
+
     def explain(path, via, inn, value)
       @delayed_spec.value!.explain(path, via, inn, value)
     end

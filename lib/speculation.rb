@@ -161,6 +161,13 @@ module Speculation
     specize(spec).conform(value)
   end
 
+  # @param spec [Spec]
+  # @value value [Object] value created by `conform` call and given `spec`
+  # @return value with conform destructuring undone
+  def self.unform(spec, value)
+    specize(spec).unform(value)
+  end
+
   # Takes a spec and a one-arg generator function and returns a version of the spec that uses that generator
   # @param spec [Spec]
   # @param gen [Proc] generator proc that receives a Rantly instance
@@ -554,11 +561,12 @@ module Speculation
     { OP => AMP, :p1 => re, :predicates => preds }
   end
 
-  # @param f predicate function with the semantics of conform i.e. it should
+  # @param f [#call] function with the semantics of conform i.e. it should
   #   return either a (possibly converted) value or :"Speculation/invalid"
+  # @param unformer [#call] function that does the unform of the result of `f`
   # @return [Spec] a spec that uses pred as a predicate/conformer.
-  def self.conformer(f)
-    spec_impl(f, nil, true)
+  def self.conformer(f, unformer = nil)
+    spec_impl(f, nil, true, unformer)
   end
 
   # Takes :args :ret and (optional) :block and :fn kwargs whose values are preds and returns a spec
@@ -724,7 +732,7 @@ module Speculation
   end
 
   # @private
-  def self.spec_impl(pred, gen, should_conform)
+  def self.spec_impl(pred, gen, should_conform, unconformer = nil)
     if spec?(pred)
       with_gen(pred, gen)
     elsif regex?(pred)
@@ -733,7 +741,7 @@ module Speculation
       spec = the_spec(pred)
       gen ? with_gen(spec, gen) : spec
     else
-      PredicateSpec.new(pred, should_conform, gen)
+      PredicateSpec.new(pred, should_conform, gen, unconformer)
     end
   end
 
@@ -851,6 +859,36 @@ module Speculation
       return_value == NIL ? nil : return_value
     else
       INVALID
+    end
+  end
+
+  # @private
+  def self.op_unform(regex, value)
+    return unform(regex, value) unless regex?(regex)
+
+    case regex[OP]
+    when ACCEPT
+      [regex[:return_value]]
+    when AMP
+      px = regex[:predicates].reverse.reduce(value) { |val, pred| op_unform(pred, val) }
+      op_unform(regex[:p1], px)
+    when REP
+      value.flat_map { |val| op_unform(regex[:p1], val) }
+    when PCAT
+      if regex[:keys] # it's a `cat`
+        kps = Hash[regex[:keys].zip(regex[:predicates])]
+        regex[:keys].flat_map { |key| value.include?(key) ? op_unform(kps[key], value[key]) : [] }
+      else            # it's a `one_or_more`
+        value.flat_map { |val| op_unform(regex[:predicates].first, val) }
+      end
+    when ALT
+      if regex[:keys] # it's an `alt`
+        kps = Hash[regex[:keys].zip(regex[:predicates])]
+        k, v = value
+        op_unform(kps[k], v)
+      else            # it's a `zero_or_one`
+        [unform(regex[:predicates].first, value)]
+      end
     end
   end
 

@@ -34,6 +34,10 @@ module Speculation
       end
     end
 
+    def unform(f)
+      f
+    end
+
     def explain(path, via, inn, f)
       unless f.respond_to?(:call)
         return [{ :path => path, :pred => [f.method(:respond_to?), [:call]], :val => f, :via => via, :in => inn }]

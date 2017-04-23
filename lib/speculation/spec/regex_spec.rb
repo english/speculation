@@ -23,6 +23,10 @@ module Speculation
       end
     end
 
+    def unform(value)
+      S.op_unform(@regex, value)
+    end
+
     def explain(path, via, inn, value)
       if value.nil? || Predicates.collection?(value)
         S.re_explain(path, via, inn, @regex, value || [])

@@ -94,5 +94,15 @@ module Speculation
 
       assert_equal expected, S.explain_data(ns(:scores), "Sally" => 1000, "Joe" => "300")
     end
+
+    def test_conform_unform
+      spec = S.and(String,
+                   S.conformer(method(:Integer), method(:String)),
+                   Integer,
+                   :even?.to_proc)
+
+      assert_equal 1_000_000, S.conform(spec, "1_000_000")
+      assert_equal "1000000", S.unform(spec, S.conform(spec, "1_000_000"))
+    end
   end
 end

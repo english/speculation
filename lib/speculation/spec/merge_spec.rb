@@ -25,6 +25,10 @@ module Speculation
       end
     end
 
+    def unform(x)
+      @preds.reverse.map { |pred| S.unform(pred, x) }.reduce(&:merge)
+    end
+
     def explain(path, via, inn, x)
       @preds.
         flat_map { |pred| S.explain1(pred, path, via, inn, x) }.

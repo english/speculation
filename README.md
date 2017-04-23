@@ -97,7 +97,6 @@ Speculation will mirror any changes made to clojure.spec. clojure.spec is still 
 
 While most of features of clojure.spec are implemented in Speculation, a few remain:
 
-- [`unform`](https://clojuredocs.org/clojure.spec/unform)
 - [`form`](https://clojuredocs.org/clojure.spec/form)
 - [`abbrev`](https://clojuredocs.org/clojure.spec/abbrev)
 - [`describe`](https://clojuredocs.org/clojure.spec/describe)
