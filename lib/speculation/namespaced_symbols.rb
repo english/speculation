@@ -13,13 +13,15 @@ module Speculation
         namespace = name_or_namespace
       else
         name = name_or_namespace
-        namespace = is_a?(Module) ? self.name : self.class.name
+        namespace = is_a?(Module) ? self : self.class
       end
 
       NamespacedSymbols.symbol(namespace, name)
     end
 
     def self.symbol(ns, name)
+      ns = ns.name if ns.is_a?(Module)
+
       :"#{ns}/#{name}"
     end
 
