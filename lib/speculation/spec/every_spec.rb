@@ -39,7 +39,7 @@ module Speculation
       # returns a tuple of [init add complete] fns
       @cfns = ->(x) do
         if Predicates.array?(x) && (!@conform_into || Predicates.array?(@conform_into))
-          [Utils.method(:itself),
+          [->(init) { init.dup },
            ->(ret, i, v, cv) { v.equal?(cv) ? ret : ret.tap { |r| r[i] = cv } },
            Utils.method(:itself)]
         elsif Predicates.hash?(x) && ((@kind && !@conform_into) || Predicates.hash?(@conform_into))
