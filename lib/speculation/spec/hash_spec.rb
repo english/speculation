@@ -166,7 +166,7 @@ module Speculation
     end
 
     def unqualify_key(x)
-      NamespacedSymbols.name(x).to_sym
+      NamespacedSymbols.namespaced_name(x).to_sym
     end
 
     def parse_req(ks, v, f)

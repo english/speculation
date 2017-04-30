@@ -25,7 +25,7 @@ module Speculation
       :"#{ns}/#{name}"
     end
 
-    def self.name(sym)
+    def self.namespaced_name(sym)
       sym.to_s.split("/").last
     end
 
