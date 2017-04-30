@@ -30,7 +30,7 @@ module Speculation
       assert_equal :instrument, e.data.fetch(:"Speculation/failure")
       assert_match %r{test/speculation/test_test\.rb:\d+:in `block in test_fdef_instrument'}, e.data.fetch(:"Speculation::Test/caller")
 
-      problems = e.data.fetch(:"Speculation/problems")
+      problems = e.data.fetch(:problems)
       assert_equal 1, problems.count
 
       problem = problems.first
@@ -214,7 +214,7 @@ module Speculation
       assert_equal :instrument, e.data.fetch(:"Speculation/failure")
       assert_match %r{test/speculation/test_test\.rb:\d+:in `block in test_fdef_block_instrument'}, e.data.fetch(:"Speculation::Test/caller")
 
-      problems = e.data.fetch(:"Speculation/problems")
+      problems = e.data.fetch(:problems)
       assert_equal 1, problems.count
 
       problem = problems.first

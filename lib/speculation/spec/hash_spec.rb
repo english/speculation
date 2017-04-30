@@ -175,20 +175,20 @@ module Speculation
       ret = if key.is_a?(Array)
               op, *kks = key
               case op
-              when ns(S, :or)
+              when :"Speculation/or"
                 if kks.any? { |k| parse_req([k], v, f).empty? }
                   []
                 else
                   transform_keys([key], f)
                 end
-              when ns(S, :and)
+              when :"Speculation/and"
                 if kks.all? { |k| parse_req([k], v, f).empty? }
                   []
                 else
                   transform_keys([key], f)
                 end
               else
-                raise "Expected or, and, got #{op}"
+                raise "Expected Speculation/or, Speculation/and, got #{op}"
               end
             elsif v.key?(f.call(key))
               []
@@ -207,7 +207,7 @@ module Speculation
       keys.map { |key|
         case key
         when Array then transform_keys(key, f)
-        when ns(S, :and), ns(S, :or) then key
+        when :"Speculation/and", :"Speculation/or" then key
         else f.call(key)
         end
       }

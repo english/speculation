@@ -56,7 +56,7 @@ module Speculation
                    :opt_un => [ns(:phone)]))
 
       ed = S.explain_data ns(:unq, :person), :first_name => "Elon"
-      problems = ed[ns(S, :problems)]
+      problems = ed[:problems]
       pred = problems.first[:pred]
 
       assert_equal [Predicates.method(:key?), [S.or_keys(S.and_keys(:first_name, :last_name), :email)]], pred
@@ -135,11 +135,11 @@ In: [:email] val: "elon" fails spec: :"Speculation::HashSpecTest/email" at: [:em
 
       S.def(ns(:hash), S.keys(:req_un => [ns(:foo), ns(:bar), ns(:baz)]))
 
-      expected = { :"Speculation/problems" => [{ :path => [],
-                                                 :pred => [Predicates.method(:key?), [:bar]],
-                                                 :val  => { :foo => "bar", :baz => "baz" },
-                                                 :via  => [ns(:hash)],
-                                                 :in   => [] }] }
+      expected = { :problems => [{ :path => [],
+                                   :pred => [Predicates.method(:key?), [:bar]],
+                                   :val  => { :foo => "bar", :baz => "baz" },
+                                   :via  => [ns(:hash)],
+                                   :in   => [] }] }
 
       assert_equal expected, S.explain_data(ns(:hash), :foo => "bar", :baz => "baz")
     end
@@ -163,7 +163,7 @@ In: [:email] val: "elon" fails spec: :"Speculation::HashSpecTest/email" at: [:em
       }
 
       expected = {
-        :"Speculation/problems" => [
+        :problems => [
           {
             :path => [ns(:email)],
             :val  => "n/a",

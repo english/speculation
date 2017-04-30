@@ -30,13 +30,13 @@ module Speculation
       expected = { :path => [:ret], :via => [identifier], :in => [], :pred => [Integer, ["0"]] }
 
       ed = S.explain_data(mod.method(:foo), :to_s.to_proc)
-      assert_equal(expected, ed.fetch(ns(S, :problems)).first.reject { |k, _v| k == :val })
-      assert_kind_of String, ed.fetch(ns(S, :problems)).first[:val]
+      assert_equal(expected, ed.fetch(:problems).first.reject { |k, _v| k == :val })
+      assert_kind_of String, ed.fetch(:problems).first[:val]
 
       S.def(ns(:foo), S.fspec(:args => S.cat(:x => String), :ret => Integer))
 
       trigger_no_method_error = :trigger_no_method_error.to_proc
-      ed = S.explain_data(ns(:foo), trigger_no_method_error).fetch(ns(S, :problems)).first
+      ed = S.explain_data(ns(:foo), trigger_no_method_error).fetch(:problems).first
       assert_equal [], ed[:path]
       assert_equal [trigger_no_method_error, [""]], ed[:pred]
       assert_equal [ns(:foo)], ed[:via]
@@ -67,7 +67,7 @@ module Speculation
       identifier = S.MethodIdentifier(mod.method(:foo))
       f = ->(&b) { b.call("1") }
       ed = S.explain_data(mod.method(:foo), f)
-      ed = ed.fetch(ns(S, :problems)).first
+      ed = ed.fetch(:problems).first
 
       assert_equal [], ed[:path]
       func, args, block = ed[:pred]

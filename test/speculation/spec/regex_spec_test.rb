@@ -127,7 +127,7 @@ module Speculation
       S.def(ns(:ingredient), S.cat(:quantity => Numeric, :unit => Symbol))
 
       ed = S.explain_data(ns(:ingredient), [11, "peaches"])
-      problems = ed.fetch(ns(S, :problems))
+      problems = ed.fetch(:problems)
 
       assert_equal 1, problems.count
 
@@ -146,7 +146,7 @@ module Speculation
                                :nums      => S.spec(S.constrained(S.one_or_more(Numeric), even_count))))
 
       ed = S.explain_data(ns(:nested), [:names, ["a", "b"], :nums, [1, 2, 3, 4, 5]])
-      problems = ed.fetch(ns(S, :problems))
+      problems = ed.fetch(:problems)
 
       assert_equal 1, problems.count
 
@@ -166,7 +166,7 @@ module Speculation
                                                           :floats => S.one_or_more(Float)))))
 
       expected = {
-        :"Speculation/problems" => [
+        :problems => [
           {
             :path => [:nums, :ints],
             :val  => "1",

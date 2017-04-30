@@ -63,7 +63,7 @@ module Speculation
       S.def(ns(:even_integer), S.and(ns(:integer), ns(:even)))
 
       ed = S.explain_data(ns(:even_integer), "s")
-      problems = ed.fetch(ns(S, :problems))
+      problems = ed.fetch(:problems)
 
       assert_equal 1, problems.count
 

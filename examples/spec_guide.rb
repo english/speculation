@@ -155,7 +155,7 @@ S.explain ns(:name_or_id), :foo
 # as a string or explain_data to receive the errors as data.
 
 S.explain_data ns(:name_or_id), :foo
-# => {:"Speculation/problems"=>
+# => {:problems=>
 #      [{:path=>[:name],
 #        :val=>:foo,
 #        :via=>[:"Object/name_or_id"],
@@ -501,7 +501,7 @@ person_name 100 rescue $!
 # => #<Speculation::Error: Spec assertion failed
 #    val: 100 fails predicate: [#<Method: Speculation::Predicates.hash?>, [100]]
 #    Speculation/failure :assertion_failed
-#     {:"Speculation/problems"=>
+#     {:problems=>
 #      [{:path=>[],
 #        :pred=>[#<Method: Speculation::Predicates.hash?>, [100]],
 #        :val=>100,
@@ -1136,7 +1136,7 @@ ranged_rand 8, 5 rescue $!
 #    Speculation/args [8, 5]
 #    Speculation/failure :instrument
 #    Speculation::Test/caller "/var/folders/4l/j2mycv0j4rx7z47sp01r93vc3kfxzs/T/seeing_is_believing_temp_dir20170304-91770-1jtmc1y/program.rb:901:in `<main>'"
-#     {:"Speculation/problems"=>
+#     {:problems=>
 #      [{:path=>[:args],
 #        :val=>{:start=>8, :end=>5},
 #        :via=>[],
@@ -1193,7 +1193,7 @@ STest.abbrev_result STest.check(method(:ranged_rand)).first
 # >> {:spec=>"Speculation::FSpec(main.ranged_rand)",
 # >>  :method=>#<Method: main.ranged_rand>,
 # >>  :failure=>
-# >>   {:"Speculation/problems"=>
+# >>   {:problems=>
 # >>     [{:path=>[:fn],
 # >>       :val=>{:args=>{:start=>-1, :end=>0}, :block=>nil, :ret=>0},
 # >>       :via=>[],

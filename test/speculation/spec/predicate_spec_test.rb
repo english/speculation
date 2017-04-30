@@ -30,7 +30,7 @@ module Speculation
                     :in   => [],
                     :pred => [Set[:club, :diamond, :heart, :spade], [1]] }]
 
-      assert_equal expected, ed.fetch(ns(Speculation, :problems))
+      assert_equal expected, ed.fetch(:problems)
 
       val = Gen.generate(S.gen(ns(:suit)))
       assert [:club, :diamond, :heart, :spade].include?(val)

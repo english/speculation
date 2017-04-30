@@ -26,7 +26,7 @@ module Speculation
                     :via  => [ns(:maybe_string)],
                     :pred => [NilClass, [1]] }]
 
-      assert_equal expected, ed.fetch(ns(Speculation, :problems))
+      assert_equal expected, ed.fetch(:problems)
 
       val = Gen.generate(S.gen(ns(:maybe_string)))
       assert val.is_a?(String) || val.nil?

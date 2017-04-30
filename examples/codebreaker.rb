@@ -87,7 +87,7 @@ end
 #     :block=>nil,
 #     :num_tests=>1,
 #     :result=>
-#      #<Speculation::Error: {:"Speculation/problems"=>
+#      #<Speculation::Error: {:problems=>
 #   [{:path=>[:fn],
 #     :val=>
 #      {:args=>{:secret=>[:y, :b, :r, :r, :b], :guess=>[:y, :w, :g, :r, :g]},

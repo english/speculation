@@ -64,7 +64,7 @@ module User
 
   def self.serialize_validation_errors(user)
     data = S.explain_data(ns(:user), user)
-    data[ns(S, :problems)].map { |problem| Validation.serialize_problem(problem) }
+    data[:problems].map { |problem| Validation.serialize_problem(problem) }
   end
 
   def self.fake

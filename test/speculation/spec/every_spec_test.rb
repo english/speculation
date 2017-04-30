@@ -57,7 +57,7 @@ module Speculation
       refute S.valid?(ns(:point), [1, 2, "3"])
 
       expected = {
-        :"Speculation/problems" => [
+        :problems => [
           { :path => [2], :val => 3.0, :via => [ns(:point)], :in => [2], :pred => [Integer, [3.0]] }
         ]
       }
@@ -86,11 +86,11 @@ module Speculation
     def test_explain_hash_of
       S.def(ns(:scores), S.hash_of(String, Integer))
 
-      expected = { :"Speculation/problems" => [{ :path => [1],
-                                                 :val  => "300",
-                                                 :via  => [ns(:scores)],
-                                                 :in   => ["Joe", 1],
-                                                 :pred => [Integer, ["300"]] }] }
+      expected = { :problems => [{ :path => [1],
+                                   :val  => "300",
+                                   :via  => [ns(:scores)],
+                                   :in   => ["Joe", 1],
+                                   :pred => [Integer, ["300"]] }] }
 
       assert_equal expected, S.explain_data(ns(:scores), "Sally" => 1000, "Joe" => "300")
     end

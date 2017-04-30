@@ -19,7 +19,7 @@ module Speculation
       S.def(ns(:name_or_id), S.or(:name => String, :id => Integer))
 
       expected = {
-        :"Speculation/problems" => [
+        :problems => [
           { :path => [:name], :val => :foo, :in => [], :via => [ns(:name_or_id)], :pred => [String, [:foo]] },
           { :path => [:id], :val => :foo, :in => [], :via => [ns(:name_or_id)], :pred => [Integer, [:foo]] }
         ]

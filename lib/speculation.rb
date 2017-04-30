@@ -185,19 +185,19 @@ module Speculation
     probs = specize(spec).explain(path, via, inn, value)
 
     if probs && probs.any?
-      { ns(:problems) => probs }
+      { :problems => probs }
     end
   end
 
   # Given a spec and a value x which ought to conform, returns nil if x
-  # conforms, else a hash with at least the key :"Speculation/problems" whose
+  # conforms, else a hash with at least the key :problems whose
   # value is a collection of problem-hashes, where problem-hash has at least
   # :path :pred and :val keys describing the predicate and the value that failed
   # at that path.
   # @param spec [Spec]
   # @param x value which ought to conform
   # @return [nil, Hash] nil if x conforms, else a hash with at least the key
-  #   :Speculation/problems whose value is a collection of problem-hashes,
+  #   :problems whose value is a collection of problem-hashes,
   #   where problem-hash has at least :path :pred and :val keys describing the
   #   predicate and the value that failed at that path.
   def self.explain_data(spec, x)
@@ -211,7 +211,7 @@ module Speculation
   def self.explain_out(ed, out = STDOUT)
     return out.puts("Success!") unless ed
 
-    ed.fetch(ns(:problems)).each do |prob|
+    ed.fetch(:problems).each do |prob|
       path, pred, val, reason, via, inn = prob.values_at(:path, :pred, :val, :reason, :via, :in)
 
       out.print("In: ", inn.to_a.inspect, " ") unless inn.empty?
@@ -231,7 +231,7 @@ module Speculation
     end
 
     ed.each do |k, v|
-      out.puts("#{k} #{PP.pp(v, String.new)}") unless k == ns(:problems)
+      out.puts("#{k} #{PP.pp(v, String.new)}") unless k == :problems
     end
 
     nil
