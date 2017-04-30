@@ -22,7 +22,7 @@ module Speculation
       @specs.value!.each do |spec|
         value = spec.conform(value)
 
-        return S::INVALID if S.invalid?(value)
+        return :"Speculation/invalid" if S.invalid?(value)
       end
 
       value

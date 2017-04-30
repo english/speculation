@@ -148,7 +148,7 @@ module Speculation
     #   * :result     optional boolean as to whether all generative tests passed
     #   * :num_tests  optional number of generative tests ran
     #
-    #   :failure is a hash that will contain a :"Speculation/failure" key with possible values:
+    #   :failure is a hash that will contain a :failure key with possible values:
     #
     #   * :check_failed   at least one checked return did not conform
     #   * :no_args_spec   no :args spec provided
@@ -174,11 +174,11 @@ module Speculation
     # @return [Hash]
     def self.abbrev_result(x)
       if x[:failure]
-        x.reject { |k, _| k == ns(:ret) }.
+        x.reject { |k, _| k == :ret }.
           merge(:spec    => x[:spec].inspect,
                 :failure => unwrap_failure(x[:failure]))
       else
-        x.reject { |k, _| [:spec, ns(:ret)].include?(k) }
+        x.reject { |k, _| [:spec, :ret].include?(k) }
       end
     end
 
@@ -223,24 +223,24 @@ module Speculation
           conformed_args = S.conform(fspec.args, args)
           conformed_block = S.conform(fspec.block, block) if fspec.block
 
-          if conformed_args == S::INVALID
+          if conformed_args == :"Speculation/invalid"
             backtrace = backtrace_relevant_to_instrument(caller)
 
             ed = S.
               _explain_data(fspec.args, [:args], [], [], args).
-              merge(ns(S, :args) => args, ns(S, :failure) => :instrument, ns(:caller) => backtrace.first)
+              merge(:args => args, :failure => :instrument, :caller => backtrace.first)
 
             io = StringIO.new
             S.explain_out(ed, io)
             msg = io.string
 
             raise Speculation::Error.new("Call to '#{ident}' did not conform to spec:\n #{msg}", ed)
-          elsif conformed_block == S::INVALID
+          elsif conformed_block == :"Speculation/invalid"
             backtrace = backtrace_relevant_to_instrument(caller)
 
             ed = S.
               _explain_data(fspec.block, [:block], [], [], block).
-              merge(ns(S, :block) => block, ns(S, :failure) => :instrument, ns(:caller) => backtrace.first)
+              merge(:block => block, :failure => :instrument, :caller => backtrace.first)
 
             io = StringIO.new
             S.explain_out(ed, io)
@@ -271,7 +271,7 @@ module Speculation
       end
 
       def no_fspec(ident, spec)
-        S::Error.new("#{ident} not spec'ed", :method => ident, :spec => spec, ns(S, :failure) => :no_fspec)
+        S::Error.new("#{ident} not spec'ed", :method => ident, :spec => spec, :failure => :no_fspec)
       end
 
       def instrument1(ident, opts)
@@ -343,9 +343,9 @@ module Speculation
       def explain_check(args, spec, v, role)
         data = unless S.valid?(spec, v)
                  S._explain_data(spec, [role], [], [], v).
-                   merge(ns(:args)       => args,
-                         ns(:val)        => v,
-                         ns(S, :failure) => :check_failed)
+                   merge(:args    => args,
+                         :val     => v,
+                         :failure => :check_failed)
                end
 
         S::Error.new("Specification-based check failed", data).tap do |e|
@@ -355,17 +355,17 @@ module Speculation
 
       # Returns true if call passes specs, otherwise returns a hash with
       # :backtrace, :cause and :data keys. :data will have a
-      # :"Speculation/failure" key.
+      # :failure key.
       def check_call(method, spec, args, block)
         conformed_args = S.conform(spec.args, args) if spec.args
 
-        if conformed_args == S::INVALID
+        if conformed_args == :"Speculation/invalid"
           return explain_check(args, spec.args, args, :args)
         end
 
         conformed_block = S.conform(spec.block, block) if spec.block
 
-        if conformed_block == S::INVALID
+        if conformed_block == :"Speculation/invalid"
           return explain_check(block, spec.block, block, :block)
         end
 
@@ -373,7 +373,7 @@ module Speculation
 
         conformed_ret = S.conform(spec.ret, ret) if spec.ret
 
-        if conformed_ret == S::INVALID
+        if conformed_ret == :"Speculation/invalid"
           return explain_check(args, spec.ret, ret, :ret)
         end
 
@@ -415,9 +415,9 @@ module Speculation
       end
 
       def make_check_result(method, spec, check_result)
-        result = { :spec    => spec,
-                   ns(:ret) => check_result,
-                   :method  => method }
+        result = { :spec   => spec,
+                   :ret    => check_result,
+                   :method => method }
 
         if check_result[:result] && check_result[:result] != true
           result[:failure] = check_result[:result]
@@ -440,8 +440,8 @@ module Speculation
           check_result = quick_check(method, spec, opts)
           make_check_result(method, spec, check_result)
         else
-          failure = { :info        => "No :args spec",
-                      ns(:failure) => :no_args_spec }
+          failure = { :info    => "No :args spec",
+                      :failure => :no_args_spec }
 
           { :failure => failure,
             :method  => method,
@@ -540,7 +540,7 @@ module Speculation
       ### check reporting ###
 
       def failure_type(x)
-        x.data[ns(S, :failure)] if x.is_a?(S::Error)
+        x.data[:failure] if x.is_a?(S::Error)
       end
 
       def unwrap_failure(x)
@@ -548,7 +548,7 @@ module Speculation
       end
 
       # Returns the type of the check result. This can be any of the
-      # :"Speculation/failure" symbols documented in 'check', or:
+      # :failure symbols documented in 'check', or:
       #
       # :check_passed   all checked method returns conformed
       # :check_raised   checked fn threw an exception

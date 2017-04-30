@@ -507,7 +507,7 @@ person_name 100 rescue $!
 #        :val=>100,
 #        :via=>[],
 #        :in=>[]}],
-#     :"Speculation/failure"=>:assertion_failed}
+#     :failure=>:assertion_failed}
 #    >
 
 # A deeper level of integration is to call conform and use the return value to
@@ -925,7 +925,7 @@ S.exercise_fn(method(:ranged_rand))
 # predicate implicitly presumes values of a particular type but the spec does
 # not specify them:
 
-Gen.generate S.gen(:even?.to_proc) rescue $! # => #<Speculation::Error: unable to construct gen at: [] for: Speculation::Spec(#<Proc:0x007fb69b1908f8(&:even?)>) {:"Speculation/failure"=>:no_gen, :"Speculation/path"=>[]}\n>
+Gen.generate S.gen(:even?.to_proc) rescue $! # => #<Speculation::Error: unable to construct gen at: [] for: Speculation::Spec(#<Proc:0x007fb69b1908f8(&:even?)>) {:failure=>:no_gen, :"Speculation/path"=>[]}\n>
 
 # In this case spec was not able to find a generator for the even? predicate.
 # Most of the primitive generators in spec are mapped to the common type
@@ -1144,9 +1144,9 @@ ranged_rand 8, 5 rescue $!
 #        :pred=>
 #         [#<Proc:0x007fb69a8a0fb8@/var/folders/4l/j2mycv0j4rx7z47sp01r93vc3kfxzs/T/seeing_is_believing_temp_dir20170304-91770-1jtmc1y/program.rb:548 (lambda)>,
 #          [{:start=>8, :end=>5}]]}],
-#     :"Speculation/args"=>[8, 5],
-#     :"Speculation/failure"=>:instrument,
-#     :"Speculation::Test/caller"=>
+#     :args=>[8, 5],
+#     :failure=>:instrument,
+#     :caller=>
 #      "/var/folders/4l/j2mycv0j4rx7z47sp01r93vc3kfxzs/T/seeing_is_believing_temp_dir20170304-91770-1jtmc1y/program.rb:901:in `<main>'"}
 #    >
 
@@ -1172,7 +1172,7 @@ ranged_rand 8, 5 rescue $!
 
 STest.check method(:ranged_rand)
 # => [{:spec=>Speculation::FSpec(main.ranged_rand),
-#      :"Speculation::Test/ret"=>{:num_tests=>1000, :result=>true},
+#      :ret=>{:num_tests=>1000, :result=>true},
 #      :method=>#<Method: main.ranged_rand>}]
 
 # check also takes a number of options ~~that can be passed to test.check to
@@ -1201,10 +1201,10 @@ STest.abbrev_result STest.check(method(:ranged_rand)).first
 # >>       :pred=>
 # >>        [#<Proc:0x007fb69a8a0c98@/var/folders/4l/j2mycv0j4rx7z47sp01r93vc3kfxzs/T/seeing_is_believing_temp_dir20170304-91770-1jtmc1y/program.rb:551 (lambda)>,
 # >>         [{:args=>{:start=>-1, :end=>0}, :block=>nil, :ret=>0}]]}],
-# >>    :"Speculation::Test/args"=>[-1, 0],
-# >>    :"Speculation::Test/val"=>
+# >>    :args=>[-1, 0],
+# >>    :val=>
 # >>     {:args=>{:start=>-1, :end=>0}, :block=>nil, :ret=>0},
-# >>    :"Speculation/failure"=>:check_failed}}
+# >>    :failure=>:check_failed}}
 
 # check has reported an error in the :fn spec. We can see the arguments passed
 # were -1 and 0 and the return value was -0, which is out of the expected

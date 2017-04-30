@@ -19,7 +19,7 @@ module Speculation
       if value.nil? || Predicates.collection?(value)
         S.re_conform(@regex, value)
       else
-        S::INVALID
+        :"Speculation/invalid"
       end
     end
 

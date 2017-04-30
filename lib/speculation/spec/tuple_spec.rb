@@ -23,7 +23,7 @@ module Speculation
       specs = @delayed_specs.value!
 
       unless Predicates.array?(collection) && collection.count == specs.count
-        return S::INVALID
+        return :"Speculation/invalid"
       end
 
       return_value = collection.class.new
@@ -32,7 +32,7 @@ module Speculation
         conformed_value = spec.conform(value)
 
         if S.invalid?(conformed_value)
-          return S::INVALID
+          return :"Speculation/invalid"
         else
           return_value += [conformed_value]
         end

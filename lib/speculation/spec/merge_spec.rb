@@ -19,7 +19,7 @@ module Speculation
       ms = @preds.map { |pred| S.dt(pred, x) }
 
       if ms.any?(&S.method(:invalid?))
-        S::INVALID
+        :"Speculation/invalid"
       else
         ms.reduce(&:merge)
       end

@@ -44,7 +44,7 @@ module Speculation
     end
 
     def conform(value)
-      return S::INVALID unless @keys_pred.call(value)
+      return :"Speculation/invalid" unless @keys_pred.call(value)
 
       reg = S.registry
 
@@ -56,7 +56,7 @@ module Speculation
           conformed_value = S.conform(spec, v)
 
           if S.invalid?(conformed_value)
-            break S::INVALID
+            break :"Speculation/invalid"
           elsif conformed_value.equal?(v)
             ret
           else

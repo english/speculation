@@ -72,7 +72,7 @@ def self.score(secret, guess)
 end
 
 STest.check method(:score)
-# [{:spec=>Speculation::FSpec(main.score), :"Speculation::Test/ret"=>{:num_tests=>1000, :result=>true}, :method=>#<Method: main.score>}]
+# [{:spec=>Speculation::FSpec(main.score), :ret=>{:num_tests=>1000, :result=>true}, :method=>#<Method: main.score>}]
 
 def self.score(secret, guess)
   { ns(:exact_matches) => 4,
@@ -82,7 +82,7 @@ end
 # STest.check method(:score)
 
 # [{:spec=>Speculation::FSpec(main.score),
-#   :"Speculation::Test/ret"=>
+#   :ret=>
 #    {:fail=>[[:y, :b, :r, :r, :b], [:y, :w, :g, :r, :g]],
 #     :block=>nil,
 #     :num_tests=>1,
@@ -109,7 +109,7 @@ S.exercise_fn method(:score)
 
 STest.check method(:score)
 
-# [{:spec=>Speculation::FSpec(main.score), :"Speculation::Test/ret"=>{:num_tests=>1000, :result=>true}, :method=>#<Method: main.score>}]
+# [{:spec=>Speculation::FSpec(main.score), :ret=>{:num_tests=>1000, :result=>true}, :method=>#<Method: main.score>}]
 
 def self.score(secret, guess)
   { ns(:exact_matches) => exact_matches(secret, guess),
@@ -144,7 +144,7 @@ S.exercise_fn method(:exact_matches)
 #  [[[:r, :b, :r, :c], [:y, :r, :g, :b]], nil, 0],
 
 STest.check method(:exact_matches)
-# [{:spec=>Speculation::FSpec(main.exact_matches), :"Speculation::Test/ret"=>{:num_tests=>1000, :result=>true}, :method=>#<Method: main.exact_matches>}]
+# [{:spec=>Speculation::FSpec(main.exact_matches), :ret=>{:num_tests=>1000, :result=>true}, :method=>#<Method: main.exact_matches>}]
 
 STest.instrument method(:exact_matches)
 S.exercise_fn method(:score)
@@ -189,7 +189,7 @@ S.exercise_fn method(:exact_matches), 10, S.get_spec(method(:match_count))
 
 STest.check_method method(:exact_matches), S.get_spec(method(:match_count))
 
-# {:spec=>Speculation::FSpec(main.match_count), :"Speculation::Test/ret"=>{:num_tests=>1000, :result=>true}, :method=>#<Method: main.exact_matches>}
+# {:spec=>Speculation::FSpec(main.match_count), :ret=>{:num_tests=>1000, :result=>true}, :method=>#<Method: main.exact_matches>}
 
 STest.instrument method(:exact_matches), :spec => { method(:exact_matches) => S.get_spec(method(:match_count)) }
 
@@ -202,7 +202,7 @@ S.exercise_fn method(:score)
 
 STest.check method(:score)
 
-# [{:spec=>Speculation::FSpec(main.score), :"Speculation::Test/ret"=>{:num_tests=>1000, :result=>true}, :method=>#<Method: main.score>}]
+# [{:spec=>Speculation::FSpec(main.score), :ret=>{:num_tests=>1000, :result=>true}, :method=>#<Method: main.score>}]
 
 def self.all_matches(secret, guess)
   frequencies = ->(xs) { xs.group_by(&:itself).transform_values(&:count) }

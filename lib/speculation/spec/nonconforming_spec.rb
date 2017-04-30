@@ -19,7 +19,7 @@ module Speculation
     def conform(value)
       ret = @delayed_spec.value!.conform(value)
 
-      S.invalid?(ret) ? S::INVALID : value
+      S.invalid?(ret) ? :"Speculation/invalid" : value
     end
 
     def unform(value)

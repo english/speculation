@@ -28,8 +28,8 @@ module Speculation
       return if S.pvalid?(@delayed_spec.value!, value) || value.nil?
 
       Utils.conj(
-        S.explain1(@pred, Utils.conj(path, ns(S, :pred)), via, inn, value),
-        :path => Utils.conj(path, ns(S, :nil)), :pred => [NilClass, [value]], :val => value, :via => via, :in => inn
+        S.explain1(@pred, Utils.conj(path, :pred), via, inn, value),
+        :path => Utils.conj(path, :nil), :pred => [NilClass, [value]], :val => value, :via => via, :in => inn
       )
     end
 
@@ -42,7 +42,7 @@ module Speculation
 
       ->(rantly) do
         rantly.freq([1, Gen.delay { Utils.constantly(nil) }],
-                    [9, Gen.delay { S.gensub(@pred, overrides, Utils.conj(path, ns(S, :pred)), rmap) }])
+                    [9, Gen.delay { S.gensub(@pred, overrides, Utils.conj(path, :pred), rmap) }])
       end
     end
   end

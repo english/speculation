@@ -15,12 +15,12 @@ module Speculation
       refute S.valid?(ns(:maybe_string), 1)
 
       ed = S.explain_data(ns(:maybe_string), 1)
-      expected = [{ :path => [:"Speculation/pred"],
+      expected = [{ :path => [:pred],
                     :val  => 1,
                     :in   => [],
                     :via  => [ns(:maybe_string)],
                     :pred => [String, [1]] },
-                  { :path => [:"Speculation/nil"],
+                  { :path => [:nil],
                     :val  => 1,
                     :in   => [],
                     :via  => [ns(:maybe_string)],

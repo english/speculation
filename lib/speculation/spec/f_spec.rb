@@ -23,14 +23,14 @@ module Speculation
     def conform(f)
       raise "Can't conform fspec without args spec: #{inspect}" unless @args
 
-      return S::INVALID unless f.is_a?(Proc) || f.is_a?(Method)
+      return :"Speculation/invalid" unless f.is_a?(Proc) || f.is_a?(Method)
 
       specs = { :args => @args, :ret => @ret, :fn => @fn, :block => @block }
 
       if f.equal?(FSpec.validate_fn(f, specs, S.fspec_iterations))
         f
       else
-        S::INVALID
+        :"Speculation/invalid"
       end
     end
 

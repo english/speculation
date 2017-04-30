@@ -27,8 +27,8 @@ module Speculation
 
       assert_match(/^Call to '.*ranged_rand' did not conform to spec/, e.message)
 
-      assert_equal :instrument, e.data.fetch(:"Speculation/failure")
-      assert_match %r{test/speculation/test_test\.rb:\d+:in `block in test_fdef_instrument'}, e.data.fetch(:"Speculation::Test/caller")
+      assert_equal :instrument, e.data.fetch(:failure)
+      assert_match %r{test/speculation/test_test\.rb:\d+:in `block in test_fdef_instrument'}, e.data.fetch(:caller)
 
       problems = e.data.fetch(:problems)
       assert_equal 1, problems.count
@@ -41,7 +41,7 @@ module Speculation
       assert_kind_of Array, problem[:pred]
       assert_kind_of Proc, problem[:pred].first
 
-      assert_equal [8, 5], e.data.fetch(:"Speculation/args")
+      assert_equal [8, 5], e.data.fetch(:args)
 
       mod.ranged_rand(5, 8) # doesn't blow up
     end
@@ -82,7 +82,7 @@ module Speculation
       assert_equal 1, results.count
 
       result = results.first
-      assert_equal [:"Speculation::Test/ret", :failure, :method, :spec], result.keys.sort
+      assert_equal [:failure, :method, :ret, :spec], result.keys.sort
       assert_equal mod.method(:bad_ranged_rand), result[:method]
     end
 
@@ -162,33 +162,33 @@ module Speculation
         end
 
         def self.run_query(service, query)
-          response = invoke_service(service, ns(:query) => query)
-          result, error = response.values_at(ns(:result), ns(:error))
+          response = invoke_service(service, :"foo/query" => query)
+          result, error = response.values_at(:"foo/result", :"foo/error")
           result || error
         end
       end
 
-      S.def(ns(:query), String)
-      S.def(ns(:request), S.keys(:req => [ns(:query)]))
-      S.def(ns(:result), S.coll_of(String, :gen_max => 3))
-      S.def(ns(:error), Integer)
-      S.def(ns(:response), S.or(:ok  => S.keys(:req => [ns(:result)]),
-                                :err => S.keys(:req => [ns(:error)])))
+      S.def(:"foo/query", String)
+      S.def(:"foo/request", S.keys(:req => [:"foo/query"]))
+      S.def(:"foo/result", S.coll_of(String, :gen_max => 3))
+      S.def(:"foo/error", Integer)
+      S.def(:"foo/response", S.or(:ok  => S.keys(:req => [:"foo/result"]),
+                                  :err => S.keys(:req => [:"foo/error"])))
 
       S.fdef(mod.method(:invoke_service),
-             :args => S.cat(:service => ns(S, :any), :request => ns(:request)),
-             :ret  => ns(:response))
+             :args => S.cat(:service => :"Speculation/any", :request => :"foo/request"),
+             :ret  => :"foo/response")
 
       S.fdef(mod.method(:run_query),
-             :args => S.cat(:service => ns(S, :any), :query => String),
-             :ret  => S.or(:ok => ns(:result), :err => ns(:error)))
+             :args => S.cat(:service => :"Speculation/any", :query => String),
+             :ret  => S.or(:ok => :"foo/result", :err => :"foo/error"))
 
       # verify they satisfy spec now instrumented
       STest.instrument(mod.method(:invoke_service), :stub => [mod.method(:invoke_service)])
-      mod.invoke_service(nil, ns(:query) => "test")
+      mod.invoke_service(nil, :"foo/query" => "test")
 
       results = STest.check(mod.method(:run_query), :num_tests => 50)
-      assert_nil results.first[ns(STest, :failure)]
+      assert_nil results.first[:failure]
     end
 
     def test_fdef_block_instrument
@@ -211,8 +211,8 @@ module Speculation
 
       assert_match(/^Call to '.*ranged_rand' did not conform to spec/, e.message)
 
-      assert_equal :instrument, e.data.fetch(:"Speculation/failure")
-      assert_match %r{test/speculation/test_test\.rb:\d+:in `block in test_fdef_block_instrument'}, e.data.fetch(:"Speculation::Test/caller")
+      assert_equal :instrument, e.data.fetch(:failure)
+      assert_match %r{test/speculation/test_test\.rb:\d+:in `block in test_fdef_block_instrument'}, e.data.fetch(:caller)
 
       problems = e.data.fetch(:problems)
       assert_equal 1, problems.count
@@ -225,7 +225,7 @@ module Speculation
       assert_kind_of Proc, problem[:pred].first
       assert_equal Hash[:start => 8, :end => 5], problem[:val], problem[:pred].last
 
-      assert_equal [8, 5], e.data.fetch(:"Speculation/args")
+      assert_equal [8, 5], e.data.fetch(:args)
 
       mod.ranged_rand(5, 8, &method(:rand)) # doesn't blow up
     end

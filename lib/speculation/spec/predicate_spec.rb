@@ -27,7 +27,7 @@ module Speculation
       if @should_conform
         ret
       else
-        ret ? value : S::INVALID
+        ret ? value : :"Speculation/invalid"
       end
     end
 

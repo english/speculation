@@ -33,7 +33,7 @@ module Speculation
         end
       end
 
-      S::INVALID
+      :"Speculation/invalid"
     end
 
     def unform(value)

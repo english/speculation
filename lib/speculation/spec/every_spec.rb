@@ -30,9 +30,9 @@ module Speculation
 
       @collection_predicate = ->(coll) { collection_predicates.all? { |f| f.respond_to?(:call) ? f.call(coll) : f === coll } }
       @delayed_spec = Concurrent::Delay.new { S.send(:specize, predicate) }
-      @kfn = options.fetch(ns(S, :kfn), ->(i, _v) { i })
+      @kfn = options.fetch(:kfn, ->(i, _v) { i })
       @conform_keys, @conform_all, @kind, @gen_into, @gen_max, @distinct, @count, @min_count, @max_count =
-        options.values_at(:conform_keys, ns(S, :conform_all), :kind, :into, :gen_max, :distinct, :count, :min_count, :max_count)
+        options.values_at(:conform_keys, :conform_all, :kind, :into, :gen_max, :distinct, :count, :min_count, :max_count)
       @gen_max ||= 20
       @conform_into = @gen_into
 
@@ -61,7 +61,7 @@ module Speculation
     end
 
     def conform(value)
-      return S::INVALID unless @collection_predicate.call(value)
+      return :"Speculation/invalid" unless @collection_predicate.call(value)
 
       spec = @delayed_spec.value!
 
@@ -74,7 +74,7 @@ module Speculation
           conformed_value = spec.conform(val)
 
           if S.invalid?(conformed_value)
-            return S::INVALID
+            return :"Speculation/invalid"
           else
             return_value = add.call(return_value, index, val, conformed_value)
           end
@@ -87,7 +87,7 @@ module Speculation
 
         value.each_with_index do |item, index|
           return value if index == limit
-          return S::INVALID unless S.valid?(spec, item)
+          return :"Speculation/invalid" unless S.valid?(spec, item)
         end
 
         value
