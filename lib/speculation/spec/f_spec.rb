@@ -70,7 +70,7 @@ module Speculation
     end
 
     def gen(overrides, _path, _rmap)
-      return @gen if @gen
+      return @gen.call if @gen
 
       ->(_rantly) do
         ->(*args, &block) do

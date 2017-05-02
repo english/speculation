@@ -62,7 +62,7 @@ module Speculation
     end
 
     def gen(overrides, path, rmap)
-      return @gen if @gen
+      return @gen.call if @gen
 
       gens = @preds.each_with_index.
         map { |p, i| S.gensub(p, overrides, Utils.conj(path, i), rmap) }

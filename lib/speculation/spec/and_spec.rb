@@ -42,7 +42,7 @@ module Speculation
 
     def gen(overrides, path, rmap)
       if @gen
-        @gen
+        @gen.call
       else
         S.gensub(@preds.first, overrides, path, rmap)
       end

@@ -57,7 +57,7 @@ module Speculation
     end
 
     def gen(overrides, path, rmap)
-      return @gen if @gen
+      return @gen.call if @gen
 
       gs = @keys.zip(@preds).
         map { |(k, p)|

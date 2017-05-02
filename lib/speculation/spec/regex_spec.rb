@@ -40,7 +40,7 @@ module Speculation
     end
 
     def gen(overrides, path, rmap)
-      return @gen if @gen
+      return @gen.call if @gen
 
       S.re_gen(@regex, overrides, path, rmap)
     end

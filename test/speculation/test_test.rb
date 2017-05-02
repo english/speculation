@@ -131,9 +131,11 @@ module Speculation
              :args => S.cat(:a => Integer, :b => Integer),
              :ret  => Integer)
 
+      gen = ->(_r) { ->(_a, _b) { 1 } }
+
       STest.instrument(mod.method(:concat),
                        :stub => [mod.method(:concat)],
-                       :gen  => { mod.method(:concat) => ->(_r) { ->(_a, _b) { 1 } } })
+                       :gen  => { mod.method(:concat) => -> { gen } })
 
       assert_equal 1, mod.concat(1, 2)
     end

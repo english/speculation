@@ -53,7 +53,7 @@ module Speculation
 
     def gen(_, _, _)
       if @gen
-        @gen
+        @gen.call
       else
         Gen.gen_for_pred(@predicate)
       end

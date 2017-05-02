@@ -38,7 +38,7 @@ module Speculation
     end
 
     def gen(overrides, path, rmap)
-      return @gen if @gen
+      return @gen.call if @gen
 
       ->(rantly) do
         rantly.freq([1, Gen.delay { Utils.constantly(nil) }],

@@ -121,7 +121,7 @@ module Speculation
     end
 
     def gen(overrides, path, rmap)
-      return @gen if @gen
+      return @gen.call if @gen
 
       pgen = S.gensub(@predicate, overrides, path, rmap)
 

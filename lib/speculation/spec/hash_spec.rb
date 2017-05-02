@@ -127,7 +127,7 @@ module Speculation
     end
 
     def gen(overrides, path, rmap)
-      return @gen if @gen
+      return @gen.call if @gen
 
       rmap = S.inck(rmap, @id)
 

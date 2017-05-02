@@ -40,7 +40,7 @@ module Speculation
     end
 
     def gen(overrides, path, rmap)
-      return @gen if @gen
+      return @gen.call if @gen
 
       gens = @preds.
         map { |pred| S.gensub(pred, overrides, path, rmap) }
