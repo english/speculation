@@ -77,6 +77,13 @@ module Speculation
     end
 
     # @private
+    def self.fmap(gen)
+      ->(rantly) do
+        yield gen.call(rantly)
+      end
+    end
+
+    # @private
     GEN_BUILTINS = {
       Integer    => ->(r) { r.integer },
       String     => ->(r) { r.sized(r.range(0, 20)) { string(:alpha) } },

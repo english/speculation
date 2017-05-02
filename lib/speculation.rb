@@ -782,7 +782,7 @@ module Speculation
       gen = ogen.call
 
       if [:accept, nil].include?(op)
-        return ->(rantly) { [gen.call(rantly)] }
+        return Gen.fmap(gen) { |x| [x] }
       else
         return gen
       end
@@ -801,7 +801,7 @@ module Speculation
       when nil
         g = gensub(p, overrides, path, rmap)
 
-        ->(rantly) { [g.call(rantly)] }
+        Gen.fmap(g) { |x| [x] }
       when :amp
         re_gen(p1, overrides, path, rmap)
       when :pcat
