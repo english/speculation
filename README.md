@@ -22,74 +22,7 @@ The goal of this project is to match clojure.spec as closely as possible, from d
 
 ## Usage
 
-Documentation is available at [RubyDoc](http://www.rubydoc.info/github/english/speculation). The API is more-or-less the same as `clojure.spec`. If you're already familiar clojure.spec with then you should feel at home with Speculation. Most guides, talks and discussion around clojure.spec should apply equally well to Speculation. Clojure and Ruby and quite different languages, so naturally there are some differences:
-
-## Differences with clojure.spec
-
-### Built in predicates
-
-clojure.spec utilises its rich standard library of predicate functions and data structures when writing specs. Ruby has neither of those, so we must be creative with what we define as a 'predicate' in Speculation. Each of the following are valid Speculation predicates:
-
-```rb
-S.valid?(->(x) { x > 0 }, 2)
-S.valid?(:even?.to_proc, 2)
-S.valid?(String, "foo")
-S.valid?(Enumerable, [1, 2, 3])
-S.valid?(/^\d+$/, "123")
-S.valid?(Set[:foo, :bar, :baz], :foo)
-```
-
-### Namespaced keywords/symbols
-
-Namespaced keywords are at the core of `clojure.spec`. Since clojure.spec utilises a global spec registry, namespaced keywords allow libraries to register specs with the same names but under different namespaces, thus removing accidental collisions. Ruby's equivalent to Clojure's keywords are Symbols. Ruby Symbol's don't have namespaces.
-
-In order keep the global spec registry architecture in Speculation, we utilise a helper method `ns` to achieve similar behaviour:
-
-```rb
-module MyModule
-  extend Speculation::NamespacedSymbols
-
-  p ns(:foo)
-  # => :"MyModule/foo"
-
-  p ns(AnotherModule, :foo)
-  # => :"AnotherModule/foo"
-end
-```
-
-### FSpecs
-
-#### Symbols/Methods
-
-Clojure uses Symbols to refer to functions. To refer to a method in Ruby, we must use the `method` method.
-
-```rb
-def self.hello(name)
-  "Hello #{name}"
-end
-
-S.fdef(method(:hello), :args => S.cat(:name => String), :ret => String)
-```
-
-#### Block args
-
-In addition to regular arguments which can easily be described as a list, Ruby methods can take blocks. In Speculation, we spec a method's block separately to its args:
-
-```rb
-def self.hello(name, &block)
-  "Hello #{block.call(name)}"
-end
-
-S.fdef(method(:hello), :args => S.cat(:name => String),
-                       :block => S.fspec(:args => S.cat(:s => String), :ret => String),
-                       :ret => String)
-```
-
-#### Generators and quick check
-
-Speculation uses [`Rantly`](https://github.com/abargnesi/rantly) for random data generation. Generator functions in Speculation are Procs that take one argument (Rantly instance) and return a random value. While Clojure's test.check generators generate values that start small and continue to grow and get more complex as a property holds true, Rantly always generates random values.
-
-Rantly gives Speculation the ability to shrink a failing test case down to its smallest failing case, however in Speculation we limit this to Integers and Strings. This is an area where Speculation may currently be significantly weaker than clojure.spec.
+API Documentation is available at [RubyDoc](http://www.rubydoc.info/github/english/speculation) and [the wiki](/wiki) covers features at a higher level. The API is more-or-less the same as `clojure.spec` so if you're already familiar clojure.spec with then you should feel at home with Speculation. Most guides, talks and discussions around clojure.spec should apply equally well to Speculation.
 
 ## Project status
 
