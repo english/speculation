@@ -1013,8 +1013,10 @@ Gen.sample sym_gen, 5
 # To redefine our spec using this custom generator, use with_gen which takes a
 # spec and a replacement generator as a block:
 
-gen = S.gen(Set[:"my.domain/name", :"my.domain/occupation", :"my.domain/id"])
-S.def(ns(:syms), S.with_gen(S.and(Symbol, ->(s) { S::NamespacedSymbols.namespace(s) == "my.domain" }), gen))
+syms_spec = S.with_gen(S.and(Symbol, ->(s) { S::NamespacedSymbols.namespace(s) == "my.domain" })) do
+  S.gen(Set[:"my.domain/name", :"my.domain/occupation", :"my.domain/id"])
+end
+S.def ns(:syms), syms_spec
 
 S.valid? ns(:syms), :"my.domain/name"
 Gen.sample S.gen(ns(:syms)), 5
@@ -1025,7 +1027,7 @@ Gen.sample S.gen(ns(:syms)), 5
 #     :"my.domain/id"]
 
 # Note that with_gen (and other places that take a custom generator) take a
-# one-arg function that returns the generator, allowing it to be lazily
+# no-arg block that returns the generator, allowing it to be lazily
 # realized.
 
 # One downside to this approach is we are missing what property testing is
@@ -1048,11 +1050,14 @@ Gen.sample sym_gen_2, 5 # => [:"my.domain/hLZnEpj", :"my.domain/kvy", :"my.domai
 # Returning to our "hello" example, we now have the tools to make that
 # generator:
 
-S.def ns(:hello), S.with_gen(->(s) { s.include?("hello") }, ->(rantly) {
-  s1 = rantly.sized(rantly.range(0, 10)) { rantly.string(:alpha) }
-  s2 = rantly.sized(rantly.range(0, 10)) { rantly.string(:alpha) }
-  "#{s1}hello#{s2}"
-})
+hello_spec = S.with_gen(->(s) { s.include?("hello") }) do
+  ->(rantly) {
+    s1 = rantly.sized(rantly.range(0, 10)) { rantly.string(:alpha) }
+    s2 = rantly.sized(rantly.range(0, 10)) { rantly.string(:alpha) }
+    "#{s1}hello#{s2}"
+  }
+end
+S.def ns(:hello), hello_spec
 
 Gen.sample S.gen(ns(:hello))
 # => ["XRLhtLshelloaY",

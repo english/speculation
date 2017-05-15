@@ -146,14 +146,14 @@ module Speculation
     specize(spec).unform(value)
   end
 
-  # Takes a spec and a no-arg generator returning proc and returns a version of the spec that uses
-  # that generator
+  # Takes a spec and a no-arg generator returning block and returns a version of the spec that uses
+  #   that generator
   # @param spec [Spec]
-  # @param gen [Proc] generator returning proc
+  # @yieldreturn Rantly generator
   # @return [Spec]
-  def self.with_gen(spec, gen)
+  def self.with_gen(spec, &gen)
     if gen && !gen.arity.zero?
-      raise ArgumentError, "gen must be a no-arg Proc that returns a generator"
+      raise ArgumentError, "gen must be a no-arg block that returns a generator"
     end
 
     if regex?(spec)
@@ -718,12 +718,12 @@ module Speculation
   # @private
   def self.spec_impl(pred, gen, should_conform, unconformer = nil)
     if spec?(pred)
-      with_gen(pred, gen)
+      with_gen(pred, &gen)
     elsif regex?(pred)
       RegexSpec.new(pred, gen)
     elsif Utils.ident?(pred)
       spec = the_spec(pred)
-      gen ? with_gen(spec, gen) : spec
+      gen ? with_gen(spec, &gen) : spec
     else
       PredicateSpec.new(pred, should_conform, gen, unconformer)
     end
@@ -1326,12 +1326,12 @@ module Speculation
   end
 
   @registry_ref.reset(
-    ns(:any)              => with_gen(Utils.constantly(true), ->() { ->(r) { r.branch(*Gen::GEN_BUILTINS.values) } }),
+    ns(:any)              => with_gen(Utils.constantly(true)) { ->(r) { r.branch(*Gen::GEN_BUILTINS.values) } },
     ns(:boolean)          => Set[true, false],
-    ns(:positive_integer) => with_gen(self.and(Integer, ->(x) { x > 0 }), ->() { ->(r) { r.range(1) } }),
+    ns(:positive_integer) => with_gen(self.and(Integer, ->(x) { x > 0 })) { ->(r) { r.range(1) } },
     # Rantly#positive_integer is actually a natural integer
-    ns(:natural_integer)  => with_gen(self.and(Integer, ->(x) { x >= 0 }), ->() { :positive_integer.to_proc }),
-    ns(:negative_integer) => with_gen(self.and(Integer, ->(x) { x < 0 }), ->() { ->(r) { r.range(nil, -1) } }),
-    ns(:empty)            => with_gen(Predicates.method(:empty?), ->() { Utils.constantly([]) })
+    ns(:natural_integer)  => with_gen(self.and(Integer, ->(x) { x >= 0 })) { :positive_integer.to_proc },
+    ns(:negative_integer) => with_gen(self.and(Integer, ->(x) { x < 0 })) { ->(r) { r.range(nil, -1) } },
+    ns(:empty)            => with_gen(Predicates.method(:empty?)) { Utils.constantly([]) }
   )
 end

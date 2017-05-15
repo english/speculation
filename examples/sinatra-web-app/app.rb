@@ -146,8 +146,8 @@ module User
     }
   end
 
-  S.def ns(:email), S.with_gen(S.and(String, Validation::EMAIL_REGEX), Generators.method(:email))
-  S.def ns(:username), S.with_gen(S.and(String, Validation.method(:validate_username_length)), Generators.method(:username))
-  S.def ns(:password), S.with_gen(S.and(String, Validation.method(:validate_password_length), Validation.method(:validate_password_complexity)), Generators.method(:password))
+  S.def ns(:email), S.with_gen(S.and(String, Validation::EMAIL_REGEX)) { Generators.method(:email) }
+  S.def ns(:username), S.with_gen(S.and(String, Validation.method(:validate_username_length))) { Generators.method(:username) }
+  S.def ns(:password), S.with_gen(S.and(String, Validation.method(:validate_password_length), Validation.method(:validate_password_complexity))) { Generators.method(:password) }
   S.def ns(:user), S.keys(:req_un => [S.or_keys(ns(:email), ns(:username)), ns(:password)])
 end

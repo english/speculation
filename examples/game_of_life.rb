@@ -7,7 +7,7 @@ S = Speculation
 STest = S::Test
 Gen = S::Gen
 
-S.def :"gol/coordinate", S.with_gen(Integer, ->() { S.gen(S.int_in(-5..5)) })
+S.def :"gol/coordinate", S.with_gen(Integer) { S.gen(S.int_in(-5..5)) }
 S.def :"gol/cell", S.tuple(:"gol/coordinate", :"gol/coordinate")
 S.def :"gol/world", S.coll_of(:"gol/cell", :kind => Set, :gen_max => 20)
 

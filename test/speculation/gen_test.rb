@@ -50,17 +50,15 @@ module Speculation
     def test_with_gen
       email_regex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,63}$/
       spec = S.and(String, email_regex)
-      gen = -> do
-        ->(rantly) do
-          local_part = rantly.sized(rantly.range(1, 64)) { string(:alnum) }
-          subdomain = rantly.sized(rantly.range(1, 10)) { string(:alnum) }
-          tld = rantly.sized(3) { string(:alpha).downcase }
+      gen = ->(rantly) do
+        local_part = rantly.sized(rantly.range(1, 64)) { string(:alnum) }
+        subdomain = rantly.sized(rantly.range(1, 10)) { string(:alnum) }
+        tld = rantly.sized(3) { string(:alpha).downcase }
 
-          "#{local_part}@#{subdomain}.#{tld}"
-        end
+        "#{local_part}@#{subdomain}.#{tld}"
       end
 
-      S.def(ns(:email_type), S.with_gen(spec, gen))
+      S.def(ns(:email_type), S.with_gen(spec) { gen })
 
       assert Gen.generate(S.gen(ns(:email_type))).is_a?(String)
     end
