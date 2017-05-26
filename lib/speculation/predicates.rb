@@ -4,11 +4,11 @@ module Speculation
   # `Speculation.explain_data`.
   module Predicates
     def self.hash?(x)
-      x.respond_to?(:store)
+      x.respond_to?(:store) && x.respond_to?(:key?) && x.respond_to?(:[])
     end
 
     def self.array?(x)
-      x.respond_to?(:at)
+      x.respond_to?(:at) && x.respond_to?(:[])
     end
 
     def self.collection?(xs)
