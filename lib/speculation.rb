@@ -121,7 +121,7 @@ module Speculation
   # @param x [Hash, Object]
   # @return [Hash, false] x if x is a (Speculation) regex op, else logical false
   def self.regex?(x)
-    Predicates.hash?(x) && x[:op] && x
+    x.is_a?(Hash) && x[:op] && x
   end
 
   # @param value return value of a `conform` call
