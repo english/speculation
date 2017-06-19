@@ -28,6 +28,12 @@ module Speculation
         end)
       end
 
+      if options[:distinct]
+        collection_predicates.push(->(coll) do
+          coll.empty? || Predicates.distinct?(coll)
+        end)
+      end
+
       @collection_predicate = ->(coll) { collection_predicates.all? { |f| f.respond_to?(:call) ? f.call(coll) : f === coll } }
       @delayed_spec = Concurrent::Delay.new { S.send(:specize, predicate) }
       @kfn = options.fetch(:kfn, ->(i, _v) { i })
