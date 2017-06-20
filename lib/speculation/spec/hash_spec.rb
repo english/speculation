@@ -49,7 +49,7 @@ module Speculation
       reg = S.registry
 
       value.reduce(value) do |ret, (key, v)|
-        spec_name = @key_to_spec_map.fetch(key, key)
+        spec_name = key_to_spec_name(key)
         spec = reg[spec_name]
 
         if spec
@@ -72,8 +72,8 @@ module Speculation
       reg = S.registry
 
       value.reduce(value) do |ret, (key, conformed_value)|
-        if reg.key?(@key_to_spec_map[key])
-          unformed_value = S.unform(@key_to_spec_map.fetch(key), conformed_value)
+        if reg.key?(key_to_spec_name(key))
+          unformed_value = S.unform(key_to_spec_name(key), conformed_value)
 
           if conformed_value.equal?(unformed_value)
             ret
@@ -91,6 +91,7 @@ module Speculation
         return [{ :path => path, :pred => [Predicates.method(:hash?), [value]], :val => value, :via => via, :in => inn }]
       end
 
+      reg = S.registry
       problems = []
 
       if @req.any?
@@ -112,11 +113,10 @@ module Speculation
       end
 
       problems += value.flat_map { |(k, v)|
-        next unless S.registry.key?(@key_to_spec_map[k])
+        next unless reg.key?(key_to_spec_name(k))
+        next if S.pvalid?(key_to_spec_name(k), v)
 
-        unless S.pvalid?(@key_to_spec_map.fetch(k), v)
-          S.explain1(@key_to_spec_map.fetch(k), Utils.conj(path, k), via, Utils.conj(inn, k), v)
-        end
+        S.explain1(key_to_spec_name(k), Utils.conj(path, k), via, Utils.conj(inn, k), v)
       }
 
       problems.compact
@@ -211,6 +211,10 @@ module Speculation
         else f.call(key)
         end
       }
+    end
+
+    def key_to_spec_name(k)
+      @key_to_spec_map.fetch(k, k)
     end
   end
 end

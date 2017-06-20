@@ -66,6 +66,19 @@ val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: [#{Predicates.me
       EOS
     end
 
+    def test_explain_foo
+      S.def :"foo/bar", Integer
+
+      hash = {
+        :"foo/bar" => "not-an-integer",
+        :"baz/qux" => "irrelevant"
+      }
+
+      assert_equal <<-EOS, S.explain_str(S.keys, hash)
+In: [:"foo/bar"] val: "not-an-integer" fails spec: :"foo/bar" at: [:"foo/bar"] predicate: [Integer, ["not-an-integer"]]
+      EOS
+    end
+
     def test_and_keys_or_keys
       spec = S.keys(:req => [ns(:x), ns(:y), S.or_keys(ns(:secret), S.and_keys(ns(:user), ns(:pwd)))])
       S.def(ns(:auth), spec)
@@ -99,11 +112,14 @@ val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: [#{Predicates.me
       assert_equal good_dog, S.unform(:"animal/dog", S.conform(:"animal/dog", good_dog))
 
       bad_dog = { :"animal/kind" => "dog",
+                  :"animal/says" => "woof",
                   :"dog/tail?"   => "why yes",
                   :"dog/breed"   => "retriever" }
 
+      # Although weird at first glance, this is the desired behaviour since :"dog/tail" is invalid
+      # in both merged S.keys.
       expected = <<EOS
-val: {:"animal/kind"=>"dog", :"dog/tail?"=>"why yes", :"dog/breed"=>"retriever"} fails spec: :"animal/common" predicate: [#<Method: Speculation::Predicates.key?>, [:"animal/says"]]
+In: [:"dog/tail?"] val: "why yes" fails spec: :"animal/common" at: [:"dog/tail?"] predicate: [:"dog/tail?", ["why yes"]]
 In: [:"dog/tail?"] val: "why yes" fails spec: :"animal/dog" at: [:"dog/tail?"] predicate: [:"dog/tail?", ["why yes"]]
 EOS
 
