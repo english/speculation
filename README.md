@@ -22,7 +22,7 @@ The goal of this project is to match clojure.spec as closely as possible, from d
 
 ## Usage
 
-API Documentation is available at [RubyDoc](http://www.rubydoc.info/github/english/speculation) and [the wiki](/wiki) covers features at a higher level. The API is more-or-less the same as `clojure.spec` so if you're already familiar clojure.spec with then you should feel at home with Speculation. Most guides, talks and discussions around clojure.spec should apply equally well to Speculation.
+API Documentation is available at [RubyDoc](http://www.rubydoc.info/github/english/speculation) and [the wiki](https://github.com/english/speculation/wiki) covers features at a higher level. The API is more-or-less the same as `clojure.spec` so if you're already familiar clojure.spec with then you should feel at home with Speculation. Most guides, talks and discussions around clojure.spec should apply equally well to Speculation.
 
 ## Project status
 
