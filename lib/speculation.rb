@@ -23,9 +23,8 @@ module Speculation
     # Enables or disables spec asserts. Defaults to false.
     attr_accessor :check_asserts
 
-    # A soft limit on how many times a branching spec (or/alt/zero_or_more) can
-    # be recursed through during generation.  After this a non-recursive branch
-    # will be chosen.
+    # A soft limit on how many times a branching spec (or/alt/zero_or_more/opt keys) can be recursed
+    # through during generation. After this a non-recursive branch will be chosen.
     attr_accessor :recursion_limit
 
     # The number of times an anonymous fn specified by fspec will be
