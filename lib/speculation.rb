@@ -167,7 +167,9 @@ module Speculation
     probs = specize(spec).explain(path, via, inn, value)
 
     if probs && probs.any?
-      { :problems => probs }
+      { :problems => probs,
+        :spec     => spec,
+        :value    => value }
     end
   end
 
