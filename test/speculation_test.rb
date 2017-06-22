@@ -73,5 +73,15 @@ module Speculation
                         :in   => [],
                         :pred => [Integer, ["s"]]], problems.first
     end
+
+    def test_conform_unform
+      spec = S.and(String,
+                   S.conformer(method(:Integer), method(:String)),
+                   Integer,
+                   :even?.to_proc)
+
+      assert_equal 1_000_000, S.conform(spec, "1_000_000")
+      assert_equal "1000000", S.unform(spec, S.conform(spec, "1_000_000"))
+    end
   end
 end

@@ -101,7 +101,20 @@ module Speculation
     end
 
     def unform(value)
-      value
+      if @conform_all
+        spec = @delayed_spec.value!
+        init, add, complete = @cfns.call(value)
+
+        ret = value.
+          each_with_index.
+          reduce(init.call(value)) { |memo, (val, index)|
+            add.call(memo, index, val, spec.unform(val))
+          }
+
+        complete.call(ret)
+      else
+        value
+      end
     end
 
     def explain(path, via, inn, value)

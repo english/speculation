@@ -41,6 +41,14 @@ module Speculation
       return_value
     end
 
+    def unform(value)
+      unless Predicates.array?(value) && value.count == @preds.count
+        raise ArgumentError, "unform value must be an array of length #{@preds.count}"
+      end
+
+      @preds.zip(value).map { |(pred, val)| S.unform(pred, val) }
+    end
+
     def explain(path, via, inn, value)
       if !Predicates.array?(value)
         [{ :path => path, :val => value, :via => via, :in => inn, :pred => [Predicates.method(:array?), [value]] }]

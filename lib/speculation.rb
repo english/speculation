@@ -454,7 +454,7 @@ module Speculation
   # @param vpred val pred
   # @param options [Hash]
   # @return [Spec] spec that validates associative collections
-  def self.every_kv(kpred, vpred, options)
+  def self.every_kv(kpred, vpred, options = {})
     every(tuple(kpred, vpred), :kfn  => ->(_i, v) { v.first },
                                :into => {},
                                **options)

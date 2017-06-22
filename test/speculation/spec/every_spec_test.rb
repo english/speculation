@@ -101,13 +101,25 @@ module Speculation
     end
 
     def test_conform_unform
-      spec = S.and(String,
-                   S.conformer(method(:Integer), method(:String)),
-                   Integer,
-                   :even?.to_proc)
+      spec = S.coll_of(S.or(:i => Integer, :s => String))
+      assert_equal [[:i, 1], [:s, "x"]], S.conform(spec, [1, "x"])
+      assert_equal [1, "x"], S.unform(spec, S.conform(spec, [1, "x"]))
 
-      assert_equal 1_000_000, S.conform(spec, "1_000_000")
-      assert_equal "1000000", S.unform(spec, S.conform(spec, "1_000_000"))
+      spec = S.every(S.or(:i => Integer, :s => String))
+      assert_equal [1, "x"], S.conform(spec, [1, "x"])
+      assert_equal [1, "x"], S.unform(spec, S.conform(spec, [1, "x"]))
+
+      spec = S.hash_of(Integer, S.or(:i => Integer, :s => String))
+      assert_equal({ 10 => [:i, 10], 20 => [:s, "x"] }, S.conform(spec, { 10 => 10, 20 => "x" }))
+      assert_equal({ 10 => 10, 20 => "x" }, S.unform(spec, S.conform(spec, { 10 => 10, 20 => "x" })))
+
+      spec = S.hash_of(S.or(:i => Integer, :s => String), Integer, :conform_keys => true)
+      assert_equal({ [:i, 10] => 10, [:s, "x"] => 20 }, S.conform(spec, { 10 => 10, "x" => 20 }))
+      assert_equal({ 10 => 10, "x" => 20 }, S.unform(spec, S.conform(spec, { 10 => 10, "x" => 20 })))
+
+      spec = S.every_kv(Integer, S.or(:i => Integer, :s => String))
+      assert_equal({ 10 => 10, 20 => "x" }, S.conform(spec, { 10 => 10, 20 => "x" }))
+      assert_equal({ 10 => 10, 20 => "x" }, S.unform(spec, S.conform(spec, { 10 => 10, 20 => "x" })))
     end
   end
 end
