@@ -78,7 +78,11 @@ module Speculation
 
       assert_equal [], ed[:val][:args]
       assert_kind_of Proc, ed[:val][:block]
-      assert_equal 'In: [0] val: "1" fails at: [:x] predicate: [Integer, ["1"]]', ed[:reason]
+      assert_equal <<EOS.chomp, ed[:reason]
+In: [0] val: "1" fails at: [:x] predicate: [Integer, ["1"]]
+:spec Speculation::RegexSpec()
+:value ["1"]
+EOS
       assert_equal [identifier], ed[:via]
       assert_equal [], ed[:in]
     end

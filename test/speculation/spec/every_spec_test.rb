@@ -59,8 +59,10 @@ module Speculation
 
       expected = {
         :problems => [
-          { :path => [2], :val => 3.0, :via => [ns(:point)], :in => [2], :pred => [Integer, [3.0]] }
-        ]
+          { :path => [2], :val => 3.0, :via => [ns(:point)], :in => [2], :pred => [Integer, [3.0]] },
+        ],
+        :spec  => ns(:point),
+        :value => [1, 2, 3.0]
       }
 
       assert_equal expected, S.explain_data(ns(:point), [1, 2, 3.0])
@@ -91,7 +93,9 @@ module Speculation
                                    :val  => "300",
                                    :via  => [ns(:scores)],
                                    :in   => ["Joe", 1],
-                                   :pred => [Integer, ["300"]] }] }
+                                   :pred => [Integer, ["300"]] }],
+                   :spec => ns(:scores),
+                   :value => { "Sally" => 1000, "Joe" => "300" }}
 
       assert_equal expected, S.explain_data(ns(:scores), "Sally" => 1000, "Joe" => "300")
     end
