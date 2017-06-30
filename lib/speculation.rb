@@ -1014,6 +1014,8 @@ module Speculation
         case spec
         when Symbol, MethodIdentifier
           specize(reg_resolve!(spec))
+        when nil
+          raise ArgumentError, "#{spec.inspect} can not be a spec"
         else
           spec_impl(spec, nil, false)
         end
