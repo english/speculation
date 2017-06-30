@@ -14,7 +14,7 @@ module Speculation
 
     def initialize(args: nil, ret: nil, fn: nil, block: nil, gen: nil)
       @args  = args
-      @ret   = ret
+      @ret   = ret || :"Speculation/any"
       @fn    = fn
       @block = block
       @gen   = gen
