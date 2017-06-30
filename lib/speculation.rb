@@ -195,7 +195,7 @@ module Speculation
   def self.explain_out(ed, out = STDOUT)
     return out.puts("Success!") unless ed
 
-    problems = sort_descending(ed.fetch(:problems)) { |prob| prob[:path] }
+    problems = Utils.sort_descending(ed.fetch(:problems)) { |prob| prob[:path] }
 
     problems.each do |prob|
       path, pred, val, reason, via, inn = prob.values_at(:path, :pred, :val, :reason, :via, :in)
@@ -1327,10 +1327,6 @@ module Speculation
       else
         raise "Unexpected :op #{p[:op]}"
       end
-    end
-
-    def sort_descending(coll)
-      coll.sort { |a, b| yield(b) <=> yield(a) }
     end
   end
 

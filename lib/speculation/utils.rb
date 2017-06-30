@@ -41,5 +41,9 @@ module Speculation
       else raise ArgumentError, "#{a}: must be an Array, Set or Hash"
       end
     end
+
+    def self.sort_descending(coll)
+      coll.sort { |a, b| yield(b) <=> yield(a) }
+    end
   end
 end
