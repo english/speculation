@@ -59,10 +59,10 @@ module Speculation
 
       expected = {
         :problems => [
-          { :path => [2], :val => 3.0, :via => [ns(:point)], :in => [2], :pred => [Integer, [3.0]] },
+          { :path => [2], :val => 3.0, :via => [ns(:point)], :in => [2], :pred => [Integer, [3.0]] }
         ],
-        :spec  => ns(:point),
-        :value => [1, 2, 3.0]
+        :spec     => ns(:point),
+        :value    => [1, 2, 3.0]
       }
 
       assert_equal expected, S.explain_data(ns(:point), [1, 2, 3.0])
@@ -94,8 +94,8 @@ module Speculation
                                    :via  => [ns(:scores)],
                                    :in   => ["Joe", 1],
                                    :pred => [Integer, ["300"]] }],
-                   :spec => ns(:scores),
-                   :value => { "Sally" => 1000, "Joe" => "300" }}
+                   :spec     => ns(:scores),
+                   :value    => { "Sally" => 1000, "Joe" => "300" } }
 
       assert_equal expected, S.explain_data(ns(:scores), "Sally" => 1000, "Joe" => "300")
     end
@@ -110,16 +110,16 @@ module Speculation
       assert_equal [1, "x"], S.unform(spec, S.conform(spec, [1, "x"]))
 
       spec = S.hash_of(Integer, S.or(:i => Integer, :s => String))
-      assert_equal({ 10 => [:i, 10], 20 => [:s, "x"] }, S.conform(spec, { 10 => 10, 20 => "x" }))
-      assert_equal({ 10 => 10, 20 => "x" }, S.unform(spec, S.conform(spec, { 10 => 10, 20 => "x" })))
+      assert_equal({ 10 => [:i, 10], 20 => [:s, "x"] }, S.conform(spec, 10 => 10, 20 => "x"))
+      assert_equal({ 10 => 10, 20 => "x" }, S.unform(spec, S.conform(spec, 10 => 10, 20 => "x")))
 
       spec = S.hash_of(S.or(:i => Integer, :s => String), Integer, :conform_keys => true)
-      assert_equal({ [:i, 10] => 10, [:s, "x"] => 20 }, S.conform(spec, { 10 => 10, "x" => 20 }))
-      assert_equal({ 10 => 10, "x" => 20 }, S.unform(spec, S.conform(spec, { 10 => 10, "x" => 20 })))
+      assert_equal({ [:i, 10] => 10, [:s, "x"] => 20 }, S.conform(spec, 10 => 10, "x" => 20))
+      assert_equal({ 10 => 10, "x" => 20 }, S.unform(spec, S.conform(spec, 10 => 10, "x" => 20)))
 
       spec = S.every_kv(Integer, S.or(:i => Integer, :s => String))
-      assert_equal({ 10 => 10, 20 => "x" }, S.conform(spec, { 10 => 10, 20 => "x" }))
-      assert_equal({ 10 => 10, 20 => "x" }, S.unform(spec, S.conform(spec, { 10 => 10, 20 => "x" })))
+      assert_equal({ 10 => 10, 20 => "x" }, S.conform(spec, 10 => 10, 20 => "x"))
+      assert_equal({ 10 => 10, 20 => "x" }, S.unform(spec, S.conform(spec, 10 => 10, 20 => "x")))
     end
   end
 end

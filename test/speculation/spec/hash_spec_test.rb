@@ -169,8 +169,8 @@ In: [:email] val: "elon" fails spec: :"Speculation::HashSpecTest/email" at: [:em
                                    :val  => { :foo => "bar", :baz => "baz" },
                                    :via  => [ns(:hash)],
                                    :in   => [] }],
-                   :spec => ns(:hash),
-                   :value => { :foo => "bar", :baz => "baz" } }
+                   :spec     => ns(:hash),
+                   :value    => { :foo => "bar", :baz => "baz" } }
 
       assert_equal expected, S.explain_data(ns(:hash), :foo => "bar", :baz => "baz")
     end
@@ -206,8 +206,8 @@ In: [:email] val: "elon" fails spec: :"Speculation::HashSpecTest/email" at: [:em
             :pred => [/^[a-zA-Z1-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,63}$/, ["n/a"]]
           }
         ],
-        :spec  => ns(:person),
-        :value => input
+        :spec     => ns(:person),
+        :value    => input
       }
 
       assert_equal expected, S.explain_data(ns(:person), input)

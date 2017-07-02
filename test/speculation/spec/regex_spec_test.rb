@@ -182,8 +182,8 @@ module Speculation
             :pred => [Float, ["1"]]
           }
         ],
-        :spec => ns(:nested),
-        :value => [:names, ["a", "b"], :nums, ["1"]]
+        :spec     => ns(:nested),
+        :value    => [:names, ["a", "b"], :nums, ["1"]]
       }
 
       assert_equal expected, S.explain_data(ns(:nested), [:names, ["a", "b"], :nums, ["1"]])

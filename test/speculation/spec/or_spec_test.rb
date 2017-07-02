@@ -23,8 +23,8 @@ module Speculation
           { :path => [:name], :val => :foo, :in => [], :via => [ns(:name_or_id)], :pred => [String, [:foo]] },
           { :path => [:id], :val => :foo, :in => [], :via => [ns(:name_or_id)], :pred => [Integer, [:foo]] }
         ],
-        :value => :foo,
-        :spec => ns(:name_or_id)
+        :value    => :foo,
+        :spec     => ns(:name_or_id)
       }
 
       assert_equal expected, S.explain_data(ns(:name_or_id), :foo)
