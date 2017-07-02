@@ -9,11 +9,11 @@ Gen = S::Gen
 
 S.def :"gol/coordinate", S.with_gen(Integer) { S.gen(S.int_in(-5..5)) }
 S.def :"gol/cell", S.tuple(:"gol/coordinate", :"gol/coordinate")
-S.def :"gol/world", S.coll_of(:"gol/cell", :kind => Set, :gen_max => 20)
+S.def :"gol/world", S.coll_of(:"gol/cell", :kind => Set)
 
 def self.neighbours(cell)
   cell_x, cell_y = cell
-  block = (-1..1).flat_map { |x| (-1..1).map { |y| [cell_x - x, cell_y - y] } }.to_set
+  (-1..1).repeated_permutation(2).map { |(x, y)| [cell_x - x, cell_y - y] }.to_set
   block - Set[cell]
 end
 
