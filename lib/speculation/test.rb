@@ -234,7 +234,7 @@ module Speculation
             S.explain_out(ed, io)
             msg = io.string
 
-            raise Speculation::Error.new("Call to '#{ident}' did not conform to spec:\n #{msg}", ed)
+            raise Speculation::Error.new("Call to '#{ident}' did not conform to spec:\n#{msg}", ed)
           elsif conformed_block == :"Speculation/invalid"
             backtrace = backtrace_relevant_to_instrument(caller)
 
@@ -246,7 +246,7 @@ module Speculation
             S.explain_out(ed, io)
             msg = io.string
 
-            raise Speculation::Error.new("Call to '#{ident}' did not conform to spec:\n #{msg}", ed)
+            raise Speculation::Error.new("Call to '#{ident}' did not conform to spec:\n#{msg}", ed)
           end
         end
 
