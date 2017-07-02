@@ -189,15 +189,15 @@ module Speculation
         return S.explain1(pred, path, via, inn, x)
       end
 
-      if count && !Predicates.count_eq?(x, count)
-        return [{ :path => path, :pred => [Predicates.method(:count_eq?), [x, count]], :val => x, :via => via, :in => inn }]
+      if count && !Predicates.count_eq?(count, x)
+        return [{ :path => path, :pred => [Predicates.method(:count_eq?), [count, x]], :val => x, :via => via, :in => inn }]
       end
 
       if min_count || max_count
         min_count ||= 0
         max_count ||= Float::INFINITY
-        unless Predicates.count_between?(x, min_count, max_count)
-          return [{ :path => path, :pred => [Predicates.method(:count_between?), [x, min_count, max_count]], :val => x, :via => via, :in => inn }]
+        unless Predicates.count_between?(min_count, max_count, x)
+          return [{ :path => path, :pred => [Predicates.method(:count_between?), [min_count, max_count, x]], :val => x, :via => via, :in => inn }]
         end
       end
 

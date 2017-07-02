@@ -29,11 +29,11 @@ module Speculation
       true
     end
 
-    def self.count_eq?(coll, count)
+    def self.count_eq?(count, coll)
       coll.count == count
     end
 
-    def self.count_between?(coll, min_count, max_count)
+    def self.count_between?(min_count, max_count, coll)
       coll.count.between?(min_count, max_count)
     end
 
