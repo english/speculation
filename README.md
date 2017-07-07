@@ -21,7 +21,7 @@ To demonstrate most of the features of Speculation we can explore an implementat
 
 ### Game of Life demonstration
 
-First, we'll require the speculation library along with the generator and test modules. We'll be referring to `Speculation` a lot, so we'll add a shorthand to save us some typing:
+First, we'll require the [speculation][speculation] library along with the [generator][gen] and [test][test] modules. We'll be referring to `Speculation` a lot, so we'll add a shorthand to save us some typing:
 
 ```ruby
 require 'speculation'
@@ -46,9 +46,9 @@ S.def :"gol/coordinate", S.with_gen(Integer) { S.gen(S.int_in(-5..5)) }
 
 Let's unpick what we've done so far:
 
-- We've registered 'specs' (via `S.def`) to a global registry of specs, naming then with [namespaced Symbols](https://github.com/english/speculation/wiki/Namespaced-Symbols).
-- We've created both complex (`S.coll_of` and `S.tuple`) and simple (`Integer`) specs.
-- We've also leveraged the built-in generators for `S.coll_of` and `S.tuple` but swapped out the `Integer` `:"gol/coordinate"` generator for another built-in: `S.int_in`. While we don't have an upper or lower bound on a valid coordinate, using a more restrictive generator allows us to experiment with smaller worlds.
+- We've registered 'specs' (via [`S.def`][s-def]) to a global registry of specs, naming then with [namespaced Symbols][ns-symbols].
+- We've created both complex ([`S.coll_of`][coll_of] and [`S.tuple`][tuple]) and simple (`Integer`) specs.
+- We've also leveraged the built-in generators for `S.coll_of` and `S.tuple` but swapped out the `Integer` `:"gol/coordinate"` generator for another built-in: [`S.int_in`][int_in]. While we don't have an upper or lower bound on a valid coordinate, using a more restrictive generator allows us to experiment with smaller worlds.
 
 Before we move on to implementing the logic of the Game of Life, let's get an idea of the kind of data we'll be working with.
 
@@ -145,7 +145,7 @@ S::Test.summarize_results S::Test.check(method(:neighbours))
 
 Great, we've managed to verify that, after generating many random inputs (1,000 by default), our method's return value satisfies the properties we defined in its spec. That gives me more confidence than a small handful of hand-written example tests would!
 
-We can gain additional leverage from our spec: we can instrument the `neighbours` method so that it lets us know when it's been invoked with arguments that do not conform to its `:args` spec.
+We can gain additional leverage from our spec: we can [`instrument`][instrument] the `neighbours` method so that it lets us know when it's been invoked with arguments that do not conform to its `:args` spec.
 
 Before we do that, let's observe the method's current behavior when we provide deceptively invalid arguments:
 
@@ -215,3 +215,13 @@ Bug reports and pull requests are welcome on GitHub at https://github.com/englis
 ## License
 
 The gem is available as open source under the terms of the [MIT License](http://opensource.org/licenses/MIT).
+
+[def]: http://www.rubydoc.info/github/english/speculation/master/Speculation#def-class_method
+[coll_of]: http://www.rubydoc.info/github/english/speculation/master/Speculation#coll_of-class_method
+[tuple]: http://www.rubydoc.info/github/english/speculation/master/Speculation#tuple-class_method
+[int_in]: http://www.rubydoc.info/github/english/speculation/master/Speculation#int_in-class_method
+[ns-symbols]: https://github.com/english/speculation/wiki/Namespaced-Symbols
+[speculation]: http://www.rubydoc.info/github/english/speculation/master/Speculation
+[gen]: http://www.rubydoc.info/github/english/speculation/master/Speculation/Gen
+[test]: http://www.rubydoc.info/github/english/speculation/master/Speculation/Test
+[instrument]: http://www.rubydoc.info/github/english/speculation/master/Speculation/Test#instrument-class_method
