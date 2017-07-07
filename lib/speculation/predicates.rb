@@ -1,6 +1,6 @@
 module Speculation
   # Collection of predicate methods used within Speculation.
-  # These may appear as the value `:pred for the pred key in the return value of
+  # These may appear as the value for the `:pred` key in the return value of
   # `Speculation.explain_data`.
   module Predicates
     def self.hash?(x)
