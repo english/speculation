@@ -190,9 +190,8 @@ Speculation will mirror any changes made to clojure.spec. clojure.spec is still 
 
 While most of features of clojure.spec are implemented in Speculation, a few remain:
 
-- [`form`](https://clojuredocs.org/clojure.spec/form)
-- [`abbrev`](https://clojuredocs.org/clojure.spec/abbrev)
-- [`describe`](https://clojuredocs.org/clojure.spec/describe)
+- [`multi-spec`](https://clojure.github.io/clojure/branch-master/clojure.spec-api.html#clojure.spec/multi-spec) - Ruby doesn't have an equivalent of multimethods...
+- [`describe`](https://clojuredocs.org/clojure.spec/describe) - Since we can't capture the source code of a Ruby method/proc, we won't be able to match Clojure's `s/describe` but we may be able to come up with something close.
 
 ## Improvements
 
