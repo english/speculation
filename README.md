@@ -11,7 +11,7 @@ See [clojure.spec - Rationale and Overview](https://clojure.org/about/spec) for 
 
 ## Project Goals
 
-The goal of this project is to match clojure.spec as closely as possible, from design to features to API. There aren't, and won't be any, significant departures from clojure.spec.
+The goal of this project is to match clojure.spec as closely as possible, from design to features to API. There aren't, and won't be, any significant departures from clojure.spec.
 
 ## Usage
 
@@ -21,7 +21,7 @@ To demonstrate most of the features of Speculation we can explore an implementat
 
 ### Game of Life demonstration
 
-First, we'll require the speculation library along with the generator (gen)l and test modules. We'll be referring to Speculation a lot, so we'll add a shorthand to save us some typing:
+First, we'll require the speculation library along with the generator and test modules. We'll be referring to `Speculation` a lot, so we'll add a shorthand to save us some typing:
 
 ```ruby
 require 'speculation'
@@ -31,11 +31,11 @@ require 'speculation/gen'
 S = Speculation
 ```
 
-The Game of Life can be implemented with just a few simple entities. Let's describe them up front:
+The Game of Life can be modelled with just a few simple entities. Let's describe them up front:
 
 ```ruby
 # Our 'world' is a set of 'cells'.
-S.def :"gol/world", S.coll_of(:"gol/cell", :kind => Set)
+S.def :"gol/world", S.coll_of(:"gol/cell", kind: Set)
 
 # A cell is a tuple of coordinates.
 S.def :"gol/cell", S.tuple(:"gol/coordinate", :"gol/coordinate")
@@ -46,9 +46,9 @@ S.def :"gol/coordinate", S.with_gen(Integer) { S.gen(S.int_in(-5..5)) }
 
 Let's unpick what we've done so far:
 
-  - We've registered 'specs' (via `S.def`) to a global registry of specs, naming then with [namespaced Symbols](https://github.com/english/speculation/wiki/Namespaced-Symbols).
+- We've registered 'specs' (via `S.def`) to a global registry of specs, naming then with [namespaced Symbols](https://github.com/english/speculation/wiki/Namespaced-Symbols).
 - We've created both complex (`S.coll_of` and `S.tuple`) and simple (`Integer`) specs.
-- We've also leveraged the built-in generators for `S.coll_of` and `S.tuple` and swapped out the `Integer` `:"gol/coordinate"` generator for another built-in: `S.int_in`. While we don't have an upper or lower bound on a valid coordinate, using a more restrictive generator allows us to experiment with smaller worlds.
+- We've also leveraged the built-in generators for `S.coll_of` and `S.tuple` but swapped out the `Integer` `:"gol/coordinate"` generator for another built-in: `S.int_in`. While we don't have an upper or lower bound on a valid coordinate, using a more restrictive generator allows us to experiment with smaller worlds.
 
 Before we move on to implementing the logic of the Game of Life, let's get an idea of the kind of data we'll be working with.
 
@@ -59,7 +59,7 @@ S::Gen.generate(S.gen(:"gol/world"))
 # => #<Set: {}>
 ```
 
-Our up front definitions of our specs is already paying off. We can generate random, valid examples of our expected domain entities and play around with it, either in tests or in a REPL (e.g. Pry, IRB). We may not have initially considered the case where the world is empty!
+Our up front definition of specs is already paying off. We can generate random, valid examples of our expected domain entities and play around with them, either in tests or in a REPL (e.g. Pry, IRB). Without this kind of exploration we may not have initially considered the case where the world is empty!
 
 Now to the logic of the game. Before we can implement [the rules](https://en.wikipedia.org/wiki/Conway%27s_Game_of_Life#Rules), we must be able to find the neighbouring cells for a given cell.
 
@@ -74,8 +74,8 @@ Now I think that should work... But I'm not so confident. Let's write a spec for
 
 ```ruby
 S.fdef method(:neighbours),
-  :args => S.cat(:cell => :"gol/cell"),
-  :ret  => S.coll_of(:"gol/cell", :count => 8, :kind => Set)
+  args: S.cat(cell: :"gol/cell"),
+  ret: S.coll_of(:"gol/cell", count: 8, kind: Set)
 ```
 
 Now that we've described the inputs and outputs of the method, we can generatively test it:
@@ -99,7 +99,7 @@ S::Test.summarize_results S::Test.check(method(:neighbours))
 # => {:total=>1, :check_failed=>1}
 ```
 
-Great, it's found a problem! This is saying that an input case was generated that failed our spec. The `:problems` values let's us know exactly what it found wrong. It`s saying that the `:ret` part of our `neighbours' spec failed the 'Set' predicate. We can see that the value at `:val` is an Array, not a Set! There's our problem! Let's fix it by calling `to_set` before we return the collection of cells:
+Great, it's found a problem! This is saying that an input case was generated that failed our spec. The `:problems` values let's us know exactly what it found wrong. It's saying that the `:ret` part of our `neighbours` spec failed the 'Set' predicate. We can see that the value at `:val` is an Array, not a Set! There's our problem! Let's fix it by calling `to_set` before we return the collection of cells:
 
 ```ruby
 def self.neighbours(cell)
@@ -145,7 +145,7 @@ S::Test.summarize_results S::Test.check(method(:neighbours))
 
 Great, we've managed to verify that, after generating many random inputs (1,000 by default), our method's return value satisfies the properties we defined in its spec. That gives me more confidence than a small handful of hand-written example tests would!
 
-We can gain additional leverage from our `neighbours` method's spec: we can instrument it so that it lets us know when it's been invoked with arguments that do not conform to it's `:args` spec.
+We can gain additional leverage from our spec: we can instrument the `neighbours` method so that it lets us know when it's been invoked with arguments that do not conform to its `:args` spec.
 
 Before we do that, let's observe the method's current behavior when we provide deceptively invalid arguments:
 
@@ -174,7 +174,7 @@ neighbours([1.0, 2.0])
 
 We can see from the error message that our argument has two problems: both elements of our array argument have failed the Integer predicate for the `:"gol/coordinate"` spec.  This is arguably much better feedback than if we hadn't instrumented this method.
 
-We've demonstrated several Speculation features here, so we'll leave this demo here. See the full [Game of Life example](examples/game_of_life.rb) where we take this idea further.
+We've demonstrated several Speculation features, so we'll leave this demo here. See the full [Game of Life example](examples/game_of_life.rb) where we take this idea further.
 
 ## Examples
 
