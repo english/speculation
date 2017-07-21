@@ -121,5 +121,21 @@ module Speculation
       assert_equal({ 10 => 10, 20 => "x" }, S.conform(spec, 10 => 10, 20 => "x"))
       assert_equal({ 10 => 10, 20 => "x" }, S.unform(spec, S.conform(spec, 10 => 10, 20 => "x")))
     end
+
+    def test_every_limits
+      spec = S.every(Integer)
+      value = [1, 2, 3]
+      assert S.valid?(spec, value)
+
+      value = 1.upto(S.coll_check_limit).to_a
+      value[S.coll_check_limit] = "not-a-number"
+      assert S.valid?(spec, value)
+
+      value[S.coll_check_limit - 1] = "not-a-number"
+      refute S.valid?(spec, value)
+
+      value.concat(("a".."z").to_a)
+      assert_equal S.coll_error_limit, S.explain_data(spec, value).fetch(:problems).count
+    end
   end
 end

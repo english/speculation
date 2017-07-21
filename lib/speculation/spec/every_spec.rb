@@ -131,8 +131,10 @@ module Speculation
         end
       }
 
-      probs = @conform_all ? probs.to_a : probs.take(S.coll_error_limit)
-      probs.compact
+      probs = probs.select(&Utils.method(:itself))
+      probs = @conform_all ? probs : probs.take(S.coll_error_limit)
+
+      probs.to_a
     end
 
     def with_gen(gen)
