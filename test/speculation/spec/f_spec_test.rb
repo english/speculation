@@ -44,6 +44,18 @@ module Speculation
       assert_match(/undefined method `trigger_no_method_error' for .*String/, ed[:reason])
     end
 
+    class Callable
+      def call(string)
+        string.to_i
+      end
+    end
+
+    def test_fspec_callable
+      spec = S.fspec(:args => S.cat(:string => String), :ret => Integer)
+      assert S.valid?(spec, Callable.new)
+      refute S.valid?(spec, Object.new)
+    end
+
     def test_fspec_block
       mod = Module.new do
         def self.foo(&block)
