@@ -6,6 +6,9 @@ AllCops:
     - 'examples/**/*'
   TargetRubyVersion: 2.0
 
+Lint/RescueWithoutErrorClass:
+  Enabled: false
+
 Metrics/ClassLength:
   Enabled: false
 
