@@ -216,10 +216,6 @@ module Speculation
       out.puts
     end
 
-    ed.each do |k, v|
-      out.puts("#{k.inspect} #{PP.pp(v, String.new)}") unless k == :problems
-    end
-
     nil
   end
 

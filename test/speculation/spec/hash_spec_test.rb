@@ -63,8 +63,6 @@ module Speculation
 
       assert_equal <<-EOS, S.explain_str(ns(:unq, :person), :first_name => "Elon")
 val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: [#{Predicates.method(:key?)}, [[:"Speculation/or", [:"Speculation/and", :first_name, :last_name], :email]]]
-:spec :"unq/person"
-:value {:first_name=>"Elon"}
       EOS
     end
 
@@ -78,8 +76,6 @@ val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: [#{Predicates.me
 
       assert_equal <<-EOS, S.explain_str(S.keys, hash)
 In: [:"foo/bar"] val: "not-an-integer" fails spec: :"foo/bar" at: [:"foo/bar"] predicate: [Integer, ["not-an-integer"]]
-:spec Speculation::HashSpec()
-:value {:"foo/bar"=>"not-an-integer", :"baz/qux"=>"irrelevant"}
       EOS
     end
 
@@ -125,11 +121,6 @@ In: [:"foo/bar"] val: "not-an-integer" fails spec: :"foo/bar" at: [:"foo/bar"] p
       expected = <<EOS
 In: [:"dog/tail?"] val: "why yes" fails spec: :"animal/common" at: [:"dog/tail?"] predicate: [:"dog/tail?", ["why yes"]]
 In: [:"dog/tail?"] val: "why yes" fails spec: :"animal/dog" at: [:"dog/tail?"] predicate: [:"dog/tail?", ["why yes"]]
-:spec :"animal/dog"
-:value {:"animal/kind"=>"dog",
- :"animal/says"=>"woof",
- :"dog/tail?"=>"why yes",
- :"dog/breed"=>"retriever"}
 EOS
 
       assert_equal expected, S.explain_str(:"animal/dog", bad_dog)
@@ -143,8 +134,6 @@ EOS
       assert_equal <<-EOS, S.explain_str(ns(:unq, :person), :first_name => "Elon")
 val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: [#{Predicates.method(:key?)}, [:last_name]]
 val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: [#{Predicates.method(:key?)}, [:email]]
-:spec :"unq/person"
-:value {:first_name=>"Elon"}
       EOS
 
       email_regex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,63}$/
@@ -152,8 +141,6 @@ val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: [#{Predicates.me
 
       assert_equal <<-EOS, S.explain_str(ns(:unq, :person), :first_name => "Elon", :last_name => "Musk", :email => "elon")
 In: [:email] val: "elon" fails spec: :"Speculation::HashSpecTest/email" at: [:email] predicate: [/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,63}$/, ["elon"]]
-:spec :"unq/person"
-:value {:first_name=>"Elon", :last_name=>"Musk", :email=>"elon"}
       EOS
     end
 
