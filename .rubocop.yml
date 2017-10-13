@@ -6,6 +6,21 @@ AllCops:
     - 'examples/**/*'
   TargetRubyVersion: 2.0
 
+Layout/AlignHash:
+  EnforcedHashRocketStyle: table
+
+Layout/DotPosition:
+  EnforcedStyle: trailing
+
+Layout/IndentHeredoc:
+  Enabled: false
+
+Layout/MultilineMethodCallIndentation:
+  EnforcedStyle: indented
+
+Layout/MultilineOperationIndentation:
+  EnforcedStyle: indented
+
 Lint/RescueWithoutErrorClass:
   Enabled: false
 
@@ -39,11 +54,14 @@ Metrics/CyclomaticComplexity:
 Metrics/BlockNesting:
   Enabled: false
 
-Naming/HeredocDelimiterNaming:
+Naming/MethodName:
   Enabled: false
 
-Style/AlignHash:
-  EnforcedHashRocketStyle: table
+Naming/AccessorMethodName:
+  Enabled: false
+
+Naming/HeredocDelimiterNaming:
+  Enabled: false
 
 Style/HashSyntax:
   EnforcedStyle: hash_rockets
@@ -54,17 +72,11 @@ Style/StringLiterals:
 Style/BlockDelimiters:
   EnforcedStyle: semantic
 
-Style/DotPosition:
-  EnforcedStyle: trailing
-
 Style/IfUnlessModifier:
   Enabled: false
 
 Style/GuardClause:
   Enabled: false
-
-Style/MultilineMethodCallIndentation:
-  EnforcedStyle: indented
 
 Style/Lambda:
   EnforcedStyle: literal
@@ -78,13 +90,7 @@ Style/Documentation:
 Style/CaseEquality:
   Enabled: false
 
-Style/MultilineOperationIndentation:
-  EnforcedStyle: indented
-
 Style/MultilineIfModifier:
-  Enabled: false
-
-Style/AccessorMethodName:
   Enabled: false
 
 Style/NumericLiterals:
@@ -102,13 +108,7 @@ Style/RescueModifier:
 Performance/RedundantBlockCall:
   Enabled: false
 
-Style/MethodName:
-  Enabled: false
-
 Style/SymbolArray:
-  Enabled: false
-
-Style/IndentHeredoc:
   Enabled: false
 
 Style/EmptyLiteral:
