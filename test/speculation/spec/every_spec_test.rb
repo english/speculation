@@ -80,10 +80,10 @@ module Speculation
 
       hash = Gen.generate(S.gen(ns(:scores)))
 
-      hash.keys.each do |key|
+      hash.each_key do |key|
         assert_kind_of String, key
       end
-      hash.values.each { |value| assert_kind_of Integer, value }
+      hash.each_value { |value| assert_kind_of Integer, value }
     end
 
     def test_explain_hash_of
