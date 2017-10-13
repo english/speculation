@@ -36,6 +36,9 @@ Metrics/CyclomaticComplexity:
 Metrics/BlockNesting:
   Enabled: false
 
+Naming/HeredocDelimiterNaming:
+  Enabled: false
+
 Style/AlignHash:
   EnforcedHashRocketStyle: table
 
