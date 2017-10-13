@@ -10,6 +10,12 @@ module Speculation
     include NamespacedSymbols
     S = Speculation
 
+    EMPTY_COLL = {
+      Array => [].freeze,
+      Set   => Set[].freeze,
+      Hash  => {}.freeze
+    }.freeze
+
     def initialize(predicate, options, gen = nil)
       @predicate = predicate
       @options = options
@@ -37,10 +43,10 @@ module Speculation
       @collection_predicate = ->(coll) { collection_predicates.all? { |f| f.respond_to?(:call) ? f.call(coll) : f === coll } }
       @delayed_spec = Concurrent::Delay.new { S.send(:specize, predicate) }
       @kfn = options.fetch(:kfn, ->(i, _v) { i })
-      @conform_keys, @conform_all, @kind, @gen_into, @gen_max, @distinct, @count, @min_count, @max_count =
+      @conform_keys, @conform_all, @kind, @conform_into, @gen_max, @distinct, @count, @min_count, @max_count =
         options.values_at(:conform_keys, :conform_all, :kind, :into, :gen_max, :distinct, :count, :min_count, :max_count)
       @gen_max ||= 20
-      @conform_into = @gen_into
+      @gen_into = @conform_into ? Utils.empty(@conform_into) : EMPTY_COLL[@kind]
 
       # returns a tuple of [init add complete] fns
       @cfns = ->(x) do
@@ -148,7 +154,7 @@ module Speculation
 
       ->(rantly) do
         init = if @gen_into
-                 Utils.empty(@gen_into)
+                 @gen_into
                elsif @kind
                  Utils.empty(S.gensub(@kind, overrides, path, rmap).call(rantly))
                else
