@@ -33,6 +33,26 @@ module Speculation
       assert_equal expected, S.conform(ns(:nested), [:names, ["a", "b"], :nums, [1, 2]])
     end
 
+    def test_empty_cat
+      no_arg_callable_spec = S.fspec(:args => S.cat)
+      no_arg_callable = ->() {}
+
+      assert S.valid?(no_arg_callable_spec, no_arg_callable)
+      assert_equal no_arg_callable, S.conform(no_arg_callable_spec, no_arg_callable)
+
+      mod = Module.new do
+        def self.foo
+          "foo"
+        end
+      end
+
+      S.fdef mod.method(:foo), :args => S.cat
+      S::Test.instrument(mod.method(:foo))
+
+      # this would raise if args were incorrect
+      assert_equal mod.foo, "foo"
+    end
+
     def test_zero_or_more
       S.def(ns(:seq_of_symbols), S.zero_or_more(Symbol))
 

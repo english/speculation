@@ -528,7 +528,7 @@ module Speculation
   # @param named_specs [Hash] key+pred hash
   # @return [Hash] regex op that matches (all) values in sequence, returning a map
   #   containing the keys of each pred and the corresponding value.
-  def self.cat(named_specs)
+  def self.cat(named_specs = {})
     keys = named_specs.keys
     predicates = named_specs.values
 
@@ -594,7 +594,7 @@ module Speculation
   #
   # @param method [Method]
   # @param spec [Hash]
-  # @option spec :args [Hash] regex spec for the method arguments as a list
+  # @option spec :args regex spec for the method arguments as an array
   # @option spec :block an fspec for the method's block
   # @option spec :ret a spec for the method's return value
   # @option spec :fn a spec of the relationship between args and ret - the value passed is
