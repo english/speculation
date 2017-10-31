@@ -31,6 +31,10 @@ def reload!
   end
 
   load "./lib/speculation.rb"
+  Dir["lib/speculation/experimental/*.rb"].each do |f|
+    load f
+  end
+  load "./lib/speculation/experimental.rb"
   load "./lib/speculation/gen.rb"
   load "./lib/speculation/test.rb"
 
