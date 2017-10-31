@@ -72,17 +72,21 @@ module Speculation
     def gen(overrides, _path, _rmap)
       return @gen.call if @gen
 
+      args_spec = @args
+      block_spec = @block
+      ret_spec = @ret
+
       ->(_rantly) do
         ->(*args, &block) do
-          unless S.pvalid?(@args, args)
-            raise S.explain_str(@args, args)
+          unless S.pvalid?(args_spec, args)
+            raise S.explain_str(args_spec, args)
           end
 
-          if @block && !S.pvalid?(@block, block)
-            raise S.explain_str(@block, block)
+          if block_spec && !S.pvalid?(block_spec, block)
+            raise S.explain_str(block_spec, block)
           end
 
-          S::Gen.generate(S.gen(@ret, overrides))
+          S::Gen.generate(S.gen(ret_spec, overrides))
         end
       end
     end
