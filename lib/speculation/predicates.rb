@@ -44,5 +44,9 @@ module Speculation
     def self.empty?(coll)
       coll.empty?
     end
+
+    def self.respond_to?(object, method)
+      object.respond_to?(method)
+    end
   end
 end

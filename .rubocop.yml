@@ -4,7 +4,7 @@ AllCops:
     - '*.*'
     - 'vendor/**/*'
     - 'examples/**/*'
-  TargetRubyVersion: 2.0
+  TargetRubyVersion: 2.1
 
 Layout/AlignHash:
   EnforcedHashRocketStyle: table
@@ -25,6 +25,9 @@ Lint/RescueWithoutErrorClass:
   Enabled: false
 
 Metrics/ClassLength:
+  Enabled: false
+  
+Lint/UnusedMethodArgument:
   Enabled: false
 
 Metrics/BlockLength:
