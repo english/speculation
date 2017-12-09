@@ -137,5 +137,25 @@ module Speculation
       value.concat(("a".."z").to_a)
       assert_equal S.coll_error_limit, S.explain_data(spec, value).fetch(:problems).count
     end
+
+    def test_every_range
+      spec = S.every(String, :kind => Range)
+      value = "a".."z"
+      assert S.valid?(spec, value)
+
+      # can't generate a Range...
+      assert_raises(S::Error) do
+        Gen.generate(S.gen(spec))
+      end
+    end
+
+    def test_every_enumerator
+      spec = S.every(Integer, :kind => Enumerator, :min_count => 1)
+      value = (1..10).to_enum
+      assert S.valid?(spec, value)
+
+      genned = Gen.generate(S.gen(spec))
+      assert_kind_of Integer, genned.next
+    end
   end
 end

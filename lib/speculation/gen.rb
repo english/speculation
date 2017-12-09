@@ -112,6 +112,10 @@ module Speculation
         gen = Gen.gen_for_pred(Array)
         SortedSet.new(gen.call(r))
       end,
+      Enumerator => ->(r) do
+        gen = Gen.gen_for_pred(Array)
+        gen.call(r).to_enum
+      end,
       Hash       => ->(r) do
         kgen = Gen.gen_for_pred(r.choose(Integer, String, Float, Symbol, Date, Time))
         vgen = Gen.gen_for_pred(r.choose(Integer, String, Float, Symbol, Date, Time, Set[true, false]))

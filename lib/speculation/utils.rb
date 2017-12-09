@@ -21,8 +21,20 @@ module Speculation
       x.is_a?(Method) || x.is_a?(UnboundMethod)
     end
 
+    EMPTY_COLL = {
+      Array      => [].freeze,
+      Set        => Set[].freeze,
+      Hash       => {}.freeze,
+      Enumerator => [].to_enum.freeze
+    }.freeze
+
+    # FIXME: handle enumerators, ranges
     def self.empty(coll)
-      coll.class.new
+      if coll.is_a?(Class)
+        EMPTY_COLL[coll]
+      else
+        EMPTY_COLL[coll.class]
+      end
     end
 
     def self.into(to, from)
@@ -33,12 +45,19 @@ module Speculation
       case a
       when Array, Set
         a + [b]
+      when Enumerator
+        Enumerator.new do |y|
+          a.each do |x|
+            y << x
+          end
+          y << b
+        end
       when Hash
         case b
         when Array then a.merge(b[0] => b[1])
         else            a.merge(b)
         end
-      else raise ArgumentError, "#{a}: must be an Array, Set or Hash"
+      else raise ArgumentError, "#{a.inspect}: must be an Array, Set or Hash"
       end
     end
 

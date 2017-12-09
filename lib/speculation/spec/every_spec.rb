@@ -10,12 +10,6 @@ module Speculation
     include NamespacedSymbols
     S = Speculation
 
-    EMPTY_COLL = {
-      Array => [].freeze,
-      Set   => Set[].freeze,
-      Hash  => {}.freeze
-    }.freeze
-
     def initialize(predicate, options, gen = nil)
       @predicate = predicate
       @options = options
@@ -46,7 +40,7 @@ module Speculation
       @conform_keys, @conform_all, @kind, @conform_into, @gen_max, @distinct, @count, @min_count, @max_count =
         options.values_at(:conform_keys, :conform_all, :kind, :into, :gen_max, :distinct, :count, :min_count, :max_count)
       @gen_max ||= 20
-      @gen_into = @conform_into ? Utils.empty(@conform_into) : EMPTY_COLL[@kind]
+      @gen_into = Utils.empty(@conform_into || @kind)
 
       # returns a tuple of [init add complete] fns
       @cfns = ->(x) do
