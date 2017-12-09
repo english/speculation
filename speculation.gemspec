@@ -38,5 +38,8 @@ Gem::Specification.new do |spec|
   end
 
   spec.add_development_dependency "pry-doc", "~> 0.9"
-  spec.add_development_dependency "rubocop", '~> 0.51.0'
+
+  if Gem::Version.new(RUBY_VERSION) >= Gem::Version.new("2.1.0")
+    spec.add_development_dependency "rubocop", '~> 0.51.0'
+  end
 end

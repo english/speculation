@@ -4,7 +4,7 @@ $LOAD_PATH.unshift File.expand_path("../../test", __FILE__)
 
 require "bundler/setup"
 require "pry"
-require 'rubocop'
+require "rubocop"
 require "speculation"
 require "speculation/test"
 require "speculation/gen"

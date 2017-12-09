@@ -1,12 +1,17 @@
 # frozen_string_literal: true
 
 require "bundler/gem_tasks"
-require "rubocop"
 require "yard"
 
 task :rubocop do
-  status = RuboCop::CLI.new.run(["--display-cop-names"])
-  raise "failed with status #{status}" unless status.zero?
+  # rubocop:disable Lint/HandleExceptions
+  begin
+    require "rubocop"
+    status = RuboCop::CLI.new.run(["--display-cop-names"])
+    raise "failed with status #{status}" unless status.zero?
+  rescue LoadError
+  end
+  # rubocop:enable Lint/HandleExceptions
 end
 
 task :test do
