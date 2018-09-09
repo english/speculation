@@ -11,8 +11,20 @@ module Speculation
       x.respond_to?(:at) && x.respond_to?(:[])
     end
 
+    def self.enumerator?(xs)
+      xs.is_a?(Enumerator)
+    end
+
     def self.collection?(xs)
       xs.respond_to?(:each)
+    end
+
+    def self.nil_or_sequential?(xs)
+      xs.nil? || sequential?(xs)
+    end
+
+    def self.sequential?(xs)
+      array?(xs) || enumerator?(xs)
     end
 
     def self.distinct?(xs)

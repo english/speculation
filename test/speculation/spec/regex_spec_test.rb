@@ -228,5 +228,28 @@ module Speculation
 
       assert_equal expected, conformed
     end
+
+    def test_non_sequential
+      assert S.valid?(S.cat, [])
+      assert S.valid?(S.cat, [].to_enum)
+
+      refute S.valid?(S.cat, {})
+      refute S.valid?(S.cat, Set[])
+
+      ed = S.explain_data(S.cat, {})
+      problems = ed.fetch(:problems)
+
+      expected = [
+        {
+          :path => [],
+          :pred => [S::Predicates.method(:nil_or_sequential?), [{}]],
+          :val  => {},
+          :via  => [],
+          :in   => []
+        }
+      ]
+
+      assert_equal expected, problems
+    end
   end
 end

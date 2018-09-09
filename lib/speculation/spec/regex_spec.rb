@@ -16,7 +16,7 @@ module Speculation
     end
 
     def conform(value)
-      if value.nil? || Predicates.collection?(value)
+      if value.nil? || Predicates.sequential?(value)
         S.re_conform(@regex, value)
       else
         :"Speculation/invalid"
@@ -28,10 +28,10 @@ module Speculation
     end
 
     def explain(path, via, inn, value)
-      if value.nil? || Predicates.collection?(value)
+      if Predicates.nil_or_sequential?(value)
         S.re_explain(path, via, inn, @regex, value || [])
       else
-        [{ :path => path, :val => value, :via => via, :in => inn }]
+        [{ :path => path, :pred => [Predicates.method(:nil_or_sequential?), [value]], :val => value, :via => via, :in => inn }]
       end
     end
 
