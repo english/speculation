@@ -109,8 +109,12 @@ module Speculation
         Set.new(gen.call(r))
       end,
       SortedSet  => ->(r) do
-        gen = Gen.gen_for_pred(Array)
-        SortedSet.new(gen.call(r))
+        # all elements of sorted set must be comparable
+        size = r.range(0, 20)
+        gen = Gen.gen_for_pred(r.choose(Integer, String, Float, Symbol, Date, Time, Set[true, false]))
+
+        array = r.array(size) { gen.call(r) }
+        SortedSet.new(array)
       end,
       Enumerator => ->(r) do
         gen = Gen.gen_for_pred(Array)
