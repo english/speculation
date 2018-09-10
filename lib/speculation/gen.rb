@@ -110,9 +110,9 @@ module Speculation
       end,
       SortedSet  => ->(r) do
         # all elements of sorted set must be comparable
-        size = r.range(0, 20)
-        gen = Gen.gen_for_pred(r.choose(Integer, String, Float, Symbol, Date, Time, Set[true, false]))
+        gen = Gen.gen_for_pred(r.choose(Integer, String, Float, Symbol, Date, Time))
 
+        size = r.range(0, 20)
         array = r.array(size) { gen.call(r) }
         SortedSet.new(array)
       end,
