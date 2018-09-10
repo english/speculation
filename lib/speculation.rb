@@ -100,8 +100,10 @@ module Speculation
   # @param time_range [Range<Time>]
   # @return Spec that validates times in the given range
   def self.time_in(time_range)
-    spec(self.and(Time, ->(x) { time_range.cover?(x) }),
-         :gen => ->() { ->(_) { rand(time_range) } })
+    gen = ->() do
+      ->(r) { Time.at(r.range(time_range.begin.to_i, time_range.end.to_i)) }
+    end
+    spec(self.and(Time, ->(x) { time_range.cover?(x) }), :gen => gen)
   end
 
   # @param date_range [Range<Date>]
