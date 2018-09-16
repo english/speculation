@@ -62,7 +62,7 @@ module Speculation
       assert_equal [Predicates.method(:key?), [S.or_keys(S.and_keys(:first_name, :last_name), :email)]], pred
 
       assert_equal <<-EOS, S.explain_str(ns(:unq, :person), :first_name => "Elon")
-val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: [#{Predicates.method(:key?)}, [[:"Speculation/or", [:"Speculation/and", :first_name, :last_name], :email]]]
+{:first_name=>"Elon"} - failed: [#<Method: Speculation::Predicates.key?>, [[:"Speculation/or", [:"Speculation/and", :first_name, :last_name], :email]]] spec: :"unq/person"
       EOS
     end
 
@@ -75,7 +75,7 @@ val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: [#{Predicates.me
       }
 
       assert_equal <<-EOS, S.explain_str(S.keys, hash)
-In: [:"foo/bar"] val: "not-an-integer" fails spec: :"foo/bar" at: [:"foo/bar"] predicate: [Integer, ["not-an-integer"]]
+"not-an-integer" - failed: [Integer, ["not-an-integer"]] in: [:"foo/bar"] at: [:"foo/bar"] spec: :"foo/bar"
       EOS
     end
 
@@ -119,8 +119,8 @@ In: [:"foo/bar"] val: "not-an-integer" fails spec: :"foo/bar" at: [:"foo/bar"] p
       # Although weird at first glance, this is the desired behaviour since :"dog/tail" is invalid
       # in both merged S.keys.
       expected = <<EOS
-In: [:"dog/tail?"] val: "why yes" fails spec: :"animal/common" at: [:"dog/tail?"] predicate: [:"dog/tail?", ["why yes"]]
-In: [:"dog/tail?"] val: "why yes" fails spec: :"animal/dog" at: [:"dog/tail?"] predicate: [:"dog/tail?", ["why yes"]]
+"why yes" - failed: [:"dog/tail?", ["why yes"]] in: [:"dog/tail?"] at: [:"dog/tail?"] spec: :"animal/common"
+"why yes" - failed: [:"dog/tail?", ["why yes"]] in: [:"dog/tail?"] at: [:"dog/tail?"] spec: :"animal/dog"
 EOS
 
       assert_equal expected, S.explain_str(:"animal/dog", bad_dog)
@@ -132,15 +132,15 @@ EOS
                    :opt_un => [ns(:phone)]))
 
       assert_equal <<-EOS, S.explain_str(ns(:unq, :person), :first_name => "Elon")
-val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: [#{Predicates.method(:key?)}, [:last_name]]
-val: {:first_name=>"Elon"} fails spec: :"unq/person" predicate: [#{Predicates.method(:key?)}, [:email]]
+{:first_name=>\"Elon\"} - failed: [#<Method: Speculation::Predicates.key?>, [:last_name]] spec: :\"unq/person\"
+{:first_name=>\"Elon\"} - failed: [#<Method: Speculation::Predicates.key?>, [:email]] spec: :\"unq/person\"
       EOS
 
       email_regex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,63}$/
       S.def(ns(:email), S.and(String, email_regex))
 
       assert_equal <<-EOS, S.explain_str(ns(:unq, :person), :first_name => "Elon", :last_name => "Musk", :email => "elon")
-In: [:email] val: "elon" fails spec: :"Speculation::HashSpecTest/email" at: [:email] predicate: [/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,63}$/, ["elon"]]
+"elon" - failed: [/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,63}$/, ["elon"]] in: [:email] at: [:email] spec: :"Speculation::HashSpecTest/email"
       EOS
     end
 

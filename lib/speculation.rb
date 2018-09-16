@@ -202,12 +202,12 @@ module Speculation
     problems.each do |prob|
       path, pred, val, reason, via, inn = prob.values_at(:path, :pred, :val, :reason, :via, :in)
 
-      out.print("In: ", inn.to_a.inspect, " ") unless inn.empty?
-      out.print("val: ", val.inspect, " fails")
+      out.print(val.inspect)
+      out.print(" - failed: ")
+      out.print((reason || pred).inspect)
+      out.print(" in: ", inn.inspect) unless inn.empty?
+      out.print(" at: ", path.inspect) unless path.empty?
       out.print(" spec: ", via.last.inspect) unless via.empty?
-      out.print(" at: ", path.to_a.inspect) unless path.empty?
-      out.print(" predicate: ", pred.inspect)
-      out.print(", ", reason.inspect) if reason
 
       prob.each do |k, v|
         unless [:path, :pred, :val, :reason, :via, :in].include?(k)
