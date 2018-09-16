@@ -197,7 +197,7 @@ module Speculation
   def self.explain_out(ed, out = STDOUT)
     return out.puts("Success!") unless ed
 
-    problems = Utils.sort_descending(ed.fetch(:problems)) { |prob| prob[:path] }
+    problems = Utils.sort_descending(Utils.sort_descending(ed.fetch(:problems)) { |prob| prob[:in].count }) { |prob| prob[:path].count }
 
     problems.each do |prob|
       path, pred, val, reason, via, inn = prob.values_at(:path, :pred, :val, :reason, :via, :in)
