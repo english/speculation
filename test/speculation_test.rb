@@ -17,6 +17,14 @@ module Speculation
       end
     end
 
+    def test_def_with_nil_removes_spec
+      S.def(:"foo/bar", String)
+      assert S.registry.key?(:"foo/bar")
+
+      S.def(:"foo/bar", nil)
+      refute S.registry.key?(:"foo/bar")
+    end
+
     def test_conform_with_existing_spec
       S.def(ns(:int?), ->(x) { x.is_a?(Integer) })
 

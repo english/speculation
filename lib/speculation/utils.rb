@@ -64,5 +64,11 @@ module Speculation
     def self.sort_descending(coll)
       coll.sort { |a, b| yield(b) <=> yield(a) }
     end
+
+    def self.without(hash, key)
+      new_hash = hash.dup
+      new_hash.delete(key)
+      new_hash
+    end
   end
 end

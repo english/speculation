@@ -45,7 +45,7 @@ module Speculation
   @coll_check_limit = 101
   @coll_error_limit = 20
 
-  @registry_ref = Concurrent::Atom.new({})
+  @registry_ref = Concurrent::Atom.new({}.freeze)
 
   # Can be enabled or disabled at runtime:
   # - enabled/disabled by setting `check_asserts`.
@@ -294,14 +294,20 @@ module Speculation
       raise ArgumentError, "key must be a namespaced Symbol, e.g. #{ns(:my_spec)}, or a Method"
     end
 
-    spec = if spec?(spec) || regex?(spec) || registry[spec]
-             spec
-           else
-             spec_impl(spec, nil, false)
-           end
+    if spec.nil?
+      @registry_ref.swap do |reg|
+        Utils.without(reg, key).freeze
+      end
+    else
+      spec = if spec?(spec) || regex?(spec) || registry[spec]
+               spec
+             else
+               spec_impl(spec, nil, false)
+             end
 
-    @registry_ref.swap do |reg|
-      reg.merge(key => with_name(spec, key)).freeze
+      @registry_ref.swap do |reg|
+        reg.merge(key => with_name(spec, key)).freeze
+      end
     end
 
     key.is_a?(MethodIdentifier) ? key.get_method : key
