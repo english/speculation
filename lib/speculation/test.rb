@@ -228,7 +228,7 @@ module Speculation
 
             ed = S.
               _explain_data(fspec.args, [:args], [], [], args).
-              merge(:args => args, :failure => :instrument, :caller => backtrace.first)
+              merge(:args => args, :failure => :instrument, :fn => ident, :caller => backtrace.first)
 
             io = StringIO.new
             S.explain_out(ed, io)
@@ -240,7 +240,7 @@ module Speculation
 
             ed = S.
               _explain_data(fspec.block, [:block], [], [], block).
-              merge(:block => block, :failure => :instrument, :caller => backtrace.first)
+              merge(:block => block, :failure => :instrument, :fn => ident, :caller => backtrace.first)
 
             io = StringIO.new
             S.explain_out(ed, io)
