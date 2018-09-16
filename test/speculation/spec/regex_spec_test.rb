@@ -141,6 +141,22 @@ module Speculation
       assert S.valid?(ns(:even_strings), ["a", "b"])
       refute S.valid?(ns(:even_strings), ["a", "b", "c"])
       assert S.valid?(ns(:even_strings), ["a", "b", "c", "d"])
+
+      is_a = ->(x) { x == ["a"] }
+      single_a = S.constrained(S.zero_or_more(String), is_a)
+
+      assert_equal :"Speculation/invalid", S.conform(single_a, nil)
+      problem = S.explain_data(single_a, nil).fetch(:problems).first
+      assert_equal [is_a, [[]]], problem[:pred]
+      assert_equal [], problem[:val]
+
+      assert_equal :"Speculation/invalid", S.conform(single_a, [])
+      problem = S.explain_data(single_a, []).fetch(:problems).first
+      assert_equal [is_a, [[]]], problem[:pred]
+      assert_equal [], problem[:val]
+
+      assert_equal ["a"], S.conform(single_a, ["a"])
+      assert_nil S.explain_data(single_a, ["a"])
     end
 
     def test_explain_regex

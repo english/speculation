@@ -835,7 +835,7 @@ module Speculation
 
   # @private
   def self.re_conform(regex, data)
-    data.each do |x|
+    Array(data).each do |x|
       regex = deriv(regex, x)
       return :"Speculation/invalid" unless regex
     end
@@ -1124,11 +1124,7 @@ module Speculation
       when :rep    then (regex[:p1] == regex[:p2]) || accept_nil?(regex[:p1])
       when :amp
         p1 = regex[:p1]
-
-        return false unless accept_nil?(p1)
-
-        no_ret?(p1, preturn(p1)) ||
-          !invalid?(and_preds(preturn(p1), regex[:predicates]))
+        accept_nil?(p1) && !invalid?(and_preds(preturn(p1), regex[:predicates]))
       else
         raise "Unexpected op #{regex[:op]}"
       end

@@ -54,11 +54,22 @@ module Speculation
     end
 
     def self.empty?(coll)
-      coll.empty?
+      if enumerator?(coll)
+        enumerator_empty?(coll)
+      else
+        coll.empty?
+      end
     end
 
     def self.respond_to?(object, method)
       object.respond_to?(method)
+    end
+
+    def self.enumerator_empty?(enum)
+      enum.peek
+      false
+    rescue StopIteration
+      true
     end
   end
 end
