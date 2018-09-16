@@ -422,7 +422,7 @@ module Speculation
   #   'every' should be suitable for potentially large collections.
   # @param pred predicate to validate collections with
   # @param opts [Hash] Takes several kwargs options that further constrain the collection:
-  # @option opts :kind (nil) a pred/spec that the collection type must satisfy, e.g. `Array`
+  # @option opts :kind (nil) a pred that the collection type must satisfy, e.g. `Array`
   #   Note that if :kind is specified and :into is not, this pred must generate in order for every
   #   to generate.
   # @option opts :count [Integer] (nil) specifies coll has exactly this count
