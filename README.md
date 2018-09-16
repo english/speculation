@@ -202,6 +202,7 @@ Some things I hope to focus on in the near future:
 - Generate documentation from specs
   - perhaps integrating with [Pry's documentation browsing](https://github.com/pry/pry/wiki/Documentation-browsing)?
 - Profile and optimise
+  - use of `caller` kills performance on JRuby
 
 ## Development
 
