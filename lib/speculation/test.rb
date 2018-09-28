@@ -230,11 +230,7 @@ module Speculation
               _explain_data(fspec.args, [:args], [], [], args).
               merge(:args => args, :failure => :instrument, :fn => ident, :caller => backtrace.first)
 
-            io = StringIO.new
-            S.explain_out(ed, io)
-            msg = io.string
-
-            raise Speculation::Error.new("Call to '#{ident}' did not conform to spec:\n#{msg}", ed)
+            raise S::Error.new("Call to '#{ident}' did not conform to spec.", ed)
           elsif conformed_block == :"Speculation/invalid"
             backtrace = backtrace_relevant_to_instrument(caller)
 
@@ -242,11 +238,7 @@ module Speculation
               _explain_data(fspec.block, [:block], [], [], block).
               merge(:block => block, :failure => :instrument, :fn => ident, :caller => backtrace.first)
 
-            io = StringIO.new
-            S.explain_out(ed, io)
-            msg = io.string
-
-            raise Speculation::Error.new("Call to '#{ident}' did not conform to spec:\n#{msg}", ed)
+            raise S::Error.new("Call to '#{ident}' did not conform to spec.", ed)
           end
         end
 
