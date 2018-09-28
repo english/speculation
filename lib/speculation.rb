@@ -331,15 +331,8 @@ module Speculation
   # Optionally takes :gen generator function, which must be a no-arg proc that returns a generator
   # (proc that receives a Rantly instance) that generates a valid value.
   #
-  # @param pred [Proc, Method, Set, Class, Regexp, Hash] Takes a single predicate. A
-  #   predicate can be one of:
-  #
-  #   - Proc, e.g. `-> (x) { x.even? }`, will be called with the given value
-  #   - Method, e.g. `Foo.method(:bar?)`, will be called with the given value
-  #   - Set, e.g. `Set[1, 2]`, will be tested whether it includes the given value
-  #   - Class/Module, e.g. `String`, will be tested for case equality (is_a?)
-  #     with the given value
-  #   - Regexp, e.g. `/foo/`, will be tested using `===` with given value
+  # @param pred [#===] Takes a single predicate. Case equality (`===`) is used
+  #   to determine whether a given value conform
   #
   #   Can also be passed the result of one of the regex ops - cat, alt,
   #   zero_or_more, one_or_more, zero_or_one, in which case it will return a
@@ -348,6 +341,22 @@ module Speculation
   # @param gen [Proc] generator returning function, which must be a zero arg proc that returns a
   #   proc of one arg (Rantly instance) that generates a valid value.
   # @return [Spec]
+  # @example Proc
+  #   `-> (x) { x.even? }` - will be called with the given value
+  # @example Method
+  #   Foo.method(:bar?)` - will be called with the given value
+  # @example Set
+  #  `Set[1, 2]` - will be tested whether it includes the given value
+  # @example Class/Module
+  #  `String` - tests whether the given value is_a? the given class/module
+  # @example Regexp
+  #   `/foo/` - tests whether the value matches the given regexp
+  # @example Anything that responds to `===`
+  #   class EvenNumber
+  #     def ===(other)
+  #       (Numeric === other) && other.even?
+  #     end
+  #   end
   def self.spec(pred, gen: nil)
     spec_impl(pred, gen, false) if pred
   end
@@ -691,14 +700,8 @@ module Speculation
 
     if spec
       conform(spec, x)
-    elsif pred.is_a?(Module) || pred.is_a?(::Regexp)
-      pred === x ? x : :"Speculation/invalid"
-    elsif pred.is_a?(Set)
-      pred.include?(x) ? x : :"Speculation/invalid"
-    elsif pred.respond_to?(:call)
-      pred.call(x) ? x : :"Speculation/invalid"
     else
-      raise "#{pred} is not a class, proc, set or regexp"
+      pred === x ? x : :"Speculation/invalid"
     end
   end
 

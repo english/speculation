@@ -18,11 +18,7 @@ module Speculation
     end
 
     def conform(value)
-      ret = case @predicate
-            when Set            then @predicate.include?(value)
-            when Regexp, Module then @predicate === value
-            else                     @predicate.call(value)
-            end
+      ret = @predicate === value
 
       if @should_conform
         ret
