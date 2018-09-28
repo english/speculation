@@ -219,35 +219,13 @@ module Speculation
       def spec_checking_fn(ident, method, fspec)
         fspec = S.send(:maybe_spec, fspec)
 
-        conform = ->(args, block) do
-          conformed_args = S.conform(fspec.args, args)
-          conformed_block = S.conform(fspec.block, block) if fspec.block
-
-          if conformed_args == :"Speculation/invalid"
-            backtrace = backtrace_relevant_to_instrument(caller)
-
-            ed = S.
-              _explain_data(fspec.args, [:args], [], [], args).
-              merge(:args => args, :failure => :instrument, :fn => ident, :caller => backtrace.first)
-
-            raise S::Error.new("Call to '#{ident}' did not conform to spec.", ed)
-          elsif conformed_block == :"Speculation/invalid"
-            backtrace = backtrace_relevant_to_instrument(caller)
-
-            ed = S.
-              _explain_data(fspec.block, [:block], [], [], block).
-              merge(:block => block, :failure => :instrument, :fn => ident, :caller => backtrace.first)
-
-            raise S::Error.new("Call to '#{ident}' did not conform to spec.", ed)
-          end
-        end
-
         ->(*args, &block) do
           method = method.bind(self) if method.is_a?(UnboundMethod)
 
           if Test.instrument_enabled.value
             Test.with_instrument_disabled do
-              conform.call(args, block) if fspec.args
+              Test.send(:conform_args, args, ident, fspec.args)
+              Test.send(:conform_block, block, ident, fspec.block) if fspec.block
 
               begin
                 Test.instrument_enabled.value = true
@@ -259,6 +237,34 @@ module Speculation
           else
             method.call(*args, &block)
           end
+        end
+      end
+
+      def conform_args(args, ident, args_spec)
+        conformed = S.conform(args_spec, args)
+
+        if conformed == :"Speculation/invalid"
+          backtrace = backtrace_relevant_to_instrument(caller)
+
+          ed = S.
+            _explain_data(args_spec, [:args], [], [], args).
+            merge(:args => args, :failure => :instrument, :fn => ident, :caller => backtrace.first)
+
+          raise S::Error.new("Call to '#{ident}' did not conform to spec.", ed)
+        end
+      end
+
+      def conform_block(block, ident, block_spec)
+        conformed_block = S.conform(block_spec, block)
+
+        if conformed_block == :"Speculation/invalid"
+          backtrace = backtrace_relevant_to_instrument(caller)
+
+          ed = S.
+            _explain_data(block_spec, [:block], [], [], block).
+            merge(:block => block, :failure => :instrument, :fn => ident, :caller => backtrace.first)
+
+          raise S::Error.new("Call to '#{ident}' did not conform to spec.", ed)
         end
       end
 
