@@ -325,32 +325,28 @@ module Speculation
     registry[MethodIdentifier(key)]
   end
 
-  # NOTE: it is not generally necessary to wrap predicates in spec when using
+  # @note it is not generally necessary to wrap predicates in spec when using
   # `S.def` etc., only to attach a unique generator.
-  #
-  # Optionally takes :gen generator function, which must be a no-arg proc that returns a generator
-  # (proc that receives a Rantly instance) that generates a valid value.
-  #
   # @param pred [#===] Takes a single predicate. Case equality (`===`) is used
-  #   to determine whether a given value conform
+  #   to determine whether a given value conform with the exception of `Set` (uses `#include?`) and
+  #   `Method` (uses `#call`)
   #
   #   Can also be passed the result of one of the regex ops - cat, alt,
   #   zero_or_more, one_or_more, zero_or_one, in which case it will return a
   #   regex-conforming spec, useful when nesting an independent regex.
-  #
   # @param gen [Proc] generator returning function, which must be a zero arg proc that returns a
   #   proc of one arg (Rantly instance) that generates a valid value.
   # @return [Spec]
-  # @example Proc
-  #   `-> (x) { x.even? }` - will be called with the given value
-  # @example Method
-  #   Foo.method(:bar?)` - will be called with the given value
-  # @example Set
-  #  `Set[1, 2]` - will be tested whether it includes the given value
-  # @example Class/Module
-  #  `String` - tests whether the given value is_a? the given class/module
-  # @example Regexp
-  #   `/foo/` - tests whether the value matches the given regexp
+  # @example Proc - will be called with the given value
+  #   -> (x) { x.even? }
+  # @example Method - will be called with the given value
+  #   Foo.method(:bar?)
+  # @example Set - will be tested whether it includes the given value
+  #  Set[1, 2]
+  # @example Class/Module - tests whether the given value is_a? the given class/module
+  #  String
+  # @example Regexp - tests whether the value matches the given regexp
+  #   /foo/
   # @example Anything that responds to `===`
   #   class EvenNumber
   #     def ===(other)
@@ -701,7 +697,7 @@ module Speculation
     if spec
       conform(spec, x)
     else
-      pred === x ? x : :"Speculation/invalid"
+      PredicateSpec.new(pred, false, nil, nil).conform(x)
     end
   end
 
