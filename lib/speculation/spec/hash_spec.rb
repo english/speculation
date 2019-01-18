@@ -12,13 +12,14 @@ module Speculation
 
     attr_reader :id
 
-    def initialize(req, opt, req_un, opt_un, gen = nil)
+    def initialize(req, opt, req_un, opt_un, gen = nil, name = nil)
       @id = SecureRandom.uuid
       @req = req
       @opt = opt
       @req_un = req_un
       @opt_un = opt_un
       @gen = gen
+      @name = name
 
       req_keys     = req.flat_map(&method(:extract_keys))
       req_un_specs = req_un.flat_map(&method(:extract_keys))
@@ -123,7 +124,11 @@ module Speculation
     end
 
     def with_gen(gen)
-      self.class.new(@req, @opt, @req_un, @opt_un, gen)
+      self.class.new(@req, @opt, @req_un, @opt_un, gen, @name)
+    end
+
+    def with_name(name)
+      self.class.new(@req, @opt, @req_un, @opt_un, @gen, name)
     end
 
     def gen(overrides, path, rmap)
@@ -145,13 +150,13 @@ module Speculation
           end
         }
 
-      ->(rantly) do
-        count = rantly.range(0, opts.count)
-        opts = Hash[opts.to_a.shuffle.take(count)]
-
-        reqs.merge(opts).each_with_object({}) { |(k, spec_gen), h|
-          h[k] = spec_gen.call(rantly)
-        }
+      if opts.count > 0
+        Radagen.bind(Radagen.tuple(Radagen.choose(0, opts.count), Radagen.shuffle(opts.keys))) do |count, shuffled_opts_keys|
+          key_gen_map = Hash[shuffled_opts_keys.take(count).map { |k| [k, opts[k]] }].merge(reqs)
+          Radagen.hash(key_gen_map)
+        end
+      else
+        Radagen.hash(reqs)
       end
     end
 

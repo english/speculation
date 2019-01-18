@@ -686,9 +686,6 @@ S.fdef method(:deal),
 
 ## ~~Project Setup~~
 
-# Nothing to do, Rantly is included by default. May look at removing the hard
-# dependency in the future.
-
 # In your code you also need to require the speculation/gen lib.
 
 require "speculation/gen"
@@ -962,17 +959,17 @@ Gen.sample S.gen(S.and(Integer, :positive?.to_proc, divisible_by(3)))
 #     1868667505095337938]
 
 # However, it is possible to go too far with refinement and make something that
-# fails to produce any values. The Rantly `guard` that implements the
+# fails to produce any values. The Radagen `such_that` that implements the
 # refinement will throw an error if the refinement predicate cannot be resolved
 # within a relatively small number of attempts. For example, consider trying to
 # generate strings that happen to contain the world "hello":
 
 # hello, are you the one I'm looking for?
 Gen.sample S.gen(S.and(String, ->(s) { s.include?("hello") })) rescue $!
-# => #<Rantly::TooManyTries: Exceed gen limit 1000: 1001 failed guards)>
+# => #<RangeError: Exceeded number of tries to satisfy predicate.>
 
 # Given enough time (maybe a lot of time), the generator probably would come up
-# with a string like this, but the underlying `guard` will make only 100
+# with a string like this, but the underlying `such_that` will make only 100
 # attempts to generate a value that passes the filter. This is a case where you
 # will need to step in and provide a custom generator.
 
@@ -989,14 +986,14 @@ Gen.sample S.gen(S.and(String, ->(s) { s.include?("hello") })) rescue $!
 # preference:
 
 # - Let spec create a generator based on a predicate/spec
-# - Create your own generator using Rantly directly
+# - Create your own generator using Radagen directly
 
 # First consider a spec with a predicate to specify symbols from a particular
 # namespace:
 
 S.def ns(:syms), S.and(Symbol, ->(s) { S::NamespacedSymbols.namespace(s) == "my.domain" })
 S.valid? ns(:syms), :"my.domain/name" # => true
-Gen.sample S.gen(ns(:syms)) rescue $! # => #<Rantly::TooManyTries: Exceed gen limit 1000: 1001 failed guards)>
+Gen.sample S.gen(ns(:syms)) rescue $! # => #<RangeError: Exceeded number of tries to satisfy predicate.>
 
 # The simplest way to start generating values for this spec is to have spec
 # create a generator from a fixed set of options. A set is a valid predicate
@@ -1034,16 +1031,14 @@ Gen.sample S.gen(ns(:syms)), 5
 # really good at: automatically generating data across a wide search space to
 # find unexpected problems.
 
-# Rantly has a small library of generators that can be utilized.
+# Radagen has a library of generators that can be utilized.
 
 # In this case we want our keyword to have open names but fixed namespaces.
 # There are many ways to accomplish this but one of the simplest is to use fmap
 # to build up a keyword based on generated strings:
 
-sym_gen_2 = ->(rantly) do
-  size = rantly.range(1, 10)
-  string = rantly.sized(size) { rantly.string(:alpha) }
-  :"my.domain/#{string}"
+sym_gen_2 = Radagen.fmap(Radagen.array(Radagen.char_alpha, :min => 1, :max => 10)) do |chars|
+  :"my.domain/#{chars.join}"
 end
 Gen.sample sym_gen_2, 5 # => [:"my.domain/hLZnEpj", :"my.domain/kvy", :"my.domain/VqWbqD", :"my.domain/imq", :"my.domain/eHeZleWzj"]
 
@@ -1051,11 +1046,11 @@ Gen.sample sym_gen_2, 5 # => [:"my.domain/hLZnEpj", :"my.domain/kvy", :"my.domai
 # generator:
 
 hello_spec = S.with_gen(->(s) { s.include?("hello") }) do
-  ->(rantly) {
-    s1 = rantly.sized(rantly.range(0, 10)) { rantly.string(:alpha) }
-    s2 = rantly.sized(rantly.range(0, 10)) { rantly.string(:alpha) }
+  string_gen = Radagen.fmap(Radagen.array(Radagen.char_alpha, :min => 1, :max => 10), &:join)
+
+  Radagen.fmap(Radagen.tuple(string_gen, string_gen)) do |s1, s2|
     "#{s1}hello#{s2}"
-  }
+  end
 end
 S.def ns(:hello), hello_spec
 
@@ -1136,24 +1131,20 @@ STest.instrument method(:ranged_rand)
 # you will see an error like this:
 
 ranged_rand 8, 5 rescue $!
-# => #<Speculation::Error: Call to 'main.ranged_rand' did not conform to spec:
-#     val: {:start=>8, :end=>5} fails at: [:args] predicate: [#<Proc:0x007fb69a8a0fb8@/var/folders/4l/j2mycv0j4rx7z47sp01r93vc3kfxzs/T/seeing_is_believing_temp_dir20170304-91770-1jtmc1y/program.rb:548 (lambda)>, [{:start=>8, :end=>5}]]
-#    Speculation/args [8, 5]
-#    Speculation/failure :instrument
-#    Speculation::Test/caller "/var/folders/4l/j2mycv0j4rx7z47sp01r93vc3kfxzs/T/seeing_is_believing_temp_dir20170304-91770-1jtmc1y/program.rb:901:in `<main>'"
-#     {:problems=>
-#      [{:path=>[:args],
-#        :val=>{:start=>8, :end=>5},
-#        :via=>[],
-#        :in=>[],
-#        :pred=>
-#         [#<Proc:0x007fb69a8a0fb8@/var/folders/4l/j2mycv0j4rx7z47sp01r93vc3kfxzs/T/seeing_is_believing_temp_dir20170304-91770-1jtmc1y/program.rb:548 (lambda)>,
-#          [{:start=>8, :end=>5}]]}],
-#     :args=>[8, 5],
-#     :failure=>:instrument,
-#     :caller=>
-#      "/var/folders/4l/j2mycv0j4rx7z47sp01r93vc3kfxzs/T/seeing_is_believing_temp_dir20170304-91770-1jtmc1y/program.rb:901:in `<main>'"}
-#    >
+# => #<Speculation::Error: Call to 'main.ranged_rand' did not conform to spec. {:problems=>
+#   [{:path=>[:args],
+#     :val=>{:start=>8, :end=>5},
+#     :via=>[],
+#     :in=>[],
+#     :pred=>
+#      [#<Proc:0x007fccaa123fa8@(pry):436 (lambda)>, [{:start=>8, :end=>5}]]}],
+#  :spec=>Speculation::AndSpec(),
+#  :value=>[8, 5],
+#  :args=>[8, 5],
+#  :failure=>:instrument,
+#  :fn=>main.ranged_rand,
+#  :caller=>"(pry):441:in `<main>'"}
+# >
 
 # The error fails in the second args predicate that checks `start < end`. Note
 # that the :ret and :fn specs are not checked with instrumentation as

@@ -12,12 +12,13 @@ module Speculation
 
     attr_reader :id
 
-    def initialize(named_specs, gen = nil)
+    def initialize(named_specs, gen = nil, name = nil)
       @id = SecureRandom.uuid
       @named_specs = named_specs
       @keys = named_specs.keys
       @preds = preds = named_specs.values
       @gen = gen
+      @name = name
 
       @delayed_specs = Concurrent::Delay.new do
         preds.map { |spec| S.send(:specize, spec) }
@@ -53,7 +54,11 @@ module Speculation
     end
 
     def with_gen(gen)
-      self.class.new(@named_specs, gen)
+      self.class.new(@named_specs, gen, @name)
+    end
+
+    def with_name(name)
+      self.class.new(@named_specs, @gen, name)
     end
 
     def gen(overrides, path, rmap)
@@ -70,7 +75,7 @@ module Speculation
         compact
 
       unless gs.empty?
-        ->(rantly) { rantly.branch(*gs) }
+        Radagen.one_of(*gs)
       end
     end
   end

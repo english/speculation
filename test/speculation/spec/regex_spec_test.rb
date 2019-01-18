@@ -50,7 +50,7 @@ module Speculation
       S::Test.instrument(mod.method(:foo))
 
       # this would raise if args were incorrect
-      assert_equal mod.foo, "foo"
+      assert_equal "foo", mod.foo
     end
 
     def test_zero_or_more

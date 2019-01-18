@@ -10,9 +10,10 @@ module Speculation
     include NamespacedSymbols
     S = Speculation
 
-    def initialize(pred, gen = nil)
+    def initialize(pred, gen = nil, name = nil)
       @pred = pred
       @gen = gen
+      @name = name
       @delayed_spec = Concurrent::Delay.new { S.send(:specize, pred) }
     end
 
@@ -34,16 +35,19 @@ module Speculation
     end
 
     def with_gen(gen)
-      self.class.new(@pred, gen)
+      self.class.new(@pred, gen, @name)
+    end
+
+    def with_name(name)
+      self.class.new(@pred, @gen, name)
     end
 
     def gen(overrides, path, rmap)
       return @gen.call if @gen
 
-      ->(rantly) do
-        rantly.freq([1, Gen.delay { Utils.constantly(nil) }],
-                    [9, Gen.delay { S.gensub(@pred, overrides, Utils.conj(path, :pred), rmap) }])
-      end
+      nil_gen = Gen.delay { Radagen.return(nil) }
+      not_nil_gen = Gen.delay { S.gensub(@pred, overrides, Utils.conj(path, :pred), rmap) }
+      Radagen.frequency(nil_gen => 1, not_nil_gen => 9)
     end
   end
 end

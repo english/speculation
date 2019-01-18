@@ -70,5 +70,9 @@ module Speculation
       new_hash.delete(key)
       new_hash
     end
+
+    def self.concat(colls)
+      colls.map(&method(:Array)).reduce([], &:+)
+    end
   end
 end

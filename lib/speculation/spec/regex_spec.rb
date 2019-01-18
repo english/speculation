@@ -10,9 +10,10 @@ module Speculation
     include NamespacedSymbols
     S = Speculation
 
-    def initialize(regex, gen = nil)
+    def initialize(regex, gen = nil, name = nil)
       @regex = regex
       @gen = gen
+      @name = name
     end
 
     def conform(value)
@@ -36,7 +37,11 @@ module Speculation
     end
 
     def with_gen(gen)
-      self.class.new(@regex, gen)
+      self.class.new(@regex, gen, @name)
+    end
+
+    def with_name(name)
+      self.class.new(@regex, @gen, name)
     end
 
     def gen(overrides, path, rmap)

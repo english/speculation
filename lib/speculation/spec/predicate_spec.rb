@@ -10,10 +10,11 @@ module Speculation
     include NamespacedSymbols
     S = Speculation
 
-    def initialize(predicate, should_conform, gen, unconformer)
+    def initialize(predicate, should_conform, gen, name, unconformer)
       @predicate = predicate
       @should_conform = should_conform
       @gen = gen
+      @name = name
       @unconformer = unconformer
     end
 
@@ -48,7 +49,11 @@ module Speculation
     end
 
     def with_gen(gen)
-      self.class.new(@predicate, @should_conform, gen, @unconformer)
+      self.class.new(@predicate, @should_conform, gen, @name, @unconformer)
+    end
+
+    def with_name(name)
+      self.class.new(@predicate, @should_conform, @gen, name, @unconformer)
     end
 
     def gen(_, _, _)

@@ -74,11 +74,11 @@ module Speculation
           h[method_name] = Speculation.gensub(fspec, overrides, Utils.conj(path, method_name), rmap)
         }
 
-        ->(rantly) do
-          gens.each_with_object(Object.new) do |(method_name, gen), obj|
-            obj.define_singleton_method(method_name, gen.call(rantly))
+        Radagen.fmap(Radagen.hash(gens)) { |genned|
+          genned.each_with_object(Object.new) do |(method_name, value), obj|
+            obj.define_singleton_method(method_name, value)
           end
-        end
+        }
       end
 
       def with_gen(gen)

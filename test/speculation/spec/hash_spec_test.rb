@@ -119,8 +119,8 @@ module Speculation
       # Although weird at first glance, this is the desired behaviour since :"dog/tail" is invalid
       # in both merged S.keys.
       expected = <<EOS
-"why yes" - failed: [:"dog/tail?", ["why yes"]] in: [:"dog/tail?"] at: [:"dog/tail?"] spec: :"animal/common"
-"why yes" - failed: [:"dog/tail?", ["why yes"]] in: [:"dog/tail?"] at: [:"dog/tail?"] spec: :"animal/dog"
+"why yes" - failed: [#<Set: {true, false}>, ["why yes"]] in: [:"dog/tail?"] at: [:"dog/tail?"] spec: :"Speculation/boolean"
+"why yes" - failed: [#<Set: {true, false}>, ["why yes"]] in: [:"dog/tail?"] at: [:"dog/tail?"] spec: :"Speculation/boolean"
 EOS
 
       assert_equal expected, S.explain_str(:"animal/dog", bad_dog)

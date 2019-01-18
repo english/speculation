@@ -50,13 +50,14 @@ module Speculation
     def test_with_gen
       email_regex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,63}$/
       spec = S.and(String, email_regex)
-      gen = ->(rantly) do
-        local_part = rantly.sized(rantly.range(1, 64)) { string(:alnum) }
-        subdomain = rantly.sized(rantly.range(1, 10)) { string(:alnum) }
-        tld = rantly.sized(3) { string(:alpha).downcase }
 
-        "#{local_part}@#{subdomain}.#{tld}"
-      end
+      local_part_gen = Radagen.array(Radagen.char_alphanumeric, :min => 1, :max => 64)
+      subdomain_gen = Radagen.array(Radagen.char_alphanumeric, :min => 1, :max => 10)
+      tld_gen = Radagen.array(Radagen.char_alpha, :count => 3)
+
+      gen = Radagen.fmap(Radagen.tuple(local_part_gen, subdomain_gen, tld_gen)) { |(local_part, subdomain, tld)|
+        "#{local_part.join}@#{subdomain.join}.#{tld.join}"
+      }
 
       S.def(ns(:email_type), S.with_gen(spec) { gen })
 

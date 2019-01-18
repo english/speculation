@@ -213,6 +213,44 @@ module Speculation
       modules.flat_map { |mod| mod.methods(false).map(&mod.method(:method)) } # method
     end
 
+    # @private
+    def self.radagen_quick_check(gen, num_tests)
+      i = 0
+
+      gen.to_enum.take(num_tests).each do |genned|
+        i += 1
+        args, blk = genned
+        result = yield([args, blk]) rescue $!
+
+        unless result == true
+          return { :fail      => { :args => args, :block => blk },
+                   :num_tests => i,
+                   :result    => result }
+        end
+      end
+
+      { :num_tests => i,
+        :result    => true }
+    end
+
+    # @param value [Object] arguments or block value
+    # @param path [Symbol] :args or :block
+    # @param ident [Speculation::MethodIdentifier] the method being conformed
+    # @param spec [Speculation::FSpec]
+    def self.conform_method(value, path, ident, spec)
+      conformed = S.conform(spec, value)
+
+      if conformed == :"Speculation/invalid"
+        backtrace = backtrace_relevant_to_instrument(caller)
+
+        ed = S.
+          _explain_data(spec, [path], [], [], value).
+          merge(path => value, :failure => :instrument, :fn => ident, :caller => backtrace.first)
+
+        raise S::Error.new("Call to '#{ident}' did not conform to spec.", ed)
+      end
+    end
+
     class << self
       private
 
@@ -224,8 +262,8 @@ module Speculation
 
           if Test.instrument_enabled.value
             Test.with_instrument_disabled do
-              Test.send(:conform_args, args, ident, fspec.args)
-              Test.send(:conform_block, block, ident, fspec.block) if fspec.block
+              Test.conform_method(args, :args, ident, fspec.args)
+              Test.conform_method(block, :block, ident, fspec.block) if fspec.block
 
               begin
                 Test.instrument_enabled.value = true
@@ -237,34 +275,6 @@ module Speculation
           else
             method.call(*args, &block)
           end
-        end
-      end
-
-      def conform_args(args, ident, args_spec)
-        conformed = S.conform(args_spec, args)
-
-        if conformed == :"Speculation/invalid"
-          backtrace = backtrace_relevant_to_instrument(caller)
-
-          ed = S.
-            _explain_data(args_spec, [:args], [], [], args).
-            merge(:args => args, :failure => :instrument, :fn => ident, :caller => backtrace.first)
-
-          raise S::Error.new("Call to '#{ident}' did not conform to spec.", ed)
-        end
-      end
-
-      def conform_block(block, ident, block_spec)
-        conformed_block = S.conform(block_spec, block)
-
-        if conformed_block == :"Speculation/invalid"
-          backtrace = backtrace_relevant_to_instrument(caller)
-
-          ed = S.
-            _explain_data(block_spec, [:block], [], [], block).
-            merge(:block => block, :failure => :instrument, :fn => ident, :caller => backtrace.first)
-
-          raise S::Error.new("Call to '#{ident}' did not conform to spec.", ed)
         end
       end
 
@@ -351,7 +361,7 @@ module Speculation
         end
       end
 
-      # Returns true if call passes specs, otherwise returns a hash with
+      # Returns true if call passes specs, otherwise returns an Error with a #data including
       # :backtrace, :cause and :data keys. :data will have a
       # :failure key.
       def check_call(method, spec, args, block)
@@ -401,15 +411,12 @@ module Speculation
                         return { :result => e }
                       end
                     else
-                      Utils.constantly(nil)
+                      Radagen.return(nil)
                     end
 
-        arg_block_gen = Gen.tuple(args_gen, block_gen)
-
-        generator_guard = ->(genned_val) { S.valid?(spec.args, genned_val) }
-        rantly_quick_check(arg_block_gen, num_tests, generator_guard) do |(args, block)|
+        radagen_quick_check(Radagen.tuple(args_gen, block_gen), num_tests) { |(args, block)|
           check_call(method, spec, args, block)
-        end
+        }
       end
 
       def make_check_result(method, spec, check_result)
@@ -463,76 +470,6 @@ module Speculation
 
       def fn_spec_name?(spec_name)
         spec_name.is_a?(S::MethodIdentifier)
-      end
-
-      # Reimplementation of Rantly's `check` since it does not provide direct access to results
-      # (shrunk data etc.), instead printing them to STDOUT.
-      def rantly_quick_check(gen, num_tests, generator_guard, &invariant)
-        i = 0
-        limit = 100
-
-        Rantly.singleton.generate(num_tests, limit, gen) do |val|
-          args, blk = val
-          i += 1
-
-          result = yield([args, blk]) rescue $!
-
-          unless result == true
-            args = ::Tuple.new(args) # This is a Rantly Tuple.
-
-            shrunk = shrink(generator_guard, args, result, ->(v) { invariant.call([v, blk]) })
-
-            shrunk[:smallest] = { :args => shrunk[:smallest].array, :block => blk }
-
-            return { :fail      => { :args => args.array, :block => blk },
-                     :num_tests => i,
-                     :result    => result,
-                     :shrunk    => shrunk }
-          end
-        end
-
-        { :num_tests => i,
-          :result    => true }
-      end
-
-      # reimplementation of Rantly's shrinking.
-      def shrink(generator_guard, value, result, invariant, depth = 0, iteration = 0)
-        smallest = value
-        max_depth = depth
-
-        if value.shrinkable?
-          while iteration < 1024
-            shrunk_value = value.shrink
-
-            unless generator_guard.call(shrunk_value.array)
-              iteration += 1
-              value = shrunk_value
-              value.shrinkable? ? next : break
-            end
-
-            res = invariant.call(shrunk_value.array) rescue $!
-
-            unless res == true
-              shrunk = shrink(generator_guard, shrunk_value, res, invariant, depth + 1, iteration + 1)
-
-              branch_smallest, branch_depth, iteration, branch_result =
-                shrunk.values_at(:smallest, :depth, :iteration, :result)
-
-              if branch_depth > max_depth
-                max_depth = branch_depth
-                smallest = branch_smallest
-                result = branch_result
-              end
-            end
-
-            break unless value.retry?
-          end
-        end
-
-        { :depth     => max_depth,
-          :iteration => iteration,
-          :result    => result,
-          :smallest  => smallest }
       end
 
       ### check reporting ###

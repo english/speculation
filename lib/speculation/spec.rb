@@ -3,8 +3,7 @@
 module Speculation
   # @private
   class Spec
-    attr_accessor :name
-    attr_reader :id
+    attr_reader :id, :name
 
     def conform(_x)
       raise NotImplementedError

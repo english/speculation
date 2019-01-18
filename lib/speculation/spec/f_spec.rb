@@ -12,12 +12,13 @@ module Speculation
 
     attr_reader :args, :ret, :fn, :block
 
-    def initialize(args: nil, ret: nil, fn: nil, block: nil, gen: nil)
+    def initialize(args: nil, ret: nil, fn: nil, block: nil, gen: nil, name: nil)
       @args  = args
       @ret   = ret || :"Speculation/any"
       @fn    = fn
       @block = block
       @gen   = gen
+      @name  = name
     end
 
     def conform(f)
@@ -66,7 +67,11 @@ module Speculation
     end
 
     def with_gen(gen)
-      self.class.new(:args => @args, :ret => @ret, :fn => @fn, :block => @block, :gen => gen)
+      self.class.new(:args => @args, :ret => @ret, :fn => @fn, :block => @block, :gen => gen, :name => @name)
+    end
+
+    def with_name(name)
+      self.class.new(:args => @args, :ret => @ret, :fn => @fn, :block => @block, :gen => @gen, :name => name)
     end
 
     def gen(overrides, _path, _rmap)
@@ -76,38 +81,42 @@ module Speculation
       block_spec = @block
       ret_spec = @ret
 
-      ->(_rantly) do
-        ->(*args, &block) do
-          unless S.pvalid?(args_spec, args)
-            raise S.explain_str(args_spec, args)
-          end
-
-          if block_spec && !S.pvalid?(block_spec, block)
-            raise S.explain_str(block_spec, block)
-          end
-
-          S::Gen.generate(S.gen(ret_spec, overrides))
+      g = ->(*args, &block) do
+        unless S.pvalid?(args_spec, args)
+          raise S.explain_str(args_spec, args)
         end
+
+        if block_spec && !S.pvalid?(block_spec, block)
+          raise S.explain_str(block_spec, block)
+        end
+
+        S::Gen.generate(S.gen(ret_spec, overrides))
       end
+
+      Radagen.return(g)
     end
 
     # @private
     # returns f if valid, else smallest
     def self.validate_fn(f, specs, iterations)
       args_gen      = S.gen(specs[:args])
-      block_gen     = specs[:block] ? S.gen(specs[:block]) : Utils.constantly(nil)
-      arg_block_gen = Gen.tuple(args_gen, block_gen)
+      block_gen     = specs[:block] ? S.gen(specs[:block]) : Radagen.return(nil)
+      arg_block_gen = Radagen.tuple(args_gen, block_gen)
 
-      generator_guard = ->(genned_val) { S.valid?(specs[:args], genned_val) }
-
-      ret = S::Test.send(:rantly_quick_check, arg_block_gen, iterations, generator_guard) { |(args, block)|
+      ret = S::Test.radagen_quick_check(arg_block_gen, iterations) { |(args, block)|
         call_valid?(f, specs, args, block)
       }
 
-      smallest = ret[:shrunk] && ret[:shrunk][:smallest]
-      smallest || f
+      if ret[:result] == true
+        f
+      elsif ret[:shrunk]
+        ret[:shrunk][:smallest]
+      else
+        ret[:fail]
+      end
     end
 
+    # @private
     def self.call_valid?(f, specs, args, block)
       cargs = S.conform(specs[:args], args)
       return if S.invalid?(cargs)

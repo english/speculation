@@ -10,10 +10,11 @@ module Speculation
     include NamespacedSymbols
     S = Speculation
 
-    def initialize(predicate, options, gen = nil)
+    def initialize(predicate, options, gen = nil, name = nil)
       @predicate = predicate
       @options = options
       @gen = gen
+      @name = name
 
       collection_predicates = [options.fetch(:kind, Enumerable)]
 
@@ -138,7 +139,11 @@ module Speculation
     end
 
     def with_gen(gen)
-      self.class.new(@predicate, @options, gen)
+      self.class.new(@predicate, @options, gen, @name)
+    end
+
+    def with_name(name)
+      self.class.new(@predicate, @options, @gen, name)
     end
 
     def gen(overrides, path, rmap)
@@ -146,40 +151,45 @@ module Speculation
 
       pgen = S.gensub(@predicate, overrides, path, rmap)
 
-      ->(rantly) do
-        init = if @gen_into
-                 @gen_into
-               elsif @kind
-                 Utils.empty(S.gensub(@kind, overrides, path, rmap).call(rantly))
-               else
-                 []
-               end
+      init_gen = if @gen_into
+                   Radagen.return(@gen_into)
+                 elsif @kind
+                   Radagen.fmap(S.gensub(@kind, overrides, path, rmap)) { |genned|
+                     genned.empty? ? genned : Utils.empty(genned)
+                   }
+                 else
+                   Radagen.return([])
+                 end
 
-        val = if @distinct
+      Radagen.bind(init_gen) { |init|
+        gen = if @distinct
                 if @count
-                  rantly.array(@count, &pgen).tap { |arr| rantly.guard(Predicates.distinct?(arr)) }
+                  Radagen.such_that(Radagen.array(pgen, :min => @count, :max => @count), 100) { |genned|
+                    Predicates.distinct?(genned)
+                  }
                 else
                   min = @min_count || 0
                   max = @max_count || [@gen_max, 2 * min].max
-                  count = rantly.range(min, max)
 
-                  rantly.array(count, &pgen).tap { |arr| rantly.guard(Predicates.distinct?(arr)) }
+                  Radagen.such_that(Radagen.array(pgen, :min => min, :max => max), 100) { |genned|
+                    Predicates.distinct?(genned)
+                  }
                 end
               elsif @count
-                rantly.array(@count, &pgen)
+                Radagen.array(pgen, :min => @count, :max => @count)
               elsif @min_count || @max_count
                 min = @min_count || 0
                 max = @max_count || [@gen_max, 2 * min].max
-                count = rantly.range(min, max)
 
-                rantly.array(count, &pgen)
+                Radagen.array(pgen, :min => min, :max => max)
               else
-                count = rantly.range(0, @gen_max)
-                rantly.array(count, &pgen)
+                Radagen.array(pgen, :max => @gen_max)
               end
 
-        Utils.into(init, val)
-      end
+        Radagen.fmap(gen) { |genned|
+          Array === init ? genned : Utils.into(init, genned)
+        }
+      }
     end
 
     private

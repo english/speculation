@@ -131,7 +131,7 @@ module Speculation
              :args => S.cat(:a => Integer, :b => Integer),
              :ret  => Integer)
 
-      gen = ->(_r) { ->(_a, _b) { 1 } }
+      gen = Radagen.return(->(_a, _b) { 1 })
 
       STest.instrument(mod.method(:concat),
                        :stub => [mod.method(:concat)],
@@ -196,6 +196,7 @@ module Speculation
     def test_fdef_block_instrument
       mod = Module.new do
         def self.ranged_rand(start, eend, &block)
+          # puts :start => start, :eend => eend
           start + block.call(eend - start)
         end
       end
@@ -203,8 +204,8 @@ module Speculation
       S.fdef(mod.method(:ranged_rand),
              :args  => S.and(S.cat(:start => Integer, :end => Integer),
                              ->(args) { args[:start] < args[:end] }),
-             :block => S.fspec(:args => S.cat(:max => Integer),
-                               :ret  => ns(S, :positive_integer),
+             :block => S.fspec(:args => S.cat(:max => ns(S, :positive_integer)),
+                               :ret  => ns(S, :natural_integer),
                                :fn   => ->(x) { x[:ret] < x[:args][:max].abs }))
 
       STest.instrument(mod.method(:ranged_rand))

@@ -72,25 +72,39 @@ module User
   end
 
   module Generators
-    def self.email(rantly)
-      local_part = rantly.sized(rantly.range(1, 64)) { string(:alnum) }
-      subdomain = rantly.sized(rantly.range(1, 10)) { string(:alnum) }
-      tld = rantly.sized(3) { string(:alpha).downcase }
-
-      "#{local_part}@#{subdomain}.#{tld}"
+    def self.string(char_gen, opts)
+      Radagen.fmap(Radagen.array(char_gen, opts), &:join)
     end
 
-    def self.username(rantly)
-      rantly.sized(rantly.range(5, 20)) { rantly.string }
+    def self.email
+      local_part_gen = string(Radagen.char_alphanumeric, :min => 1, :max => 64)
+      subdomain_gen = string(Radagen.char_alphanumeric, :min => 1, :max => 10)
+      tld_gen = string(Radagen.char_alpha, :count => 3)
+
+      Radagen.fmap(Radagen.tuple(local_part_gen, subdomain_gen, tld_gen)) { |local_part, subdomain, tld|
+        "#{local_part}@#{subdomain}.#{tld}"
+      }
     end
 
-    def self.password(rantly)
-      [
-        rantly.sized(rantly.range(2, 5)) { rantly.string(:upper) },
-        rantly.sized(rantly.range(2, 5)) { rantly.string(:lower) },
-        rantly.sized(rantly.range(2, 5)) { rantly.string(:digit) },
-        rantly.sized(rantly.range(2, 5)) { rantly.string(:punct) }
-      ].join.split("").shuffle.join
+    def self.username
+      string(Radagen.char, :min => 5, :max => 20)
+    end
+
+    def self.string_within_codepoints(lower, upper, opts)
+      Radagen.fmap(Radagen.array(Radagen.choose(lower, upper), opts)) { |codepoints|
+        codepoints.map(&:chr).join
+      }
+    end
+
+    def self.password
+      uppercase = string_within_codepoints(65, 90, :min => 2, :max => 5)
+      lowercase = string_within_codepoints(97, 122, :min => 2, :max => 5)
+      digits = string_within_codepoints(48, 57, :min => 2, :max => 5)
+      punctuation = Radagen.elements(%w[, . ? : ; ' " ! @])
+
+      gen = Radagen.bind(Radagen.tuple(uppercase, lowercase, digits, punctuation)) { |*genned|
+        Radagen.fmap(Radagen.shuffle(genned.join.split("")), &:join)
+      }
     end
   end
 
@@ -146,8 +160,8 @@ module User
     }
   end
 
-  S.def ns(:email), S.with_gen(S.and(String, Validation::EMAIL_REGEX)) { Generators.method(:email) }
-  S.def ns(:username), S.with_gen(S.and(String, Validation.method(:validate_username_length))) { Generators.method(:username) }
-  S.def ns(:password), S.with_gen(S.and(String, Validation.method(:validate_password_length), Validation.method(:validate_password_complexity))) { Generators.method(:password) }
+  S.def ns(:email), S.with_gen(S.and(String, Validation::EMAIL_REGEX)) { Generators.email }
+  S.def ns(:username), S.with_gen(S.and(String, Validation.method(:validate_username_length))) { Generators.username }
+  S.def ns(:password), S.with_gen(S.and(String, Validation.method(:validate_password_length), Validation.method(:validate_password_complexity))) { Generators.password }
   S.def ns(:user), S.keys(:req_un => [S.or_keys(ns(:email), ns(:username)), ns(:password)])
 end

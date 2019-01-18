@@ -10,9 +10,10 @@ module Speculation
     include NamespacedSymbols
     S = Speculation
 
-    def initialize(preds, gen = nil)
+    def initialize(preds, gen = nil, name = nil)
       @preds = preds
       @gen   = gen
+      @name  = nil
     end
 
     def conform(x)
@@ -36,7 +37,11 @@ module Speculation
     end
 
     def with_gen(gen)
-      self.class.new(@preds, gen)
+      self.class.new(@preds, gen, @name)
+    end
+
+    def with_name(name)
+      self.class.new(@preds, @gen, name)
     end
 
     def gen(overrides, path, rmap)
@@ -45,9 +50,7 @@ module Speculation
       gens = @preds.
         map { |pred| S.gensub(pred, overrides, path, rmap) }
 
-      ->(r) do
-        gens.map { |gen| gen.call(r) }.reduce(&:merge)
-      end
+      Radagen.fmap(Radagen.tuple(*gens)) { |genned| genned.reduce(&:merge) }
     end
   end
 end
