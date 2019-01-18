@@ -4,6 +4,7 @@ $LOAD_PATH.unshift File.expand_path("../../lib", __FILE__)
 require "minitest"
 require "pry"
 require "set"
+require "rspec/expectations"
 require "speculation"
 require "speculation/experimental"
 require "speculation/test"

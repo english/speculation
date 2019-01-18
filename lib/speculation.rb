@@ -204,7 +204,7 @@ module Speculation
 
       out.print(val.inspect)
       out.print(" - failed: ")
-      out.print((reason || pred).inspect)
+      out.print(reason || pred.inspect)
       out.print(" in: ", inn.inspect) unless inn.empty?
       out.print(" at: ", path.inspect) unless path.empty?
       out.print(" spec: ", via.last.inspect) unless via.empty?
@@ -730,8 +730,17 @@ module Speculation
     elsif Utils.ident?(pred)
       spec = the_spec(pred)
       gen ? with_gen(spec, &gen) : spec
+    elsif rspec_matcher?(pred)
+      Experimental::RSpecMatcherSpec.new(pred, gen)
     else
       PredicateSpec.new(pred, should_conform, gen, unconformer)
+    end
+  end
+
+  # @private
+  def self.rspec_matcher?(pred)
+    if defined?(RSpec::Matchers)
+      RSpec::Matchers.is_a_matcher?(pred)
     end
   end
 
