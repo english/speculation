@@ -4,7 +4,7 @@ require "pp"
 
 module Speculation
   class Error < StandardError
-    attr_reader :data, :message
+    attr_reader :data
 
     def initialize(message, data)
       super(message)
@@ -12,7 +12,7 @@ module Speculation
       @message = message
     end
 
-    def to_s
+    def message
       "#{@message} #{PP.pp(@data, String.new)}"
     end
   end
