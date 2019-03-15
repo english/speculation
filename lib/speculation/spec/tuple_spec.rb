@@ -54,7 +54,7 @@ module Speculation
       if !Predicates.array?(value)
         [{ :path => path, :val => value, :via => via, :in => inn, :pred => [Predicates.method(:array?), [value]] }]
       elsif @preds.count != value.count
-        [{ :path => path, :val => value, :via => via, :in => inn, :pred => [Utils.method(:count_eq), [@preds, value.count]] }]
+        [{ :path => path, :val => value, :via => via, :in => inn, :pred => [Predicates.method(:count_eq?), [@preds, value.count]] }]
       else
         probs = @preds.zip(value).each_with_index.flat_map { |(pred, x), index|
           unless S.pvalid?(pred, x)
