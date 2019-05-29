@@ -27,7 +27,7 @@ module JSONParser
   S.def ns(:number), S.alt(:integer => ns(:integer),
                            :float   => ns(:float))
 
-  S.def ns(:digit), /\A[[:digit:]]\z/
+  S.def ns(:digit), S.with_gen(/\A[[:digit:]]\z/) { Radagen.char_numeric }
   S.def ns(:digits), S.one_or_more(ns(:digit))
   S.def ns(:exp), Set["e", "E"]
   S.def ns(:maybe_sign), S.zero_or_one(Set["-", "+"])
@@ -59,9 +59,9 @@ module JSONParser
                               :unicode => ns(:unicode_character),
                               :regular => ns(:regular_character))
 
-  S.def ns(:unicode_character), S.cat(:escape => Set['\\'],
-                                      :u      => Set['u'],
-                                      :digits => S.constrained(S.one_or_more(ns(:hex_digit)), ->(digits) { digits.count == 4 }))
+  S.def ns(:unicode_character), S.with_gen(S.cat(:escape => Set['\\'],
+                                                 :u      => Set['u'],
+                                                 :digits => S.constrained(S.one_or_more(ns(:hex_digit)), ->(digits) { digits.count == 4 }))) { Radagen.identity("\\u00b5".chars) }
 
   S.def ns(:hex_digit), /[0-9a-fA-F]/
 
@@ -79,7 +79,7 @@ module JSONParser
   S.def ns(:special_character), S.cat(:escape => Set['\\'],
                                       :val    => Set['b', 'f', 'n', 'r', 't'])
 
-  S.def ns(:regular_character), ->(s) { !['\\', '"'].include?(s) }
+  S.def ns(:regular_character), S.with_gen(->(s) { !['\\', '"'].include?(s) }) { Radagen.char_ascii }
 
   S.def ns(:open_square_bracket), Set["["]
   S.def ns(:close_square_bracket), Set["]"]
